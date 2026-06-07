@@ -5,11 +5,39 @@ local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RS               = game:GetService("ReplicatedStorage")
 local LocalPlayer      = Players.LocalPlayer
 local PlayerGui        = LocalPlayer:WaitForChild("PlayerGui")
 
 local DEFAULT_WALKSPEED = 16
 local FAST_WALKSPEED    = 55
+
+-- ============================================================
+-- GAME REMOTES (found via Structure scan)
+-- RS.Remotes.Interaction.PickUpItem  → tells server to pick up an item
+-- ============================================================
+local Remotes     = RS:WaitForChild("Remotes", 10)
+local Interaction = Remotes and Remotes:WaitForChild("Interaction", 10)
+local PickUpItem  = Interaction and Interaction:WaitForChild("PickUpItem", 10)
+
+-- BackpackStorage lives in workspace — server tracks what's inside
+-- When it's full the server stops accepting more pickups
+local BackpackStorage = workspace:WaitForChild("BackpackStorage", 10)
+
+-- Read capacity from the equipped Backpack Tool if possible, else default 5
+local function getBackpackMax()
+    local tool = LocalPlayer.Backpack:FindFirstChild("Backpack")
+                 or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Backpack"))
+    if tool then
+        local cap = tool:FindFirstChild("Capacity") or tool:FindFirstChild("Slots") or tool:FindFirstChild("Size") or tool:FindFirstChild("MaxSlots")
+        if cap and cap.Value then return cap.Value end
+    end
+    return 5 -- Basic Backpack default
+end
+
+local function isBackpackFull()
+    return BackpackStorage and #BackpackStorage:GetChildren() >= getBackpackMax()
+end
 
 -- State flags
 local walkSpeedEnabled      = false
@@ -17,20 +45,13 @@ local killAuraEnabled       = false
 local killAuraRange         = 20
 local killAuraConnection    = nil
 local fuelCollectorEnabled  = false
+local scrapCollectorEnabled = false
 local autoCollectEnabled    = false
 local instantPromptsEnabled = false
 local godModeEnabled        = false
 local savedPromptData       = {}
 local godModeConnection     = nil
 local godHumConnection      = nil
-
--- Item destination routing
-local FUEL_NAMES  = {Fuel=true}
-local SCRAP_NAMES = {Scrap=true, Screws=true, Nails=true}
--- Anything not in the above tables gets tweened to the player (bag pickup)
-
--- Names we search for when looking for the physical Backpack object
-local BAG_SEARCH_NAMES = {"Backpack","Bag","Pack","PlayerBag","InventoryBag","Satchel","Storage","Pouch"}
 
 -- ============================================================
 -- ITEMS LIST (Items Tab)
@@ -45,7 +66,7 @@ local ITEM_LIST = {
 }
 
 -- ============================================================
--- GUI SETUP
+-- GUI
 -- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name="KaloMenu"; ScreenGui.ResetOnSpawn=false
@@ -72,7 +93,8 @@ local ms=Instance.new("UIStroke",MainFrame); ms.Color=Color3.fromRGB(100,80,255)
 local TitleBar=Instance.new("Frame",MainFrame)
 TitleBar.Size=UDim2.new(1,0,0,44); TitleBar.BackgroundColor3=Color3.fromRGB(30,20,60); TitleBar.BorderSizePixel=0
 Instance.new("UICorner",TitleBar).CornerRadius=UDim.new(0,12)
-local tbfill=Instance.new("Frame",TitleBar); tbfill.Size=UDim2.new(1,0,0,12); tbfill.Position=UDim2.new(0,0,1,-12)
+local tbfill=Instance.new("Frame",TitleBar)
+tbfill.Size=UDim2.new(1,0,0,12); tbfill.Position=UDim2.new(0,0,1,-12)
 tbfill.BackgroundColor3=Color3.fromRGB(30,20,60); tbfill.BorderSizePixel=0
 
 local HeaderLabel=Instance.new("TextLabel",TitleBar)
@@ -99,27 +121,30 @@ TabBar.Size=UDim2.new(1,-16,0,34); TabBar.Position=UDim2.new(0,8,0,48)
 TabBar.BackgroundColor3=Color3.fromRGB(24,24,34); TabBar.BorderSizePixel=0
 Instance.new("UICorner",TabBar).CornerRadius=UDim.new(0,8)
 local tbl=Instance.new("UIListLayout",TabBar); tbl.FillDirection=Enum.FillDirection.Horizontal; tbl.Padding=UDim.new(0,3)
-local tbpad=Instance.new("UIPadding",TabBar); tbpad.PaddingLeft=UDim.new(0,3); tbpad.PaddingTop=UDim.new(0,3); tbpad.PaddingBottom=UDim.new(0,3)
+local tbpad=Instance.new("UIPadding",TabBar)
+tbpad.PaddingLeft=UDim.new(0,3); tbpad.PaddingTop=UDim.new(0,3); tbpad.PaddingBottom=UDim.new(0,3)
 
 local function makeTab(label,order)
     local btn=Instance.new("TextButton",TabBar)
     btn.Size=UDim2.new(1/3,-3,1,0); btn.BackgroundColor3=Color3.fromRGB(40,30,80)
-    btn.BorderSizePixel=0; btn.Text=label; btn.TextColor3=Color3.fromRGB(180,170,255); btn.TextSize=12
-    btn.Font=Enum.Font.GothamSemibold; btn.LayoutOrder=order
+    btn.BorderSizePixel=0; btn.Text=label; btn.TextColor3=Color3.fromRGB(180,170,255)
+    btn.TextSize=12; btn.Font=Enum.Font.GothamSemibold; btn.LayoutOrder=order
     Instance.new("UICorner",btn).CornerRadius=UDim.new(0,6); return btn
 end
 local TabMenu=makeTab("Menu",1); local TabItems=makeTab("Items",2); local TabStructure=makeTab("Structure",3)
 
 -- Content panels
 local MenuContent=Instance.new("Frame",MainFrame)
-MenuContent.Size=UDim2.new(1,-16,1,-92); MenuContent.Position=UDim2.new(0,8,0,88); MenuContent.BackgroundTransparency=1
+MenuContent.Size=UDim2.new(1,-16,1,-92); MenuContent.Position=UDim2.new(0,8,0,88)
+MenuContent.BackgroundTransparency=1
 
 local ScrollFrame=Instance.new("ScrollingFrame",MenuContent)
 ScrollFrame.Size=UDim2.new(1,0,1,0); ScrollFrame.BackgroundTransparency=1; ScrollFrame.BorderSizePixel=0
 ScrollFrame.ScrollBarThickness=3; ScrollFrame.ScrollBarImageColor3=Color3.fromRGB(100,80,255)
 ScrollFrame.CanvasSize=UDim2.new(0,0,0,0); ScrollFrame.AutomaticCanvasSize=Enum.AutomaticSize.Y
 ScrollFrame.ScrollingDirection=Enum.ScrollingDirection.Y
-local ListLayout=Instance.new("UIListLayout",ScrollFrame); ListLayout.SortOrder=Enum.SortOrder.LayoutOrder; ListLayout.Padding=UDim.new(0,8)
+local ListLayout=Instance.new("UIListLayout",ScrollFrame)
+ListLayout.SortOrder=Enum.SortOrder.LayoutOrder; ListLayout.Padding=UDim.new(0,8)
 Instance.new("UIPadding",ScrollFrame).PaddingBottom=UDim.new(0,8)
 
 local ItemsContent=Instance.new("Frame",MainFrame)
@@ -131,13 +156,14 @@ ItemsScroll.Size=UDim2.new(1,0,1,-28); ItemsScroll.BackgroundTransparency=1; Ite
 ItemsScroll.ScrollBarThickness=3; ItemsScroll.ScrollBarImageColor3=Color3.fromRGB(100,80,255)
 ItemsScroll.CanvasSize=UDim2.new(0,0,0,0); ItemsScroll.AutomaticCanvasSize=Enum.AutomaticSize.Y
 ItemsScroll.ScrollingDirection=Enum.ScrollingDirection.Y
-local isl=Instance.new("UIListLayout",ItemsScroll); isl.SortOrder=Enum.SortOrder.LayoutOrder; isl.Padding=UDim.new(0,5)
+local isl=Instance.new("UIListLayout",ItemsScroll)
+isl.SortOrder=Enum.SortOrder.LayoutOrder; isl.Padding=UDim.new(0,5)
 Instance.new("UIPadding",ItemsScroll).PaddingBottom=UDim.new(0,8)
 
 local ItemsFeedback=Instance.new("TextLabel",ItemsContent)
 ItemsFeedback.Size=UDim2.new(1,0,0,24); ItemsFeedback.Position=UDim2.new(0,0,1,-24)
 ItemsFeedback.BackgroundColor3=Color3.fromRGB(22,22,32); ItemsFeedback.BorderSizePixel=0
-ItemsFeedback.Text="Tap an item to pull it to you"; ItemsFeedback.TextColor3=Color3.fromRGB(140,130,200)
+ItemsFeedback.Text="Tap an item to pick it up"; ItemsFeedback.TextColor3=Color3.fromRGB(140,130,200)
 ItemsFeedback.TextSize=11; ItemsFeedback.Font=Enum.Font.Gotham
 Instance.new("UICorner",ItemsFeedback).CornerRadius=UDim.new(0,6)
 
@@ -190,11 +216,13 @@ end
 
 local function createToggleRow(labelText,layoutOrder)
     local Row=Instance.new("Frame",ScrollFrame)
-    Row.Size=UDim2.new(1,0,0,52); Row.BackgroundColor3=Color3.fromRGB(28,28,38); Row.BorderSizePixel=0; Row.LayoutOrder=layoutOrder
+    Row.Size=UDim2.new(1,0,0,52); Row.BackgroundColor3=Color3.fromRGB(28,28,38)
+    Row.BorderSizePixel=0; Row.LayoutOrder=layoutOrder
     Instance.new("UICorner",Row).CornerRadius=UDim.new(0,10)
     local L=Instance.new("TextLabel",Row)
-    L.Size=UDim2.new(1,-80,1,0); L.Position=UDim2.new(0,12,0,0); L.BackgroundTransparency=1; L.Text=labelText
-    L.TextColor3=Color3.fromRGB(220,220,240); L.TextSize=14; L.Font=Enum.Font.GothamSemibold; L.TextXAlignment=Enum.TextXAlignment.Left
+    L.Size=UDim2.new(1,-80,1,0); L.Position=UDim2.new(0,12,0,0); L.BackgroundTransparency=1
+    L.Text=labelText; L.TextColor3=Color3.fromRGB(220,220,240); L.TextSize=14
+    L.Font=Enum.Font.GothamSemibold; L.TextXAlignment=Enum.TextXAlignment.Left
     local Track=Instance.new("Frame",Row)
     Track.Size=UDim2.new(0,54,0,30); Track.Position=UDim2.new(1,-62,0.5,-15)
     Track.BackgroundColor3=Color3.fromRGB(60,60,80); Track.BorderSizePixel=0
@@ -205,19 +233,23 @@ local function createToggleRow(labelText,layoutOrder)
     Instance.new("UICorner",Knob).CornerRadius=UDim.new(1,0)
     local SL=Instance.new("TextLabel",Track)
     SL.Size=UDim2.new(1,0,0,14); SL.Position=UDim2.new(0,0,1,3); SL.BackgroundTransparency=1
-    SL.Text="OFF"; SL.TextColor3=Color3.fromRGB(120,120,150); SL.TextSize=11; SL.Font=Enum.Font.Gotham; SL.TextXAlignment=Enum.TextXAlignment.Center
-    local Btn=Instance.new("TextButton",Row); Btn.Size=UDim2.new(1,0,1,0); Btn.BackgroundTransparency=1; Btn.Text=""
+    SL.Text="OFF"; SL.TextColor3=Color3.fromRGB(120,120,150); SL.TextSize=11
+    SL.Font=Enum.Font.Gotham; SL.TextXAlignment=Enum.TextXAlignment.Center
+    local Btn=Instance.new("TextButton",Row)
+    Btn.Size=UDim2.new(1,0,1,0); Btn.BackgroundTransparency=1; Btn.Text=""
     return Row,Track,Knob,SL,Btn
 end
 
 local function createInfoRow(defaultText,layoutOrder)
     local Row=Instance.new("Frame",ScrollFrame)
-    Row.Size=UDim2.new(1,0,0,28); Row.BackgroundColor3=Color3.fromRGB(22,22,32); Row.BorderSizePixel=0; Row.LayoutOrder=layoutOrder
-    Instance.new("UICorner",Row).CornerRadius=UDim.new(0,8); Instance.new("UIStroke",Row).Color=Color3.fromRGB(60,50,100)
+    Row.Size=UDim2.new(1,0,0,28); Row.BackgroundColor3=Color3.fromRGB(22,22,32)
+    Row.BorderSizePixel=0; Row.LayoutOrder=layoutOrder
+    Instance.new("UICorner",Row).CornerRadius=UDim.new(0,8)
+    Instance.new("UIStroke",Row).Color=Color3.fromRGB(60,50,100)
     local L=Instance.new("TextLabel",Row)
-    L.Size=UDim2.new(1,-10,1,0); L.Position=UDim2.new(0,8,0,0); L.BackgroundTransparency=1; L.Text=defaultText
-    L.TextColor3=Color3.fromRGB(140,130,200); L.TextSize=11; L.Font=Enum.Font.Gotham
-    L.TextXAlignment=Enum.TextXAlignment.Left; L.TextWrapped=true
+    L.Size=UDim2.new(1,-10,1,0); L.Position=UDim2.new(0,8,0,0); L.BackgroundTransparency=1
+    L.Text=defaultText; L.TextColor3=Color3.fromRGB(140,130,200); L.TextSize=11
+    L.Font=Enum.Font.Gotham; L.TextXAlignment=Enum.TextXAlignment.Left; L.TextWrapped=true
     return L
 end
 
@@ -232,62 +264,10 @@ end
 -- ============================================================
 -- CORE HELPERS
 -- ============================================================
-local function getModelPart(obj)
-    if obj:IsA("BasePart") then return obj end
-    return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
-end
-
-local function unanchorAll(obj)
-    if obj:IsA("BasePart") then obj.Anchored=false end
-    for _,p in ipairs(obj:GetDescendants()) do if p:IsA("BasePart") then p.Anchored=false end end
-end
-
-local function zeroVelocity(obj)
-    local function zv(p) pcall(function() p.AssemblyLinearVelocity=Vector3.zero; p.AssemblyAngularVelocity=Vector3.zero end) end
-    if obj:IsA("BasePart") then zv(obj) end
-    for _,p in ipairs(obj:GetDescendants()) do if p:IsA("BasePart") then zv(p) end end
-end
-
-local function claimOwnership(item)
-    -- Fire the game's own RequestNetworkOwnership remote
-    local drag=item:FindFirstChild("ItemDrag")
-    if drag then
-        local req=drag:FindFirstChild("RequestNetworkOwnership")
-        if req and req:IsA("RemoteEvent") then pcall(function() req:FireServer() end) end
-    end
-    -- Also attempt direct network owner transfer (executor-level)
-    for _,p in ipairs(item:GetDescendants()) do if p:IsA("BasePart") then pcall(function() p:SetNetworkOwner(LocalPlayer) end) end end
-    if item:IsA("BasePart") then pcall(function() item:SetNetworkOwner(LocalPlayer) end) end
-end
-
--- Smoothstep lerp tween on a model pivot
-local function tweenModel(item, goalCF, duration)
-    local startCF=item:GetPivot(); local elapsed=0
-    while elapsed<duration do
-        local dt=task.wait(0.016); elapsed=math.min(elapsed+dt,duration)
-        local a=elapsed/duration; a=a*a*(3-2*a)
-        pcall(function() item:PivotTo(startCF:Lerp(goalCF,a)) end)
-    end
-    pcall(function() item:PivotTo(goalCF) end)
-end
-
 local function teleportPlayerTo(cf)
     local char=LocalPlayer.Character
     local root=char and char:FindFirstChild("HumanoidRootPart")
     if root then pcall(function() root.CFrame=cf*CFrame.new(0,0,3) end) end
-end
-
--- ============================================================
--- FIND GAME OBJECTS
--- ============================================================
-local function findModelInWorkspace(name)
-    for _,obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name==name then return obj end
-    end
-end
-
-local function findPartInModel(model,partName)
-    for _,d in ipairs(model:GetDescendants()) do if d:IsA("BasePart") and d.Name==partName then return d end end
 end
 
 local function getDroppedByNames(nameSet)
@@ -302,203 +282,142 @@ local function getAllDroppedItems()
     local r={}; for _,c in ipairs(folder:GetChildren()) do r[#r+1]=c end; return r
 end
 
--- Find the player's physical Backpack object in the game world
-local function findPhysicalBackpack()
-    local char=LocalPlayer.Character; if not char then return nil end
-    -- 1. Search character first (backpack attached to player model)
-    for _,name in ipairs(BAG_SEARCH_NAMES) do
-        local found=char:FindFirstChild(name,true)
-        if found then return found end
-    end
-    -- 2. Search workspace for a backpack near the player
-    local root=char:FindFirstChild("HumanoidRootPart"); if not root then return nil end
-    local best,bestDist=nil,50
-    for _,obj in ipairs(workspace:GetDescendants()) do
-        for _,bname in ipairs(BAG_SEARCH_NAMES) do
-            if obj.Name==bname and (obj:IsA("BasePart") or obj:IsA("Model")) then
-                local p=getModelPart(obj)
-                if p then
-                    local dist=(p.Position-root.Position).Magnitude
-                    if dist<bestDist then best=obj; bestDist=dist end
-                end
-            end
-        end
-    end
-    return best
-end
+-- ============================================================
+-- PICKUP via PickUpItem RemoteEvent
+-- Server handles everything: adds item to BackpackStorage,
+-- plays sound, removes from DroppedItems
+-- ============================================================
+local function pickupItem(item)
+    if not PickUpItem then return false end
+    if not item or not item.Parent then return false end
 
--- Get the CFrame to place items "into" the backpack (or fallback to player)
-local function getBackpackCF(offsetIndex)
-    offsetIndex=offsetIndex or 0
-    local bag=findPhysicalBackpack()
-    if bag then
-        local bp=getModelPart(bag)
-        if bp then return bp.CFrame*CFrame.new(offsetIndex*0.15,0.1,0) end
-    end
-    -- Fallback: stack items at player feet
-    local char=LocalPlayer.Character
-    local root=char and char:FindFirstChild("HumanoidRootPart")
-    if root then return root.CFrame*CFrame.new(offsetIndex*0.15,-2.5,0) end
-    return CFrame.new(0,0,0)
-end
+    -- Teleport player right next to the item (server checks proximity)
+    local itemCF = item:GetPivot()
+    teleportPlayerTo(itemCF)
+    task.wait(0.12) -- let server see the new position
 
--- Get destination CF for dumping
-local function getGeneratorCF(offsetIndex)
-    local gen=findModelInWorkspace("Generator"); if not gen then return nil end
-    local zone=findPartInModel(gen,"FuelZone") or findPartInModel(gen,"MainPart") or getModelPart(gen)
-    if zone then return zone.CFrame*CFrame.new(offsetIndex*0.15,0.3+(offsetIndex*0.05),0) end
-end
+    -- Fire the game's own pickup remote
+    local ok = pcall(function() PickUpItem:FireServer(item) end)
+    task.wait(0.25) -- wait for server to process
 
-local function getShredderCF(offsetIndex)
-    local shr=findModelInWorkspace("Shredder"); if not shr then return nil end
-    local mp=findPartInModel(shr,"MainPart") or getModelPart(shr)
-    if mp then return mp.CFrame*CFrame.new(offsetIndex*0.15,0.3+(offsetIndex*0.05),0) end
+    return ok
 end
 
 -- ============================================================
--- COLLECT-AND-DUMP ENGINE
--- Phase 1: Teleport to each target item, claim it, tween into backpack
--- Phase 2: Teleport to the destination, dump all collected items there
+-- COLLECTOR LOOP
+-- Picks a filter (nameSet or nil = everything), loops DroppedItems,
+-- picks each up via PickUpItem, stops when backpack full or no items
 -- ============================================================
-local function collectAndDump(nameSet, getDestCF, infoLabel, loopEnabled)
-    local collected={}
+local function runCollector(nameSet, infoLabel, isActive)
+    local items = nameSet and getDroppedByNames(nameSet) or getAllDroppedItems()
 
-    -- ---- PHASE 1: COLLECT ----
-    local items=getDroppedByNames(nameSet)
-    if #items==0 then
-        infoLabel.Text="No items found in DroppedItems"; infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
+    if #items == 0 then
+        infoLabel.Text = "No items found in DroppedItems"
+        infoLabel.TextColor3 = Color3.fromRGB(255,200,80)
+        return
     end
 
-    for i,item in ipairs(items) do
-        if not loopEnabled() then break end
-        if not item or not item.Parent then continue end
-
-        local itemCF=item:GetPivot()
-        infoLabel.Text=string.format("[Collect %d/%d] Going to %s...",i,#items,item.Name)
-        infoLabel.TextColor3=Color3.fromRGB(180,160,255)
-
-        -- Teleport player beside item
-        teleportPlayerTo(itemCF)
-        task.wait(0.12)
-
-        -- Claim ownership
-        claimOwnership(item)
-        task.wait(0.2) -- wait for server to transfer physics authority
-
-        -- Unanchor
-        pcall(function() unanchorAll(item) end)
-
-        -- Tween item into the backpack
-        local bagCF=getBackpackCF(#collected)
-        tweenModel(item, bagCF, 0.45)
-        zeroVelocity(item)
-
-        collected[#collected+1]=item
-        task.wait(0.08)
+    if not PickUpItem then
+        infoLabel.Text = "PickUpItem remote not found! Wrong game?"
+        infoLabel.TextColor3 = Color3.fromRGB(255,100,100)
+        return
     end
 
-    if #collected==0 then return end
+    local picked = 0
+    for i, item in ipairs(items) do
+        if not isActive() then break end
 
-    -- ---- PHASE 2: DUMP ----
-    -- Find first valid destination CF to teleport player there
-    local sampleDestCF=getDestCF(0)
-    if not sampleDestCF then
-        infoLabel.Text="Destination not found in workspace!"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
-    end
-
-    infoLabel.Text=string.format("Collected %d — going to dump...",#collected)
-    infoLabel.TextColor3=Color3.fromRGB(255,200,80)
-
-    -- Teleport player to the destination
-    teleportPlayerTo(sampleDestCF)
-    task.wait(0.3)
-
-    -- Tween each collected item from backpack into destination zone
-    for i,item in ipairs(collected) do
-        if not item or not item.Parent then continue end
-        local destCF=getDestCF(i-1)
-        if destCF then
-            infoLabel.Text=string.format("[Dump %d/%d] %s → destination",i,#collected,item.Name)
-            infoLabel.TextColor3=Color3.fromRGB(120,220,255)
-            tweenModel(item, destCF, 0.4)
-            zeroVelocity(item)
+        -- Stop if backpack is full
+        if isBackpackFull() then
+            infoLabel.Text = string.format("Backpack full (%d/%d) — stopped", #BackpackStorage:GetChildren(), getBackpackMax())
+            infoLabel.TextColor3 = Color3.fromRGB(255,200,80)
+            return
         end
-        task.wait(0.06)
+
+        if not item or not item.Parent then continue end
+
+        infoLabel.Text = string.format("[%d/%d] Going to %s...", i, #items, item.Name)
+        infoLabel.TextColor3 = Color3.fromRGB(180,160,255)
+
+        pickupItem(item)
+        picked += 1
     end
 
-    infoLabel.Text=string.format("Done! Dumped %d items. Waiting...",#collected)
-    infoLabel.TextColor3=Color3.fromRGB(120,255,160)
+    if isActive() then
+        local stored = BackpackStorage and #BackpackStorage:GetChildren() or 0
+        infoLabel.Text = string.format("Done — %d picked up, %d/%d in backpack", picked, stored, getBackpackMax())
+        infoLabel.TextColor3 = Color3.fromRGB(120,255,160)
+    end
 end
 
--- Generic loop runner
-local function makeCollectorLoop(nameSet, getDestCF, infoLabel, defaultText)
-    local enabled=false
-    local running=false
-
-    local function startLoop()
-        task.spawn(function()
-            while enabled do
-                if not running then
-                    running=true
-                    collectAndDump(nameSet, getDestCF, infoLabel, function() return enabled end)
-                    running=false
-                end
-                if enabled then task.wait(4) end
-            end
-            infoLabel.Text=defaultText; infoLabel.TextColor3=Color3.fromRGB(140,130,200)
-        end)
-    end
-
+local function makeCollectorLoop(nameSet, infoLabel, defaultText)
+    local enabled = false
     return {
-        enable  = function() enabled=true;  startLoop() end,
-        disable = function() enabled=false end,
-        toggle  = function(on) if on then enabled=true; startLoop() else enabled=false end end,
+        enable = function()
+            enabled = true
+            task.spawn(function()
+                while enabled do
+                    runCollector(nameSet, infoLabel, function() return enabled end)
+                    if enabled then task.wait(3) end
+                end
+                infoLabel.Text = defaultText
+                infoLabel.TextColor3 = Color3.fromRGB(140,130,200)
+            end)
+        end,
+        disable = function()
+            enabled = false
+        end,
+        toggle = function(on)
+            if on then enabled=true else enabled=false end
+        end,
     }
 end
 
 -- ============================================================
--- ITEMS TAB — pull any specific item to player
+-- ITEMS TAB — pick up a specific named item on demand
 -- ============================================================
 local function pullItemToPlayer(itemName)
-    local char=LocalPlayer.Character
-    local root=char and char:FindFirstChild("HumanoidRootPart")
-    if not root then ItemsFeedback.Text="No character"; ItemsFeedback.TextColor3=Color3.fromRGB(255,100,100); return end
+    if not PickUpItem then
+        ItemsFeedback.Text = "PickUpItem remote not ready"
+        ItemsFeedback.TextColor3 = Color3.fromRGB(255,100,100); return
+    end
 
-    local target=nil
-    local folder=workspace:FindFirstChild("DroppedItems")
-    if folder then for _,c in ipairs(folder:GetChildren()) do if c.Name==itemName then target=c; break end end end
+    if isBackpackFull() then
+        ItemsFeedback.Text = "Backpack full! Empty it first"
+        ItemsFeedback.TextColor3 = Color3.fromRGB(255,200,80); return
+    end
+
+    -- Find the item
+    local target = nil
+    local folder = workspace:FindFirstChild("DroppedItems")
+    if folder then
+        for _,c in ipairs(folder:GetChildren()) do if c.Name==itemName then target=c; break end end
+    end
     if not target then
         for _,obj in ipairs(workspace:GetDescendants()) do
-            if (obj:IsA("Model") or obj:IsA("Tool")) and obj.Name==itemName then target=obj; break end
+            if obj.Name==itemName and (obj:IsA("Model") or obj:IsA("Tool") or obj:IsA("BasePart")) then
+                target=obj; break
+            end
         end
     end
+
     if not target then
-        pcall(function()
-            local RS=game:GetService("ReplicatedStorage")
-            for _,obj in ipairs(RS:GetDescendants()) do
-                if obj.Name==itemName then target=obj:Clone(); target.Parent=workspace; break end
-            end
-        end)
-    end
-    if not target then
-        ItemsFeedback.Text='"'..itemName..'" not found'; ItemsFeedback.TextColor3=Color3.fromRGB(255,120,80); return
+        ItemsFeedback.Text = '"'..itemName..'" not found in game'
+        ItemsFeedback.TextColor3 = Color3.fromRGB(255,120,80); return
     end
 
     task.spawn(function()
-        ItemsFeedback.Text="Going to "..itemName.."..."; ItemsFeedback.TextColor3=Color3.fromRGB(180,160,255)
-        teleportPlayerTo(target:GetPivot())
-        task.wait(0.12)
-        claimOwnership(target)
-        task.wait(0.2)
-        pcall(function() unanchorAll(target) end)
-        tweenModel(target, root.CFrame*CFrame.new(0,-2,0), 0.5)
-        zeroVelocity(target)
-        ItemsFeedback.Text=itemName.." is at your feet!"; ItemsFeedback.TextColor3=Color3.fromRGB(120,255,160)
+        ItemsFeedback.Text = "Going to "..itemName.."..."
+        ItemsFeedback.TextColor3 = Color3.fromRGB(180,160,255)
+        pickupItem(target)
+        local stored = BackpackStorage and #BackpackStorage:GetChildren() or 0
+        ItemsFeedback.Text = itemName.." picked up! ("..stored.."/"..getBackpackMax().." in bag)"
+        ItemsFeedback.TextColor3 = Color3.fromRGB(120,255,160)
     end)
 end
 
 -- ============================================================
--- BUILD ITEMS TAB GRID
+-- BUILD ITEMS TAB
 -- ============================================================
 local SECTION_COLORS={WEAPONS=Color3.fromRGB(255,100,100),THROWABLES=Color3.fromRGB(255,180,60),MEDICAL=Color3.fromRGB(80,220,150),FOOD=Color3.fromRGB(120,200,255),AMMO=Color3.fromRGB(200,160,255),RESOURCES=Color3.fromRGB(255,220,80)}
 local itemLO=0
@@ -507,9 +426,9 @@ for _,group in ipairs(ITEM_LIST) do
     local secLbl=Instance.new("TextLabel",ItemsScroll)
     secLbl.Size=UDim2.new(1,0,0,16); secLbl.BackgroundTransparency=1; secLbl.LayoutOrder=itemLO
     secLbl.Text=group.section; secLbl.TextSize=10; secLbl.Font=Enum.Font.GothamBold
-    secLbl.TextColor3=SECTION_COLORS[group.section] or Color3.fromRGB(160,140,255); secLbl.TextXAlignment=Enum.TextXAlignment.Left
+    secLbl.TextColor3=SECTION_COLORS[group.section] or Color3.fromRGB(160,140,255)
+    secLbl.TextXAlignment=Enum.TextXAlignment.Left
     Instance.new("UIPadding",secLbl).PaddingLeft=UDim.new(0,4)
-
     local names=group.names
     for i=1,#names,2 do
         itemLO+=1
@@ -519,7 +438,8 @@ for _,group in ipairs(ITEM_LIST) do
         local function makeItemBtn(name)
             local btn=Instance.new("TextButton",row)
             btn.Size=UDim2.new(0.5,-3,1,0); btn.BackgroundColor3=Color3.fromRGB(28,24,48); btn.BorderSizePixel=0
-            btn.Text=name; btn.TextColor3=Color3.fromRGB(210,200,255); btn.TextSize=12; btn.Font=Enum.Font.GothamSemibold; btn.TextWrapped=true
+            btn.Text=name; btn.TextColor3=Color3.fromRGB(210,200,255); btn.TextSize=12
+            btn.Font=Enum.Font.GothamSemibold; btn.TextWrapped=true
             Instance.new("UICorner",btn).CornerRadius=UDim.new(0,8)
             local stk=Instance.new("UIStroke",btn); stk.Color=Color3.fromRGB(80,60,160); stk.Thickness=1
             btn.MouseButton1Click:Connect(function()
@@ -551,21 +471,24 @@ local _,kaTrack,kaKnob,kaStatus,kaBtn=createToggleRow("Kill Aura",11)
 local kaInfo=createInfoRow("Equip any weapon to activate",12)
 
 local SliderOuter=Instance.new("Frame",ScrollFrame)
-SliderOuter.Size=UDim2.new(1,0,0,52); SliderOuter.BackgroundColor3=Color3.fromRGB(28,28,38); SliderOuter.BorderSizePixel=0; SliderOuter.LayoutOrder=13
+SliderOuter.Size=UDim2.new(1,0,0,52); SliderOuter.BackgroundColor3=Color3.fromRGB(28,28,38)
+SliderOuter.BorderSizePixel=0; SliderOuter.LayoutOrder=13
 Instance.new("UICorner",SliderOuter).CornerRadius=UDim.new(0,10)
 local RangeLabel=Instance.new("TextLabel",SliderOuter)
 RangeLabel.Size=UDim2.new(1,-12,0,18); RangeLabel.Position=UDim2.new(0,12,0,5); RangeLabel.BackgroundTransparency=1
-RangeLabel.Text="Aura Range: 20 studs"; RangeLabel.TextColor3=Color3.fromRGB(180,170,255); RangeLabel.TextSize=12
-RangeLabel.Font=Enum.Font.GothamSemibold; RangeLabel.TextXAlignment=Enum.TextXAlignment.Left
+RangeLabel.Text="Aura Range: 20 studs"; RangeLabel.TextColor3=Color3.fromRGB(180,170,255)
+RangeLabel.TextSize=12; RangeLabel.Font=Enum.Font.GothamSemibold; RangeLabel.TextXAlignment=Enum.TextXAlignment.Left
 local SliderTrack=Instance.new("Frame",SliderOuter)
-SliderTrack.Size=UDim2.new(1,-24,0,8); SliderTrack.Position=UDim2.new(0,12,0,34); SliderTrack.BackgroundColor3=Color3.fromRGB(50,50,70); SliderTrack.BorderSizePixel=0
+SliderTrack.Size=UDim2.new(1,-24,0,8); SliderTrack.Position=UDim2.new(0,12,0,34)
+SliderTrack.BackgroundColor3=Color3.fromRGB(50,50,70); SliderTrack.BorderSizePixel=0
 Instance.new("UICorner",SliderTrack).CornerRadius=UDim.new(1,0)
 local SliderFill=Instance.new("Frame",SliderTrack)
 SliderFill.Size=UDim2.new((killAuraRange-1)/99,0,1,0); SliderFill.BackgroundColor3=Color3.fromRGB(100,80,255); SliderFill.BorderSizePixel=0
 Instance.new("UICorner",SliderFill).CornerRadius=UDim.new(1,0)
 local SliderHandle=Instance.new("Frame",SliderTrack)
 SliderHandle.Size=UDim2.new(0,24,0,24); SliderHandle.AnchorPoint=Vector2.new(0.5,0.5)
-SliderHandle.Position=UDim2.new((killAuraRange-1)/99,0,0.5,0); SliderHandle.BackgroundColor3=Color3.fromRGB(255,255,255); SliderHandle.BorderSizePixel=0; SliderHandle.ZIndex=5
+SliderHandle.Position=UDim2.new((killAuraRange-1)/99,0,0.5,0)
+SliderHandle.BackgroundColor3=Color3.fromRGB(255,255,255); SliderHandle.BorderSizePixel=0; SliderHandle.ZIndex=5
 Instance.new("UICorner",SliderHandle).CornerRadius=UDim.new(1,0)
 local sliderDrag=false
 local function updateSlider(ix)
@@ -605,101 +528,42 @@ end
 local function setKillAura(on) killAuraEnabled=on; animateToggle(kaTrack,kaKnob,kaStatus,on); if on then startKillAura() else stopKillAura() end end
 kaBtn.MouseButton1Click:Connect(function() setKillAura(not killAuraEnabled) end)
 
--- COLLECTORS
+-- ============================================================
+-- COLLECTORS (using real PickUpItem remote)
+-- ============================================================
 createSectionLabel("COLLECTORS",20)
 
--- Fuel Collector: collect all Fuel from DroppedItems → backpack → dump at Generator
+-- Fuel only
 local _,fcTrack,fcKnob,fcStatus,fcBtn=createToggleRow("Fuel Collector",21)
-local fuelInfo=createInfoRow("Teleports to Fuel → bags it → dumps at Generator",22)
-local fuelColl=makeCollectorLoop(FUEL_NAMES, getGeneratorCF, fuelInfo, "Teleports to Fuel → bags it → dumps at Generator")
+local fuelInfo=createInfoRow("Teleports to each Fuel → picks up via game pickup → stops when bag full",22)
+local FUEL_SET={Fuel=true}
+local fuelColl=makeCollectorLoop(FUEL_SET,fuelInfo,"Teleports to each Fuel → picks up → stops when bag full")
 local function setFuelCollector(on)
-    fuelCollectorEnabled=on; animateToggle(fcTrack,fcKnob,fcStatus,on); fuelColl.toggle(on)
+    fuelCollectorEnabled=on; animateToggle(fcTrack,fcKnob,fcStatus,on)
+    if on then fuelColl.enable() else fuelColl.disable() end
 end
 fcBtn.MouseButton1Click:Connect(function() setFuelCollector(not fuelCollectorEnabled) end)
 
--- Scrap Collector: collect Scrap/Screws/Nails → backpack → dump at Shredder
+-- Scrap / Screws / Nails only
 local _,scTrack,scKnob,scStatus,scBtn=createToggleRow("Scrap Collector",23)
-local scrapInfo=createInfoRow("Teleports to Scrap/Screws/Nails → bags → dumps at Shredder",24)
-local scrapColl=makeCollectorLoop(SCRAP_NAMES, getShredderCF, scrapInfo, "Teleports to Scrap/Screws/Nails → bags → dumps at Shredder")
-local scrapEnabled=false
+local scrapInfo=createInfoRow("Teleports to Scrap/Screws/Nails → picks up → stops when bag full",24)
+local SCRAP_SET={Scrap=true,Screws=true,Nails=true}
+local scrapColl=makeCollectorLoop(SCRAP_SET,scrapInfo,"Teleports to Scrap/Screws/Nails → picks up → stops when bag full")
 local function setScrapCollector(on)
-    scrapEnabled=on; animateToggle(scTrack,scKnob,scStatus,on); scrapColl.toggle(on)
+    scrapCollectorEnabled=on; animateToggle(scTrack,scKnob,scStatus,on)
+    if on then scrapColl.enable() else scrapColl.disable() end
 end
-scBtn.MouseButton1Click:Connect(function() setScrapCollector(not scrapEnabled) end)
+scBtn.MouseButton1Click:Connect(function() setScrapCollector(not scrapCollectorEnabled) end)
 
--- Auto Collect All: collect EVERYTHING from DroppedItems → route to correct destination
+-- Everything
 local _,acTrack,acKnob,acStatus,acBtn=createToggleRow("Auto Collect All",25)
-local acInfo=createInfoRow("Bags all items → Fuel to Generator, Scrap to Shredder, rest to you",26)
-local autoEnabled=false
-
-local function runAutoCollectAll(lbl, isActive)
-    -- Collect phase: all items go to backpack
-    local allItems=getAllDroppedItems()
-    if #allItems==0 then lbl.Text="DroppedItems empty"; lbl.TextColor3=Color3.fromRGB(255,200,80); return end
-
-    local fuelBag,scrapBag,otherBag={},{},{}
-
-    for i,item in ipairs(allItems) do
-        if not isActive() then break end
-        if not item or not item.Parent then continue end
-        lbl.Text=string.format("[Collect %d/%d] %s",i,#allItems,item.Name); lbl.TextColor3=Color3.fromRGB(180,160,255)
-        teleportPlayerTo(item:GetPivot()); task.wait(0.12)
-        claimOwnership(item); task.wait(0.2)
-        pcall(function() unanchorAll(item) end)
-        local bagCF=getBackpackCF(#fuelBag+#scrapBag+#otherBag)
-        tweenModel(item,bagCF,0.4); zeroVelocity(item)
-        if FUEL_NAMES[item.Name]  then fuelBag[#fuelBag+1]=item
-        elseif SCRAP_NAMES[item.Name] then scrapBag[#scrapBag+1]=item
-        else otherBag[#otherBag+1]=item end
-        task.wait(0.08)
-    end
-
-    -- Dump Fuel → Generator
-    if #fuelBag>0 and isActive() then
-        local destCF=getGeneratorCF(0)
-        if destCF then
-            lbl.Text="Dumping Fuel at Generator..."; lbl.TextColor3=Color3.fromRGB(255,200,80)
-            teleportPlayerTo(destCF); task.wait(0.3)
-            for i,item in ipairs(fuelBag) do
-                if not item or not item.Parent then continue end
-                local d=getGeneratorCF(i-1); if d then tweenModel(item,d,0.35); zeroVelocity(item) end
-                task.wait(0.06)
-            end
-        end
-    end
-
-    -- Dump Scrap/Screws → Shredder
-    if #scrapBag>0 and isActive() then
-        local destCF=getShredderCF(0)
-        if destCF then
-            lbl.Text="Dumping Scrap at Shredder..."; lbl.TextColor3=Color3.fromRGB(255,220,80)
-            teleportPlayerTo(destCF); task.wait(0.3)
-            for i,item in ipairs(scrapBag) do
-                if not item or not item.Parent then continue end
-                local d=getShredderCF(i-1); if d then tweenModel(item,d,0.35); zeroVelocity(item) end
-                task.wait(0.06)
-            end
-        end
-    end
-
-    local total=#fuelBag+#scrapBag+#otherBag
-    lbl.Text=string.format("Done! %d items routed. Waiting 5s...",total); lbl.TextColor3=Color3.fromRGB(120,255,160)
-    task.wait(5)
-end
-
+local acInfo=createInfoRow("Picks up every item in DroppedItems → stops when bag full",26)
+local autoColl=makeCollectorLoop(nil,acInfo,"Picks up every item in DroppedItems → stops when bag full")
 local function setAutoCollect(on)
-    autoEnabled=on; animateToggle(acTrack,acKnob,acStatus,on)
-    if on then
-        task.spawn(function()
-            while autoEnabled do
-                runAutoCollectAll(acInfo, function() return autoEnabled end)
-            end
-            acInfo.Text="Bags all items → Fuel to Generator, Scrap to Shredder, rest to you"
-            acInfo.TextColor3=Color3.fromRGB(140,130,200)
-        end)
-    end
+    autoCollectEnabled=on; animateToggle(acTrack,acKnob,acStatus,on)
+    if on then autoColl.enable() else autoColl.disable() end
 end
-acBtn.MouseButton1Click:Connect(function() setAutoCollect(not autoEnabled) end)
+acBtn.MouseButton1Click:Connect(function() setAutoCollect(not autoCollectEnabled) end)
 
 -- MISC
 createSectionLabel("MISC",30)
@@ -737,7 +601,7 @@ local function applyGodMode(char)
             if hum.MaxHealth<GOD_HP then hum.MaxHealth=GOD_HP end
         end
     end)
-    godInfo.Text="HP locked at max — cannot die"; godInfo.TextColor3=Color3.fromRGB(120,255,160)
+    godInfo.Text="HP locked at max"; godInfo.TextColor3=Color3.fromRGB(120,255,160)
 end
 local function stopGodMode()
     if godModeConnection then godModeConnection:Disconnect(); godModeConnection=nil end
@@ -755,7 +619,8 @@ gmBtn.MouseButton1Click:Connect(function() setGodMode(not godModeEnabled) end)
 -- REMOVE ANTI
 createSectionLabel("ANTI-CHEAT",40)
 local RARaw=Instance.new("Frame",ScrollFrame)
-RARaw.Size=UDim2.new(1,0,0,44); RARaw.BackgroundColor3=Color3.fromRGB(28,20,20); RARaw.BorderSizePixel=0; RARaw.LayoutOrder=41
+RARaw.Size=UDim2.new(1,0,0,44); RARaw.BackgroundColor3=Color3.fromRGB(28,20,20)
+RARaw.BorderSizePixel=0; RARaw.LayoutOrder=41
 Instance.new("UICorner",RARaw).CornerRadius=UDim.new(0,10)
 local RABtn=Instance.new("TextButton",RARaw)
 RABtn.Size=UDim2.new(1,-16,1,-12); RABtn.Position=UDim2.new(0,8,0,6)
@@ -765,7 +630,7 @@ RABtn.TextSize=13; RABtn.Font=Enum.Font.GothamSemibold
 Instance.new("UICorner",RABtn).CornerRadius=UDim.new(0,8)
 local RAInfo=createInfoRow("Destroys anti-cheat, anti-exploit, kick, ban, detect scripts",42)
 local ANTI_KEYWORDS={"anti","exploit","cheat","kick","ban","detect","backdoor","byfron","hyperion","monitor","security","guard","protect","punish","report","sanity","enforce","firewall"}
-local ALL_SERVICES={workspace,game:GetService("ReplicatedStorage"),game:GetService("ReplicatedFirst"),game:GetService("StarterGui"),game:GetService("StarterPack"),game:GetService("StarterPlayer"),game:GetService("Lighting"),game:GetService("SoundService"),game:GetService("Players"),game:GetService("Teams")}
+local ALL_SERVICES={workspace,RS,game:GetService("ReplicatedFirst"),game:GetService("StarterGui"),game:GetService("StarterPack"),game:GetService("StarterPlayer"),game:GetService("Lighting"),game:GetService("SoundService"),game:GetService("Players"),game:GetService("Teams")}
 local function nameMatches(name)
     local low=name:lower(); for _,kw in ipairs(ANTI_KEYWORDS) do if low:find(kw,1,true) then return true end end; return false
 end
@@ -797,7 +662,7 @@ RABtn.MouseButton1Click:Connect(function()
     RAInfo.TextColor3=killed>0 and Color3.fromRGB(120,255,160) or Color3.fromRGB(255,200,80)
 end)
 
--- RESPAWN reapply
+-- Respawn reapply
 LocalPlayer.CharacterAdded:Connect(function(char)
     if walkSpeedEnabled then local hum=char:WaitForChild("Humanoid"); hum.WalkSpeed=FAST_WALKSPEED end
     if killAuraEnabled  then stopKillAura(); task.wait(0.5); startKillAura() end
@@ -837,8 +702,8 @@ CopyBtn.Text="Copy Output"; CopyBtn.TextColor3=Color3.fromRGB(160,200,255); Copy
 Instance.new("UICorner",CopyBtn).CornerRadius=UDim.new(0,8)
 local ScanStatus=Instance.new("TextLabel",StructureContent)
 ScanStatus.Size=UDim2.new(1,0,0,16); ScanStatus.Position=UDim2.new(0,0,0,80); ScanStatus.BackgroundTransparency=1
-ScanStatus.Text="Press Scan to inspect workspace"; ScanStatus.TextColor3=Color3.fromRGB(120,110,180); ScanStatus.TextSize=10
-ScanStatus.Font=Enum.Font.Gotham; ScanStatus.TextXAlignment=Enum.TextXAlignment.Left
+ScanStatus.Text="Press Scan to inspect workspace"; ScanStatus.TextColor3=Color3.fromRGB(120,110,180)
+ScanStatus.TextSize=10; ScanStatus.Font=Enum.Font.Gotham; ScanStatus.TextXAlignment=Enum.TextXAlignment.Left
 local StructureScroll=Instance.new("ScrollingFrame",StructureContent)
 StructureScroll.Size=UDim2.new(1,0,1,-100); StructureScroll.Position=UDim2.new(0,0,0,100)
 StructureScroll.BackgroundColor3=Color3.fromRGB(14,14,20); StructureScroll.BorderSizePixel=0
@@ -847,7 +712,8 @@ StructureScroll.CanvasSize=UDim2.new(0,0,0,0); StructureScroll.AutomaticCanvasSi
 StructureScroll.ScrollingDirection=Enum.ScrollingDirection.Y; StructureScroll.ClipsDescendants=true
 Instance.new("UICorner",StructureScroll).CornerRadius=UDim.new(0,8)
 local strl=Instance.new("UIListLayout",StructureScroll); strl.Padding=UDim.new(0,0)
-local strp=Instance.new("UIPadding",StructureScroll); strp.PaddingLeft=UDim.new(0,6); strp.PaddingTop=UDim.new(0,4); strp.PaddingBottom=UDim.new(0,6)
+local strp=Instance.new("UIPadding",StructureScroll)
+strp.PaddingLeft=UDim.new(0,6); strp.PaddingTop=UDim.new(0,4); strp.PaddingBottom=UDim.new(0,6)
 local SVCCOLORS={Workspace=Color3.fromRGB(100,200,255),ReplicatedStorage=Color3.fromRGB(255,200,80),ReplicatedFirst=Color3.fromRGB(255,170,60),StarterGui=Color3.fromRGB(120,255,180),StarterPack=Color3.fromRGB(80,220,150),StarterPlayer=Color3.fromRGB(60,200,120),Players=Color3.fromRGB(255,130,130),Lighting=Color3.fromRGB(255,255,100),SoundService=Color3.fromRGB(200,160,255),Teams=Color3.fromRGB(255,160,100)}
 local CICONS={Model="[M]",Part="[P]",MeshPart="[MP]",UnionOperation="[U]",Script="[S]",LocalScript="[LS]",ModuleScript="[MS]",RemoteEvent="[RE]",RemoteFunction="[RF]",Folder="[F]",Tool="[T]",Configuration="[Cfg]",ProximityPrompt="[PP]",Humanoid="[Hum]",Sound="[Snd]",WeldConstraint="[Weld]",Motor6D="[M6D]",DragDetector="[DD]"}
 local function getIcon(obj) return CICONS[obj.ClassName] or "[-]" end
@@ -863,7 +729,7 @@ local function clearStructure()
     for _,c in ipairs(StructureScroll:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end
     lineOrd2=0; scannedText=""
 end
-local SCAN_SVCS2={{name="Workspace",ref=workspace},{name="ReplicatedStorage",ref=game:GetService("ReplicatedStorage")},{name="ReplicatedFirst",ref=game:GetService("ReplicatedFirst")},{name="StarterGui",ref=game:GetService("StarterGui")},{name="StarterPack",ref=game:GetService("StarterPack")},{name="StarterPlayer",ref=game:GetService("StarterPlayer")},{name="Players",ref=game:GetService("Players")},{name="Lighting",ref=game:GetService("Lighting")},{name="SoundService",ref=game:GetService("SoundService")},{name="Teams",ref=game:GetService("Teams")}}
+local SCAN_SVCS2={{name="Workspace",ref=workspace},{name="ReplicatedStorage",ref=RS},{name="ReplicatedFirst",ref=game:GetService("ReplicatedFirst")},{name="StarterGui",ref=game:GetService("StarterGui")},{name="StarterPack",ref=game:GetService("StarterPack")},{name="StarterPlayer",ref=game:GetService("StarterPlayer")},{name="Players",ref=game:GetService("Players")},{name="Lighting",ref=game:GetService("Lighting")},{name="SoundService",ref=game:GetService("SoundService")},{name="Teams",ref=game:GetService("Teams")}}
 local function scanAllServices(guiMode,printMode)
     local buf={}; local total=0
     for _,s in ipairs(SCAN_SVCS2) do
