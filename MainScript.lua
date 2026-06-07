@@ -267,7 +267,8 @@ end
 local function teleportPlayerTo(cf)
     local char=LocalPlayer.Character
     local root=char and char:FindFirstChild("HumanoidRootPart")
-    if root then pcall(function() root.CFrame=cf*CFrame.new(0,0,3) end) end
+    -- Teleport to the exact CFrame with just Y raised so we stand on it
+    if root then pcall(function() root.CFrame=CFrame.new(cf.Position + Vector3.new(0,3,0)) end) end
 end
 
 local function getDroppedByNames(nameSet)
@@ -284,21 +285,33 @@ end
 
 -- ============================================================
 -- PICKUP via PickUpItem RemoteEvent
--- Server handles everything: adds item to BackpackStorage,
--- plays sound, removes from DroppedItems
+-- Real flow: claim network ownership of the drag → teleport onto
+-- item → fire PickUpItem. Mirrors what DragServer does on DragEnd.
 -- ============================================================
 local function pickupItem(item)
     if not PickUpItem then return false end
     if not item or not item.Parent then return false end
 
-    -- Teleport player right next to the item (server checks proximity)
-    local itemCF = item:GetPivot()
-    teleportPlayerTo(itemCF)
-    task.wait(0.12) -- let server see the new position
+    -- Step 1: claim network ownership (same as when player grabs item)
+    -- Each DroppedItem has ItemDrag folder/model with RequestNetworkOwnership RE
+    local itemDrag = item:FindFirstChild("ItemDrag")
+    if itemDrag then
+        local rno = itemDrag:FindFirstChild("RequestNetworkOwnership")
+        if rno and rno:IsA("RemoteEvent") then
+            pcall(function() rno:FireServer() end)
+        end
+    end
 
-    -- Fire the game's own pickup remote
+    -- Step 2: teleport player directly onto the item
+    local ok1, itemCF = pcall(function() return item:GetPivot() end)
+    if ok1 and itemCF then
+        teleportPlayerTo(itemCF)
+    end
+    task.wait(0.2) -- give server time to see the new position
+
+    -- Step 3: fire the global pickup remote
     local ok = pcall(function() PickUpItem:FireServer(item) end)
-    task.wait(0.25) -- wait for server to process
+    task.wait(0.3) -- wait for server to process and update BackpackStorage
 
     return ok
 end
@@ -564,6 +577,125 @@ local function setAutoCollect(on)
     if on then autoColl.enable() else autoColl.disable() end
 end
 acBtn.MouseButton1Click:Connect(function() setAutoCollect(not autoCollectEnabled) end)
+
+-- ============================================================
+-- CURRENCY — Emeralds
+-- Searches LocalPlayer data and the live GemDisplay UI label,
+-- sets both to 10 000 and holds them there with a toggle.
+-- ============================================================
+createSectionLabel("CURRENCY",27)
+
+-- Find the IntValue/NumberValue that stores emerald count
+local function findEmeraldValue()
+    local function dig(parent,depth)
+        if depth<=0 then return nil end
+        for _,v in ipairs(parent:GetChildren()) do
+            local n=v.Name:lower()
+            if (n:find("emerald") or n:find("gem") or n=="gems" or n=="crystals") and (v:IsA("IntValue") or v:IsA("NumberValue")) then
+                return v
+            end
+            local r=dig(v,depth-1); if r then return r end
+        end
+        return nil
+    end
+    -- Check common top-level containers
+    local roots={LocalPlayer, LocalPlayer:FindFirstChild("leaderstats"), LocalPlayer:FindFirstChild("Data"), LocalPlayer:FindFirstChild("PlayerData"), LocalPlayer:FindFirstChild("Values"), LocalPlayer:FindFirstChild("Stats")}
+    for _,r in ipairs(roots) do if r then local v=dig(r,3); if v then return v end end end
+    return nil
+end
+
+-- Find the live GemDisplay Count TextLabel in any ScreenGui
+local function findGemLabel()
+    for _,gui in ipairs(PlayerGui:GetChildren()) do
+        local gd=gui:FindFirstChild("GemDisplay",true)
+        if gd then
+            local c=gd:FindFirstChild("Count") or gd:FindFirstChildWhichIsA("TextLabel")
+            if c then return c end
+        end
+    end
+    -- Fallback: search all TextLabels whose text looks like a gem count
+    return nil
+end
+
+local emeraldLockEnabled=false
+local emeraldLockConn=nil
+local EMERALD_TARGET=10000
+
+local EmeraldRow=Instance.new("Frame",ScrollFrame)
+EmeraldRow.Size=UDim2.new(1,0,0,52); EmeraldRow.BackgroundColor3=Color3.fromRGB(20,34,28)
+EmeraldRow.BorderSizePixel=0; EmeraldRow.LayoutOrder=28
+Instance.new("UICorner",EmeraldRow).CornerRadius=UDim.new(0,10)
+local EmeraldLabel=Instance.new("TextLabel",EmeraldRow)
+EmeraldLabel.Size=UDim2.new(1,-64,1,0); EmeraldLabel.Position=UDim2.new(0,12,0,0); EmeraldLabel.BackgroundTransparency=1
+EmeraldLabel.Text="Emeralds Lock (10 000)"; EmeraldLabel.TextColor3=Color3.fromRGB(100,255,180)
+EmeraldLabel.TextSize=14; EmeraldLabel.Font=Enum.Font.GothamSemibold; EmeraldLabel.TextXAlignment=Enum.TextXAlignment.Left
+local EmeraldTrack=Instance.new("Frame",EmeraldRow)
+EmeraldTrack.Size=UDim2.new(0,54,0,30); EmeraldTrack.Position=UDim2.new(1,-62,0.5,-15)
+EmeraldTrack.BackgroundColor3=Color3.fromRGB(40,80,60); EmeraldTrack.BorderSizePixel=0
+Instance.new("UICorner",EmeraldTrack).CornerRadius=UDim.new(1,0)
+local EmeraldKnob=Instance.new("Frame",EmeraldTrack)
+EmeraldKnob.Size=UDim2.new(0,22,0,22); EmeraldKnob.Position=UDim2.new(0,3,0.5,-11)
+EmeraldKnob.BackgroundColor3=Color3.fromRGB(180,220,200); EmeraldKnob.BorderSizePixel=0
+Instance.new("UICorner",EmeraldKnob).CornerRadius=UDim.new(1,0)
+local EmeraldSL=Instance.new("TextLabel",EmeraldTrack)
+EmeraldSL.Size=UDim2.new(1,0,0,14); EmeraldSL.Position=UDim2.new(0,0,1,3); EmeraldSL.BackgroundTransparency=1
+EmeraldSL.Text="OFF"; EmeraldSL.TextColor3=Color3.fromRGB(100,160,120); EmeraldSL.TextSize=11; EmeraldSL.Font=Enum.Font.Gotham; EmeraldSL.TextXAlignment=Enum.TextXAlignment.Center
+local EmeraldBtn=Instance.new("TextButton",EmeraldRow)
+EmeraldBtn.Size=UDim2.new(1,0,1,0); EmeraldBtn.BackgroundTransparency=1; EmeraldBtn.Text=""
+
+local emeraldInfo=createInfoRow("Locks Emerald counter at 10,000 (client-side display)",29)
+
+local function applyEmeralds()
+    -- 1. Set the value object if found
+    local ev=findEmeraldValue()
+    if ev then pcall(function() ev.Value=EMERALD_TARGET end) end
+    -- 2. Set the live UI label directly (GemCounter reads it each frame so we overwrite it)
+    local gl=findGemLabel()
+    if gl then pcall(function() gl.Text=tostring(EMERALD_TARGET) end) end
+    -- 3. Disable GemCounter LocalScript so it stops resetting the label
+    for _,gui in ipairs(PlayerGui:GetChildren()) do
+        local gc=gui:FindFirstChild("GemCounter",true)
+        if gc and gc:IsA("LocalScript") then
+            pcall(function() gc.Disabled=true end)
+        end
+    end
+end
+
+local function setEmeraldLock(on)
+    emeraldLockEnabled=on
+    -- Toggle animation
+    TweenService:Create(EmeraldKnob,tweenInfo,on
+        and {Position=UDim2.new(1,-25,0.5,-11),BackgroundColor3=Color3.fromRGB(100,255,180)}
+        or  {Position=UDim2.new(0,3,0.5,-11), BackgroundColor3=Color3.fromRGB(180,220,200)}):Play()
+    TweenService:Create(EmeraldTrack,tweenInfo,on
+        and {BackgroundColor3=Color3.fromRGB(40,160,100)}
+        or  {BackgroundColor3=Color3.fromRGB(40,80,60)}):Play()
+    EmeraldSL.Text=on and "ON" or "OFF"
+    EmeraldSL.TextColor3=on and Color3.fromRGB(100,255,180) or Color3.fromRGB(100,160,120)
+
+    if on then
+        applyEmeralds()
+        -- Keep applying every 0.5s in case the game resets it
+        if emeraldLockConn then emeraldLockConn:Disconnect() end
+        emeraldLockConn=RunService.Heartbeat:Connect(function()
+            if not emeraldLockEnabled then return end
+            local ev=findEmeraldValue()
+            if ev and ev.Value~=EMERALD_TARGET then pcall(function() ev.Value=EMERALD_TARGET end) end
+            local gl=findGemLabel()
+            if gl and gl.Text~=tostring(EMERALD_TARGET) then pcall(function() gl.Text=tostring(EMERALD_TARGET) end) end
+        end)
+        emeraldInfo.Text="Emeralds locked at 10,000 ✓"; emeraldInfo.TextColor3=Color3.fromRGB(100,255,180)
+    else
+        if emeraldLockConn then emeraldLockConn:Disconnect(); emeraldLockConn=nil end
+        -- Re-enable GemCounter
+        for _,gui in ipairs(PlayerGui:GetChildren()) do
+            local gc=gui:FindFirstChild("GemCounter",true)
+            if gc then pcall(function() gc.Disabled=false end) end
+        end
+        emeraldInfo.Text="Locks Emerald counter at 10,000 (client-side display)"; emeraldInfo.TextColor3=Color3.fromRGB(140,130,200)
+    end
+end
+EmeraldBtn.MouseButton1Click:Connect(function() setEmeraldLock(not emeraldLockEnabled) end)
 
 -- MISC
 createSectionLabel("MISC",30)
