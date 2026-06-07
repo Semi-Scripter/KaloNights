@@ -1,12 +1,14 @@
 -- LocalScript: Place in StarterPlayerScripts or StarterGui
--- Built from full workspace structure scan of Survive The Apocalypse
+-- Survive The Apocalypse — Kalo Menu
 
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
-local TweenService     = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer      = Players.LocalPlayer
-local PlayerGui        = LocalPlayer:WaitForChild("PlayerGui")
+local Players             = game:GetService("Players")
+local RunService          = game:GetService("RunService")
+local TweenService        = game:GetService("TweenService")
+local UserInputService    = game:GetService("UserInputService")
+local ProximityPromptSvc  = game:GetService("ProximityPromptService")
+local LocalPlayer         = Players.LocalPlayer
+local PlayerGui           = LocalPlayer:WaitForChild("PlayerGui")
+local Backpack            = LocalPlayer:WaitForChild("Backpack")
 
 local DEFAULT_WALKSPEED = 16
 local FAST_WALKSPEED    = 55
@@ -24,63 +26,51 @@ local savedPromptData       = {}
 local godModeConnection     = nil
 local godHumConnection      = nil
 
+-- Active position-lock connections for Put In Bag
+local bagLockConnections    = {}
+
 local FUEL_ITEM_NAMES = {"Fuel"}
 
 -- ============================================================
--- KNOWN ITEMS (from workspace structure scan + common STA loot)
+-- ITEMS LIST
 -- ============================================================
 local ITEM_LIST = {
-    { section = "WEAPONS",     names = {"Knife","Bat","Crowbar","Machete","Pistol","Shotgun","Rifle","Sniper","Crossbow","AK47","M4A1","SMG","Revolver"} },
-    { section = "THROWABLES",  names = {"Grenade","Flashbang"} },
-    { section = "MEDICAL",     names = {"Bandage","Bloxiade","Medkit"} },
-    { section = "FOOD",        names = {"Beans","Chips","Tray","Spatula"} },
-    { section = "AMMO",        names = {"Pistol Ammo","Medium Ammo","Long Ammo","Shells","Screws","Scrap"} },
-    { section = "RESOURCES",   names = {"Battery","Fuel"} },
+    { section = "WEAPONS",    names = {"Knife","Bat","Crowbar","Machete","Pistol","Shotgun","Rifle","Sniper","Crossbow","AK47","M4A1","SMG","Revolver","RPG"} },
+    { section = "THROWABLES", names = {"Grenade","Flashbang"} },
+    { section = "MEDICAL",    names = {"Bandage","Bloxiade","Medkit"} },
+    { section = "FOOD",       names = {"Beans","Chips","Tray","Spatula"} },
+    { section = "AMMO",       names = {"Pistol Ammo","Medium Ammo","Long Ammo","Shells"} },
+    { section = "RESOURCES",  names = {"Scrap","Screws","Battery","Fuel"} },
 }
 
 -- ============================================================
--- GUI
+-- GUI SETUP
 -- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name           = "KaloMenu"
-ScreenGui.ResetOnSpawn   = false
+ScreenGui.Name = "KaloMenu"; ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent         = PlayerGui
+ScreenGui.IgnoreGuiInset = true; ScreenGui.Parent = PlayerGui
 
 local KButton = Instance.new("TextButton")
-KButton.Size             = UDim2.new(0,44,0,44)
-KButton.Position         = UDim2.new(0,10,0,10)
-KButton.BackgroundColor3 = Color3.fromRGB(100,80,255)
-KButton.BorderSizePixel  = 0
-KButton.Text             = "K"
-KButton.TextColor3       = Color3.fromRGB(255,255,255)
-KButton.TextSize         = 20
-KButton.Font             = Enum.Font.GothamBlack
-KButton.Visible          = false
-KButton.ZIndex           = 10
-KButton.Parent           = ScreenGui
+KButton.Size = UDim2.new(0,44,0,44); KButton.Position = UDim2.new(0,10,0,10)
+KButton.BackgroundColor3 = Color3.fromRGB(100,80,255); KButton.BorderSizePixel = 0
+KButton.Text = "K"; KButton.TextColor3 = Color3.fromRGB(255,255,255)
+KButton.TextSize = 20; KButton.Font = Enum.Font.GothamBlack
+KButton.Visible = false; KButton.ZIndex = 10; KButton.Parent = ScreenGui
 Instance.new("UICorner",KButton).CornerRadius = UDim.new(0,10)
-local ks = Instance.new("UIStroke",KButton)
-ks.Color=Color3.fromRGB(160,140,255); ks.Thickness=2
+local ks = Instance.new("UIStroke",KButton); ks.Color=Color3.fromRGB(160,140,255); ks.Thickness=2
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Name             = "MainFrame"
-MainFrame.Size             = UDim2.new(0,260,0,460)
-MainFrame.Position         = UDim2.new(0,10,0,10)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18,18,24)
-MainFrame.BorderSizePixel  = 0
-MainFrame.Active           = true
-MainFrame.Draggable        = true
-MainFrame.Parent           = ScreenGui
+MainFrame.Name = "MainFrame"; MainFrame.Size = UDim2.new(0,264,0,470)
+MainFrame.Position = UDim2.new(0,10,0,10)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18,18,24); MainFrame.BorderSizePixel = 0
+MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.Parent = ScreenGui
 Instance.new("UICorner",MainFrame).CornerRadius = UDim.new(0,12)
-local ms = Instance.new("UIStroke",MainFrame)
-ms.Color=Color3.fromRGB(100,80,255); ms.Thickness=2
+local ms = Instance.new("UIStroke",MainFrame); ms.Color=Color3.fromRGB(100,80,255); ms.Thickness=2
 
 local TitleBar = Instance.new("Frame",MainFrame)
-TitleBar.Size             = UDim2.new(1,0,0,44)
-TitleBar.BackgroundColor3 = Color3.fromRGB(30,20,60)
-TitleBar.BorderSizePixel  = 0
+TitleBar.Size = UDim2.new(1,0,0,44); TitleBar.BackgroundColor3 = Color3.fromRGB(30,20,60)
+TitleBar.BorderSizePixel = 0
 Instance.new("UICorner",TitleBar).CornerRadius = UDim.new(0,12)
 local tbp = Instance.new("Frame",TitleBar)
 tbp.Size=UDim2.new(1,0,0,12); tbp.Position=UDim2.new(0,0,1,-12)
@@ -106,7 +96,7 @@ CloseBtn.Text="X"; CloseBtn.TextColor3=Color3.fromRGB(255,255,255)
 CloseBtn.TextSize=16; CloseBtn.Font=Enum.Font.GothamBold
 Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(0,8)
 
--- Tab bar (3 tabs at ~33% each)
+-- 3-tab bar
 local TabBar = Instance.new("Frame",MainFrame)
 TabBar.Size=UDim2.new(1,-16,0,34); TabBar.Position=UDim2.new(0,8,0,48)
 TabBar.BackgroundColor3=Color3.fromRGB(24,24,34); TabBar.BorderSizePixel=0
@@ -118,19 +108,16 @@ tbpad.PaddingLeft=UDim.new(0,3); tbpad.PaddingTop=UDim.new(0,3); tbpad.PaddingBo
 
 local function makeTab(label,order)
     local btn=Instance.new("TextButton",TabBar)
-    btn.Size=UDim2.new(1/3,-4,1,0)
-    btn.BackgroundColor3=Color3.fromRGB(40,30,80)
+    btn.Size=UDim2.new(1/3,-3,1,0); btn.BackgroundColor3=Color3.fromRGB(40,30,80)
     btn.BorderSizePixel=0; btn.Text=label
     btn.TextColor3=Color3.fromRGB(180,170,255); btn.TextSize=12
     btn.Font=Enum.Font.GothamSemibold; btn.LayoutOrder=order
     Instance.new("UICorner",btn).CornerRadius=UDim.new(0,6)
     return btn
 end
-local TabMenu      = makeTab("Menu",1)
-local TabItems     = makeTab("Items",2)
-local TabStructure = makeTab("Structure",3)
+local TabMenu=makeTab("Menu",1); local TabItems=makeTab("Items",2); local TabStructure=makeTab("Structure",3)
 
--- Content areas
+-- Content panels
 local MenuContent = Instance.new("Frame",MainFrame)
 MenuContent.Size=UDim2.new(1,-16,1,-92); MenuContent.Position=UDim2.new(0,8,0,88)
 MenuContent.BackgroundTransparency=1
@@ -139,61 +126,55 @@ local ScrollFrame = Instance.new("ScrollingFrame",MenuContent)
 ScrollFrame.Size=UDim2.new(1,0,1,0); ScrollFrame.BackgroundTransparency=1
 ScrollFrame.BorderSizePixel=0; ScrollFrame.ScrollBarThickness=3
 ScrollFrame.ScrollBarImageColor3=Color3.fromRGB(100,80,255)
-ScrollFrame.CanvasSize=UDim2.new(0,0,0,0)
-ScrollFrame.AutomaticCanvasSize=Enum.AutomaticSize.Y
+ScrollFrame.CanvasSize=UDim2.new(0,0,0,0); ScrollFrame.AutomaticCanvasSize=Enum.AutomaticSize.Y
 ScrollFrame.ScrollingDirection=Enum.ScrollingDirection.Y
 local ListLayout=Instance.new("UIListLayout",ScrollFrame)
 ListLayout.SortOrder=Enum.SortOrder.LayoutOrder; ListLayout.Padding=UDim.new(0,8)
-local cpad=Instance.new("UIPadding",ScrollFrame); cpad.PaddingBottom=UDim.new(0,8)
+Instance.new("UIPadding",ScrollFrame).PaddingBottom=UDim.new(0,8)
 
--- Items content area
 local ItemsContent = Instance.new("Frame",MainFrame)
 ItemsContent.Size=UDim2.new(1,-16,1,-92); ItemsContent.Position=UDim2.new(0,8,0,88)
 ItemsContent.BackgroundTransparency=1; ItemsContent.Visible=false
 
 local ItemsScroll = Instance.new("ScrollingFrame",ItemsContent)
-ItemsScroll.Size=UDim2.new(1,0,1,-28); ItemsScroll.Position=UDim2.new(0,0,0,0)
-ItemsScroll.BackgroundTransparency=1; ItemsScroll.BorderSizePixel=0
-ItemsScroll.ScrollBarThickness=3; ItemsScroll.ScrollBarImageColor3=Color3.fromRGB(100,80,255)
+ItemsScroll.Size=UDim2.new(1,0,1,-28); ItemsScroll.BackgroundTransparency=1
+ItemsScroll.BorderSizePixel=0; ItemsScroll.ScrollBarThickness=3
+ItemsScroll.ScrollBarImageColor3=Color3.fromRGB(100,80,255)
 ItemsScroll.CanvasSize=UDim2.new(0,0,0,0); ItemsScroll.AutomaticCanvasSize=Enum.AutomaticSize.Y
 ItemsScroll.ScrollingDirection=Enum.ScrollingDirection.Y
 local isl=Instance.new("UIListLayout",ItemsScroll)
-isl.SortOrder=Enum.SortOrder.LayoutOrder; isl.Padding=UDim.new(0,6)
-local ipad=Instance.new("UIPadding",ItemsScroll); ipad.PaddingBottom=UDim.new(0,8)
+isl.SortOrder=Enum.SortOrder.LayoutOrder; isl.Padding=UDim.new(0,5)
+Instance.new("UIPadding",ItemsScroll).PaddingBottom=UDim.new(0,8)
 
 local ItemsFeedback = Instance.new("TextLabel",ItemsContent)
 ItemsFeedback.Size=UDim2.new(1,0,0,24); ItemsFeedback.Position=UDim2.new(0,0,1,-24)
 ItemsFeedback.BackgroundColor3=Color3.fromRGB(22,22,32); ItemsFeedback.BorderSizePixel=0
-ItemsFeedback.Text="Press an item to spawn it at your feet"
-ItemsFeedback.TextColor3=Color3.fromRGB(140,130,200); ItemsFeedback.TextSize=11
-ItemsFeedback.Font=Enum.Font.Gotham
+ItemsFeedback.Text="Tap an item to grab it"; ItemsFeedback.TextColor3=Color3.fromRGB(140,130,200)
+ItemsFeedback.TextSize=11; ItemsFeedback.Font=Enum.Font.Gotham
 Instance.new("UICorner",ItemsFeedback).CornerRadius=UDim.new(0,6)
 
 local StructureContent = Instance.new("Frame",MainFrame)
 StructureContent.Size=UDim2.new(1,-16,1,-92); StructureContent.Position=UDim2.new(0,8,0,88)
 StructureContent.BackgroundTransparency=1; StructureContent.Visible=false
 
--- Tab switching
+-- Tab logic
 local currentTab="menu"
 local function switchTab(tab)
     currentTab=tab
-    MenuContent.Visible   = (tab=="menu")
-    ItemsContent.Visible  = (tab=="items")
-    StructureContent.Visible = (tab=="structure")
-    local function style(btn, active)
-        btn.BackgroundColor3 = active and Color3.fromRGB(100,80,255) or Color3.fromRGB(40,30,80)
-        btn.TextColor3       = active and Color3.fromRGB(255,255,255) or Color3.fromRGB(180,170,255)
+    MenuContent.Visible=(tab=="menu")
+    ItemsContent.Visible=(tab=="items")
+    StructureContent.Visible=(tab=="structure")
+    local function style(b,on)
+        b.BackgroundColor3=on and Color3.fromRGB(100,80,255) or Color3.fromRGB(40,30,80)
+        b.TextColor3=on and Color3.fromRGB(255,255,255) or Color3.fromRGB(180,170,255)
     end
-    style(TabMenu,      tab=="menu")
-    style(TabItems,     tab=="items")
-    style(TabStructure, tab=="structure")
+    style(TabMenu,tab=="menu"); style(TabItems,tab=="items"); style(TabStructure,tab=="structure")
 end
 switchTab("menu")
-TabMenu.MouseButton1Click:Connect(function()      switchTab("menu")      end)
-TabItems.MouseButton1Click:Connect(function()     switchTab("items")     end)
+TabMenu.MouseButton1Click:Connect(function() switchTab("menu") end)
+TabItems.MouseButton1Click:Connect(function() switchTab("items") end)
 TabStructure.MouseButton1Click:Connect(function() switchTab("structure") end)
 
--- Close / Minimize
 local function closeGui() MainFrame.Visible=false; KButton.Visible=true end
 local function openGui()  MainFrame.Visible=true;  KButton.Visible=false end
 CloseBtn.MouseButton1Click:Connect(closeGui)
@@ -201,12 +182,10 @@ KButton.MouseButton1Click:Connect(openGui)
 
 local minimized=false
 local function toggleMinimize()
-    minimized=not minimized
-    TabBar.Visible=not minimized
-    if minimized then
-        MenuContent.Visible=false; ItemsContent.Visible=false; StructureContent.Visible=false
+    minimized=not minimized; TabBar.Visible=not minimized
+    if minimized then MenuContent.Visible=false; ItemsContent.Visible=false; StructureContent.Visible=false
     else switchTab(currentTab) end
-    MainFrame.Size=minimized and UDim2.new(0,260,0,44) or UDim2.new(0,260,0,460)
+    MainFrame.Size=minimized and UDim2.new(0,264,0,44) or UDim2.new(0,264,0,470)
     MinBtn.Text=minimized and "+" or "-"
 end
 MinBtn.MouseButton1Click:Connect(toggleMinimize)
@@ -215,16 +194,15 @@ MinBtn.MouseButton1Click:Connect(toggleMinimize)
 -- UI HELPERS
 -- ============================================================
 local tweenInfo=TweenInfo.new(0.15,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
-
-local function animateToggle(track,knob,sl,enabled)
-    TweenService:Create(knob,tweenInfo,enabled
+local function animateToggle(track,knob,sl,on)
+    TweenService:Create(knob,tweenInfo,on
         and {Position=UDim2.new(1,-25,0.5,-11),BackgroundColor3=Color3.fromRGB(255,255,255)}
         or  {Position=UDim2.new(0,3,0.5,-11), BackgroundColor3=Color3.fromRGB(180,180,200)}):Play()
-    TweenService:Create(track,tweenInfo,enabled
+    TweenService:Create(track,tweenInfo,on
         and {BackgroundColor3=Color3.fromRGB(100,80,255)}
         or  {BackgroundColor3=Color3.fromRGB(60,60,80)}):Play()
-    sl.Text=enabled and "ON" or "OFF"
-    sl.TextColor3=enabled and Color3.fromRGB(160,140,255) or Color3.fromRGB(120,120,150)
+    sl.Text=on and "ON" or "OFF"
+    sl.TextColor3=on and Color3.fromRGB(160,140,255) or Color3.fromRGB(120,120,150)
 end
 
 local function createToggleRow(labelText,layoutOrder)
@@ -260,7 +238,7 @@ local function createInfoRow(defaultText,layoutOrder)
     Row.Size=UDim2.new(1,0,0,28); Row.BackgroundColor3=Color3.fromRGB(22,22,32)
     Row.BorderSizePixel=0; Row.LayoutOrder=layoutOrder
     Instance.new("UICorner",Row).CornerRadius=UDim.new(0,8)
-    local stk=Instance.new("UIStroke",Row); stk.Color=Color3.fromRGB(60,50,100); stk.Thickness=1
+    Instance.new("UIStroke",Row).Color=Color3.fromRGB(60,50,100)
     local L=Instance.new("TextLabel",Row)
     L.Size=UDim2.new(1,-10,1,0); L.Position=UDim2.new(0,8,0,0)
     L.BackgroundTransparency=1; L.Text=defaultText
@@ -275,55 +253,76 @@ local function createSectionLabel(text,order)
     L.Text=text; L.TextColor3=Color3.fromRGB(110,90,200)
     L.TextSize=11; L.Font=Enum.Font.GothamBold
     L.TextXAlignment=Enum.TextXAlignment.Left; L.LayoutOrder=order
-    local p=Instance.new("UIPadding",L); p.PaddingLeft=UDim.new(0,4)
+    Instance.new("UIPadding",L).PaddingLeft=UDim.new(0,4)
 end
 
 -- ============================================================
--- ITEM HELPER FUNCTIONS
+-- CORE HELPERS
 -- ============================================================
-local function claimNetworkOwnership(item)
-    -- Fire RequestNetworkOwnership on the item's DragDetector so the
-    -- server transfers physics ownership to this client before we move it
-    local drag = item:FindFirstChild("ItemDrag")
-    if drag then
-        local req = drag:FindFirstChild("RequestNetworkOwnership")
-        if req and req:IsA("RemoteEvent") then
-            pcall(function() req:FireServer() end)
-        end
-    end
+local function getModelPart(obj)
+    if obj:IsA("BasePart") then return obj end
+    return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
 end
 
-local function unanchorModel(obj)
+local function unanchorAll(obj)
     for _,p in ipairs(obj:GetDescendants()) do
         if p:IsA("BasePart") then
-            p.Anchored=false
-            p.AssemblyLinearVelocity=Vector3.zero
-            p.AssemblyAngularVelocity=Vector3.zero
+            p.Anchored=false; p.AssemblyLinearVelocity=Vector3.zero; p.AssemblyAngularVelocity=Vector3.zero
         end
     end
-    if obj:IsA("BasePart") then
-        obj.Anchored=false
-        obj.AssemblyLinearVelocity=Vector3.zero
-        obj.AssemblyAngularVelocity=Vector3.zero
+    if obj:IsA("BasePart") then obj.Anchored=false end
+end
+
+local function claimOwnership(item)
+    -- 1. Fire the game's own RequestNetworkOwnership remote
+    local drag=item:FindFirstChild("ItemDrag")
+    if drag then
+        local req=drag:FindFirstChild("RequestNetworkOwnership")
+        if req and req:IsA("RemoteEvent") then pcall(function() req:FireServer() end) end
     end
+    -- 2. Try executor-level network owner override on every BasePart
+    for _,p in ipairs(item:GetDescendants()) do
+        if p:IsA("BasePart") then pcall(function() p:SetNetworkOwner(LocalPlayer) end) end
+    end
+    if item:IsA("BasePart") then pcall(function() item:SetNetworkOwner(LocalPlayer) end) end
 end
 
-local function getModelPart(model)
-    if model:IsA("BasePart") then return model end
-    return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart",true)
+-- Search the whole game for an object by name and class filter
+local function findObject(name, classFilter)
+    local services = {workspace, game:GetService("ReplicatedStorage"), game:GetService("ServerStorage")}
+    for _,svc in ipairs(services) do
+        pcall(function()
+            for _,obj in ipairs(svc:GetDescendants()) do
+                if obj.Name==name then
+                    if classFilter==nil or obj:IsA(classFilter) then return obj end
+                end
+            end
+        end)
+    end
+    -- Broad workspace scan
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name==name then
+            if classFilter==nil or obj:IsA(classFilter) then return obj end
+        end
+    end
+    return nil
 end
 
-local function getAllDroppedItems()
-    local folder = workspace:FindFirstChild("DroppedItems")
-    if not folder then return {} end
-    local results={}
-    for _,child in ipairs(folder:GetChildren()) do results[#results+1]=child end
-    return results
+local function findModelInWorkspace(name)
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if (obj:IsA("Model") or obj:IsA("Tool")) and obj.Name==name then return obj end
+    end
+    return nil
+end
+
+local function findPartInModel(model,partName)
+    for _,d in ipairs(model:GetDescendants()) do
+        if d:IsA("BasePart") and d.Name==partName then return d end
+    end
 end
 
 local function getDroppedItems(names)
-    local folder = workspace:FindFirstChild("DroppedItems")
-    if not folder then return {} end
+    local folder=workspace:FindFirstChild("DroppedItems"); if not folder then return {} end
     local results={}
     for _,child in ipairs(folder:GetChildren()) do
         for _,n in ipairs(names) do
@@ -333,134 +332,205 @@ local function getDroppedItems(names)
     return results
 end
 
-local function findPartInModel(model,partName)
-    for _,d in ipairs(model:GetDescendants()) do
-        if d:IsA("BasePart") and d.Name==partName then return d end
-    end
-    return nil
-end
-
-local function findModelInWorkspace(name)
-    for _,obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name==name then return obj end
-    end
-    return nil
+local function getAllDroppedItems()
+    local folder=workspace:FindFirstChild("DroppedItems"); if not folder then return {} end
+    local r={}; for _,c in ipairs(folder:GetChildren()) do r[#r+1]=c end; return r
 end
 
 -- ============================================================
--- SPAWN ITEM — searches DroppedItems first, then all workspace,
--- fires RequestNetworkOwnership, then teleports to player feet
+-- PUT IN BAG — REAL FIX
+-- Strategy A: if item is a Tool → clone directly into Backpack
+-- Strategy B: claim ownership + Heartbeat position-lock for 8s
+--             so server-touch / proximity events can fire naturally
 -- ============================================================
-local function spawnItemToPlayer(itemName)
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then
-        ItemsFeedback.Text = "Respawn first — no character"
-        ItemsFeedback.TextColor3 = Color3.fromRGB(255,100,100)
-        return
+local function grabItem(item)
+    local char=LocalPlayer.Character
+    local root=char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+
+    -- Strategy A: Tool → directly into Backpack
+    if item:IsA("Tool") then
+        pcall(function()
+            local clone=item:Clone()
+            clone.Parent=Backpack
+        end)
+        return true
     end
 
-    -- 1. Search DroppedItems
-    local target = nil
-    local folder = workspace:FindFirstChild("DroppedItems")
-    if folder then
-        for _,child in ipairs(folder:GetChildren()) do
-            if child.Name == itemName then target=child; break end
-        end
-    end
-
-    -- 2. Broad workspace search (any folder)
-    if not target then
-        for _,obj in ipairs(workspace:GetDescendants()) do
-            if (obj:IsA("Model") or obj:IsA("Tool")) and obj.Name==itemName then
-                target=obj; break
-            end
-        end
-    end
-
-    -- 3. Try ReplicatedStorage for a template to clone
-    if not target then
-        local RS = game:GetService("ReplicatedStorage")
-        for _,obj in ipairs(RS:GetDescendants()) do
-            if (obj:IsA("Model") or obj:IsA("Tool")) and obj.Name==itemName then
-                local clone = obj:Clone()
-                clone.Parent = workspace
-                target = clone
-                break
-            end
-        end
-    end
-
-    if not target then
-        ItemsFeedback.Text = '"'..itemName..'" not found in game'
-        ItemsFeedback.TextColor3 = Color3.fromRGB(255,120,80)
-        return
-    end
-
-    -- Claim network ownership so the server lets us move it
-    claimNetworkOwnership(target)
+    -- Strategy B: claim ownership, unanchor, lock position via Heartbeat
+    claimOwnership(item)
     task.wait(0.05)
+    pcall(function() unanchorAll(item) end)
 
-    pcall(function()
-        unanchorModel(target)
-        local pp = getModelPart(target)
-        if pp then
-            target:PivotTo(root.CFrame * CFrame.new(0, -2, 0))
-            pp.AssemblyLinearVelocity = Vector3.new(0, -4, 0)
-        end
+    -- Immediately place at player feet
+    local targetCF=root.CFrame * CFrame.new(0,-2.5,0)
+    pcall(function() item:PivotTo(targetCF) end)
+
+    -- Lock position for 8 seconds so pickup triggers
+    local lockEnd=tick()+8
+    local conn
+    conn=RunService.Heartbeat:Connect(function()
+        if tick()>lockEnd then conn:Disconnect(); bagLockConnections[item]=nil; return end
+        local r2=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if r2 then pcall(function() item:PivotTo(r2.CFrame * CFrame.new(0,-2.5,0)) end) end
     end)
+    bagLockConnections[item]=conn
+    return true
+end
 
-    ItemsFeedback.Text = itemName .. " spawned at your feet!"
-    ItemsFeedback.TextColor3 = Color3.fromRGB(120,255,160)
+local function stopAllBagLocks()
+    for item,conn in pairs(bagLockConnections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    bagLockConnections={}
+end
+
+local function collectAllToBag(infoLabel)
+    local char=LocalPlayer.Character
+    local root=char and char:FindFirstChild("HumanoidRootPart")
+    if not root then infoLabel.Text="No character"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return end
+
+    local items=getAllDroppedItems()
+    if #items==0 then infoLabel.Text="DroppedItems is empty"; infoLabel.TextColor3=Color3.fromRGB(255,200,80); return end
+
+    local count=0
+    for _,item in ipairs(items) do
+        if grabItem(item) then count+=1 end
+    end
+    infoLabel.Text=count.." items grabbed / locked to you"
+    infoLabel.TextColor3=Color3.fromRGB(120,255,160)
 end
 
 -- ============================================================
--- BUILD ITEMS TAB UI
+-- ITEM SPAWNER — Tab Items
+-- Tools: clone to Backpack immediately
+-- Models: search DroppedItems → workspace → ReplicatedStorage
 -- ============================================================
-local itemLO = 0
-local SECTION_COLORS = {
-    WEAPONS    = Color3.fromRGB(255,100,100),
-    THROWABLES = Color3.fromRGB(255,180,60),
-    MEDICAL    = Color3.fromRGB(80,220,150),
-    FOOD       = Color3.fromRGB(120,200,255),
-    AMMO       = Color3.fromRGB(200,160,255),
-    RESOURCES  = Color3.fromRGB(255,220,80),
-}
+local function spawnItem(itemName)
+    local char=LocalPlayer.Character
+    local root=char and char:FindFirstChild("HumanoidRootPart")
+    if not root then
+        ItemsFeedback.Text="Respawn first"; ItemsFeedback.TextColor3=Color3.fromRGB(255,100,100); return
+    end
 
+    local target=nil
+
+    -- 1. DroppedItems first
+    local folder=workspace:FindFirstChild("DroppedItems")
+    if folder then
+        for _,c in ipairs(folder:GetChildren()) do
+            if c.Name==itemName then target=c; break end
+        end
+    end
+
+    -- 2. Anywhere in workspace
+    if not target then target=findModelInWorkspace(itemName) end
+
+    -- 3. ReplicatedStorage template → clone
+    if not target then
+        pcall(function()
+            local RS=game:GetService("ReplicatedStorage")
+            for _,obj in ipairs(RS:GetDescendants()) do
+                if obj.Name==itemName then
+                    local clone=obj:Clone(); clone.Parent=workspace
+                    target=clone; break
+                end
+            end
+        end)
+    end
+
+    if not target then
+        ItemsFeedback.Text='"'..itemName..'" not found anywhere'
+        ItemsFeedback.TextColor3=Color3.fromRGB(255,120,80); return
+    end
+
+    -- Tool → straight into Backpack
+    if target:IsA("Tool") then
+        pcall(function()
+            local clone=target:Clone(); clone.Parent=Backpack
+        end)
+        ItemsFeedback.Text=itemName.." added to inventory!"
+        ItemsFeedback.TextColor3=Color3.fromRGB(120,255,160)
+        return
+    end
+
+    -- Model → ownership + position lock
+    grabItem(target)
+    ItemsFeedback.Text=itemName.." pulled to you — walk to pick up"
+    ItemsFeedback.TextColor3=Color3.fromRGB(120,200,255)
+end
+
+-- ============================================================
+-- FUEL COLLECTOR
+-- ============================================================
+local function collectFuel(infoLabel)
+    local genModel=findModelInWorkspace("Generator")
+    if not genModel then infoLabel.Text="Generator not found"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return end
+    local fuelZone=findPartInModel(genModel,"FuelZone") or findPartInModel(genModel,"MainPart") or getModelPart(genModel)
+    if not fuelZone then infoLabel.Text="FuelZone not found"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return end
+    local items=getDroppedItems(FUEL_ITEM_NAMES)
+    if #items==0 then infoLabel.Text="No Fuel in DroppedItems"; infoLabel.TextColor3=Color3.fromRGB(255,200,80); return end
+    local zoneCF=fuelZone.CFrame; local count=0
+    for _,item in ipairs(items) do
+        claimOwnership(item); task.wait(0.02)
+        pcall(function()
+            unanchorAll(item)
+            local pp=getModelPart(item)
+            if pp then item:PivotTo(zoneCF*CFrame.new(0,0.5+count*0.2,0)); pp.AssemblyLinearVelocity=Vector3.new(0,-8,0); count+=1 end
+        end)
+    end
+    infoLabel.Text=count.." Fuel → Generator FuelZone"; infoLabel.TextColor3=Color3.fromRGB(120,255,160)
+end
+
+local function makeCollector(fn, infoLabel, defaultText)
+    local active=false
+    local function loop()
+        task.spawn(function()
+            while active do fn(infoLabel); task.wait(3) end
+        end)
+    end
+    return {
+        enable  = function() active=true; loop() end,
+        disable = function()
+            active=false; stopAllBagLocks()
+            infoLabel.Text=defaultText; infoLabel.TextColor3=Color3.fromRGB(140,130,200)
+        end,
+    }
+end
+
+-- ============================================================
+-- BUILD ITEMS TAB
+-- ============================================================
+local SECTION_COLORS={WEAPONS=Color3.fromRGB(255,100,100),THROWABLES=Color3.fromRGB(255,180,60),MEDICAL=Color3.fromRGB(80,220,150),FOOD=Color3.fromRGB(120,200,255),AMMO=Color3.fromRGB(200,160,255),RESOURCES=Color3.fromRGB(255,220,80)}
+local itemLO=0
 for _,group in ipairs(ITEM_LIST) do
-    -- Section label
-    itemLO += 1
-    local secLbl = Instance.new("TextLabel",ItemsScroll)
-    secLbl.Size=UDim2.new(1,0,0,16); secLbl.BackgroundTransparency=1
+    itemLO+=1
+    local secLbl=Instance.new("TextLabel",ItemsScroll)
+    secLbl.Size=UDim2.new(1,0,0,16); secLbl.BackgroundTransparency=1; secLbl.LayoutOrder=itemLO
     secLbl.Text=group.section; secLbl.TextSize=10; secLbl.Font=Enum.Font.GothamBold
-    secLbl.TextColor3= SECTION_COLORS[group.section] or Color3.fromRGB(160,140,255)
-    secLbl.TextXAlignment=Enum.TextXAlignment.Left; secLbl.LayoutOrder=itemLO
+    secLbl.TextColor3=SECTION_COLORS[group.section] or Color3.fromRGB(160,140,255)
+    secLbl.TextXAlignment=Enum.TextXAlignment.Left
     Instance.new("UIPadding",secLbl).PaddingLeft=UDim.new(0,4)
 
-    -- Grid of item buttons (2 per row)
-    local names = group.names
+    local names=group.names
     for i=1,#names,2 do
-        itemLO += 1
-        local row = Instance.new("Frame",ItemsScroll)
-        row.Size=UDim2.new(1,0,0,36); row.BackgroundTransparency=1
-        row.LayoutOrder=itemLO
-        local rowLayout=Instance.new("UIListLayout",row)
-        rowLayout.FillDirection=Enum.FillDirection.Horizontal; rowLayout.Padding=UDim.new(0,5)
+        itemLO+=1
+        local row=Instance.new("Frame",ItemsScroll)
+        row.Size=UDim2.new(1,0,0,36); row.BackgroundTransparency=1; row.LayoutOrder=itemLO
+        local rl=Instance.new("UIListLayout",row); rl.FillDirection=Enum.FillDirection.Horizontal; rl.Padding=UDim.new(0,5)
 
         local function makeItemBtn(name)
             local btn=Instance.new("TextButton",row)
-            btn.Size=UDim2.new(0.5,-3,1,0)
-            btn.BackgroundColor3=Color3.fromRGB(30,26,50)
+            btn.Size=UDim2.new(0.5,-3,1,0); btn.BackgroundColor3=Color3.fromRGB(28,24,48)
             btn.BorderSizePixel=0; btn.Text=name
             btn.TextColor3=Color3.fromRGB(210,200,255); btn.TextSize=12
             btn.Font=Enum.Font.GothamSemibold; btn.TextWrapped=true
-            local corner=Instance.new("UICorner",btn); corner.CornerRadius=UDim.new(0,8)
-            local stroke=Instance.new("UIStroke",btn)
-            stroke.Color=Color3.fromRGB(80,60,160); stroke.Thickness=1
+            Instance.new("UICorner",btn).CornerRadius=UDim.new(0,8)
+            local stk=Instance.new("UIStroke",btn); stk.Color=Color3.fromRGB(80,60,160); stk.Thickness=1
             btn.MouseButton1Click:Connect(function()
                 btn.BackgroundColor3=Color3.fromRGB(100,80,255)
-                task.delay(0.25, function() btn.BackgroundColor3=Color3.fromRGB(30,26,50) end)
-                spawnItemToPlayer(name)
+                task.delay(0.2,function() btn.BackgroundColor3=Color3.fromRGB(28,24,48) end)
+                spawnItem(name)
             end)
         end
 
@@ -468,124 +538,28 @@ for _,group in ipairs(ITEM_LIST) do
         if names[i+1] then makeItemBtn(names[i+1]) end
     end
 
-    -- Spacer
-    itemLO += 1
-    local spacer=Instance.new("Frame",ItemsScroll)
-    spacer.Size=UDim2.new(1,0,0,4); spacer.BackgroundTransparency=1; spacer.LayoutOrder=itemLO
+    itemLO+=1
+    local sp=Instance.new("Frame",ItemsScroll); sp.Size=UDim2.new(1,0,0,4); sp.BackgroundTransparency=1; sp.LayoutOrder=itemLO
 end
 
 -- ============================================================
--- FUEL COLLECTOR
+-- MENU TAB FEATURES
 -- ============================================================
-local function collectFuel(infoLabel)
-    local genModel = findModelInWorkspace("Generator")
-    if not genModel then
-        infoLabel.Text="Generator not found"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
-    end
-    local fuelZone = findPartInModel(genModel,"FuelZone")
-        or findPartInModel(genModel,"MainPart") or getModelPart(genModel)
-    if not fuelZone then
-        infoLabel.Text="Generator FuelZone not found"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
-    end
-    local items = getDroppedItems(FUEL_ITEM_NAMES)
-    if #items==0 then
-        infoLabel.Text="No Fuel in DroppedItems"; infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
-    end
-    local zoneCF=fuelZone.CFrame; local count=0
-    for _,item in ipairs(items) do
-        claimNetworkOwnership(item)
-        task.wait(0.02)
-        pcall(function()
-            unanchorModel(item)
-            local pp=getModelPart(item)
-            if pp then
-                item:PivotTo(zoneCF * CFrame.new(0, 0.5+count*0.2, 0))
-                pp.AssemblyLinearVelocity=Vector3.new(0,-8,0)
-                count+=1
-            end
-        end)
-    end
-    infoLabel.Text=count.." Fuel → Generator FuelZone"
-    infoLabel.TextColor3=Color3.fromRGB(120,255,160)
-end
 
--- ============================================================
--- PUT IN BAG — ALL items from DroppedItems → player feet
--- Fires RequestNetworkOwnership first so items aren't stuck
--- ============================================================
-local function collectAllToBag(infoLabel)
-    local char=LocalPlayer.Character
-    local root=char and char:FindFirstChild("HumanoidRootPart")
-    if not root then
-        infoLabel.Text="Respawn first — no character"
-        infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
-    end
-    local items=getAllDroppedItems()
-    if #items==0 then
-        infoLabel.Text="DroppedItems is empty"
-        infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
-    end
-    local playerCF=root.CFrame; local count=0
-    for i,item in ipairs(items) do
-        -- Claim ownership first so server lets client move/drag the item
-        claimNetworkOwnership(item)
-        task.wait(0.02)
-        pcall(function()
-            unanchorModel(item)
-            local pp=getModelPart(item)
-            if pp then
-                item:PivotTo(playerCF * CFrame.new(0, -2+(i*0.05), 0))
-                pp.AssemblyLinearVelocity=Vector3.new(0,-4,0)
-                count+=1
-            end
-        end)
-    end
-    infoLabel.Text=count.." items ready — drag or walk to collect"
-    infoLabel.TextColor3=Color3.fromRGB(120,255,160)
-end
-
-local function makeCollector(collectFn, infoLabel, defaultText)
-    local active=false
-    local function loop()
-        task.spawn(function()
-            while active do
-                collectFn(infoLabel)
-                task.wait(3)
-            end
-        end)
-    end
-    return {
-        enable  = function() active=true; loop() end,
-        disable = function()
-            active=false
-            infoLabel.Text=defaultText
-            infoLabel.TextColor3=Color3.fromRGB(140,130,200)
-        end,
-    }
-end
-
--- ============================================================
--- WALKSPEED  (order 1)
--- ============================================================
+-- WALKSPEED
 createSectionLabel("MOVEMENT",0)
 local _,wsTrack,wsKnob,wsStatus,wsBtn=createToggleRow("Walkspeed (55)",1)
 local function setWalkSpeed(on)
     walkSpeedEnabled=on; animateToggle(wsTrack,wsKnob,wsStatus,on)
     local char=LocalPlayer.Character
-    if char then
-        local hum=char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed=on and FAST_WALKSPEED or DEFAULT_WALKSPEED end
-    end
+    if char then local hum=char:FindFirstChildOfClass("Humanoid"); if hum then hum.WalkSpeed=on and FAST_WALKSPEED or DEFAULT_WALKSPEED end end
 end
 wsBtn.MouseButton1Click:Connect(function() setWalkSpeed(not walkSpeedEnabled) end)
 
--- ============================================================
--- KILL AURA  (order 10-13)
--- ============================================================
+-- KILL AURA
 createSectionLabel("COMBAT",10)
 local _,kaTrack,kaKnob,kaStatus,kaBtn=createToggleRow("Kill Aura",11)
 local kaInfo=createInfoRow("Equip any weapon to activate",12)
-
 local SliderOuter=Instance.new("Frame",ScrollFrame)
 SliderOuter.Size=UDim2.new(1,0,0,52); SliderOuter.BackgroundColor3=Color3.fromRGB(28,28,38)
 SliderOuter.BorderSizePixel=0; SliderOuter.LayoutOrder=13
@@ -606,15 +580,12 @@ Instance.new("UICorner",SliderFill).CornerRadius=UDim.new(1,0)
 local SliderHandle=Instance.new("Frame",SliderTrack)
 SliderHandle.Size=UDim2.new(0,24,0,24); SliderHandle.AnchorPoint=Vector2.new(0.5,0.5)
 SliderHandle.Position=UDim2.new((killAuraRange-1)/99,0,0.5,0)
-SliderHandle.BackgroundColor3=Color3.fromRGB(255,255,255); SliderHandle.BorderSizePixel=0
-SliderHandle.ZIndex=5
+SliderHandle.BackgroundColor3=Color3.fromRGB(255,255,255); SliderHandle.BorderSizePixel=0; SliderHandle.ZIndex=5
 Instance.new("UICorner",SliderHandle).CornerRadius=UDim.new(1,0)
 local sliderDrag=false
 local function updateSlider(ix)
     local rel=math.clamp((ix-SliderTrack.AbsolutePosition.X)/SliderTrack.AbsoluteSize.X,0,1)
-    killAuraRange=math.floor(rel*99+1)
-    SliderFill.Size=UDim2.new(rel,0,1,0)
-    SliderHandle.Position=UDim2.new(rel,0,0.5,0)
+    killAuraRange=math.floor(rel*99+1); SliderFill.Size=UDim2.new(rel,0,1,0); SliderHandle.Position=UDim2.new(rel,0,0.5,0)
     RangeLabel.Text="Aura Range: "..killAuraRange.." studs"
 end
 SliderHandle.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then sliderDrag=true end end)
@@ -622,14 +593,10 @@ SliderTrack.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputTyp
 UserInputService.InputChanged:Connect(function(i) if sliderDrag and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then updateSlider(i.Position.X) end end)
 UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then sliderDrag=false end end)
 
-local function isWeaponEquipped()
-    local c=LocalPlayer.Character; return c and c:FindFirstChildOfClass("Tool")~=nil
-end
+local function isWeaponEquipped() local c=LocalPlayer.Character; return c and c:FindFirstChildOfClass("Tool")~=nil end
 local function startKillAura()
     killAuraConnection=RunService.Heartbeat:Connect(function()
-        if not isWeaponEquipped() then
-            kaInfo.Text="Equip a weapon to activate"; kaInfo.TextColor3=Color3.fromRGB(255,200,80); return
-        end
+        if not isWeaponEquipped() then kaInfo.Text="Equip a weapon"; kaInfo.TextColor3=Color3.fromRGB(255,200,80); return end
         local char=LocalPlayer.Character; if not char then return end
         local root=char:FindFirstChild("HumanoidRootPart"); if not root then return end
         kaInfo.Text="Active — killing nearby enemies"; kaInfo.TextColor3=Color3.fromRGB(120,255,160)
@@ -650,17 +617,11 @@ local function stopKillAura()
     if killAuraConnection then killAuraConnection:Disconnect(); killAuraConnection=nil end
     kaInfo.Text="Equip any weapon to activate"; kaInfo.TextColor3=Color3.fromRGB(140,130,200)
 end
-local function setKillAura(on)
-    killAuraEnabled=on; animateToggle(kaTrack,kaKnob,kaStatus,on)
-    if on then startKillAura() else stopKillAura() end
-end
+local function setKillAura(on) killAuraEnabled=on; animateToggle(kaTrack,kaKnob,kaStatus,on); if on then startKillAura() else stopKillAura() end end
 kaBtn.MouseButton1Click:Connect(function() setKillAura(not killAuraEnabled) end)
 
--- ============================================================
--- COLLECTORS  (order 20+)
--- ============================================================
+-- COLLECTORS
 createSectionLabel("COLLECTORS",20)
-
 local _,fcTrack,fcKnob,fcStatus,fcBtn=createToggleRow("Fuel Collector",21)
 local fuelInfo=createInfoRow("Sends Fuel to Generator FuelZone",22)
 local fuelColl=makeCollector(collectFuel,fuelInfo,"Sends Fuel to Generator FuelZone")
@@ -671,17 +632,15 @@ end
 fcBtn.MouseButton1Click:Connect(function() setFuelCollector(not fuelCollectorEnabled) end)
 
 local _,bgTrack,bgKnob,bgStatus,bgBtn=createToggleRow("Put In Bag",23)
-local bagInfo=createInfoRow("Claims ownership then pulls ALL items to you",24)
-local bagColl=makeCollector(collectAllToBag,bagInfo,"Claims ownership then pulls ALL items to you")
+local bagInfo=createInfoRow("Grabs ALL dropped items — Tools go to inventory directly",24)
+local bagColl=makeCollector(collectAllToBag,bagInfo,"Grabs ALL dropped items — Tools go to inventory directly")
 local function setBagCollector(on)
     bagCollectorEnabled=on; animateToggle(bgTrack,bgKnob,bgStatus,on)
     if on then bagColl.enable() else bagColl.disable() end
 end
 bgBtn.MouseButton1Click:Connect(function() setBagCollector(not bagCollectorEnabled) end)
 
--- ============================================================
--- INSTANT PROMPTS  (order 30)
--- ============================================================
+-- INSTANT PROMPTS
 createSectionLabel("MISC",30)
 local _,ipTrack,ipKnob,ipStatus,ipBtn=createToggleRow("Instant Prompts",31)
 local promptAddedConn=nil
@@ -701,9 +660,7 @@ local function setInstant(on)
 end
 ipBtn.MouseButton1Click:Connect(function() setInstant(not instantPromptsEnabled) end)
 
--- ============================================================
--- GOD MODE  (order 32)
--- ============================================================
+-- GOD MODE
 local _,gmTrack,gmKnob,gmStatus,gmBtn=createToggleRow("God Mode",32)
 local godInfo=createInfoRow("HP locked — cannot die",33)
 local GOD_HP=999999
@@ -724,7 +681,7 @@ local function applyGodMode(char)
 end
 local function stopGodMode()
     if godModeConnection then godModeConnection:Disconnect(); godModeConnection=nil end
-    if godHumConnection  then godHumConnection:Disconnect();  godHumConnection=nil  end
+    if godHumConnection  then godHumConnection:Disconnect(); godHumConnection=nil end
     local char=LocalPlayer.Character
     if char then local hum=char:FindFirstChildOfClass("Humanoid"); if hum then hum.MaxHealth=100; hum.Health=100 end end
     godInfo.Text="HP locked — cannot die"; godInfo.TextColor3=Color3.fromRGB(140,130,200)
@@ -736,7 +693,11 @@ end
 gmBtn.MouseButton1Click:Connect(function() setGodMode(not godModeEnabled) end)
 
 -- ============================================================
--- REMOVE ANTI  (order 40)
+-- REMOVE ANTI — MAXIMUM AGGRESSION
+-- Targets: anti-cheat, anti-exploit, kick, ban, detect, monitor,
+--          backdoor, guard, security scripts + remote events
+-- Scans: workspace, ReplicatedStorage, ReplicatedFirst, StarterGui,
+--        StarterPack, StarterPlayer, Lighting, Players, SoundService
 -- ============================================================
 createSectionLabel("ANTI-CHEAT",40)
 local RARaw=Instance.new("Frame",ScrollFrame)
@@ -746,32 +707,79 @@ Instance.new("UICorner",RARaw).CornerRadius=UDim.new(0,10)
 local RABtn=Instance.new("TextButton",RARaw)
 RABtn.Size=UDim2.new(1,-16,1,-12); RABtn.Position=UDim2.new(0,8,0,6)
 RABtn.BackgroundColor3=Color3.fromRGB(160,40,60); RABtn.BorderSizePixel=0
-RABtn.Text="Remove Anti Scripts"; RABtn.TextColor3=Color3.fromRGB(255,255,255)
-RABtn.TextSize=14; RABtn.Font=Enum.Font.GothamSemibold
+RABtn.Text="Nuke All Anti-Cheat / Exploits"; RABtn.TextColor3=Color3.fromRGB(255,255,255)
+RABtn.TextSize=13; RABtn.Font=Enum.Font.GothamSemibold
 Instance.new("UICorner",RABtn).CornerRadius=UDim.new(0,8)
-local RAInfo=createInfoRow("Destroys anything with 'Anti' in name",42)
+local RAInfo=createInfoRow("Destroys anti-cheat, anti-exploit, kick, ban, detect, guard scripts",42)
 
-local ANTI_SVCS={workspace,game:GetService("ReplicatedStorage"),game:GetService("ReplicatedFirst"),
-    game:GetService("StarterGui"),game:GetService("StarterPack"),game:GetService("StarterPlayer"),game:GetService("Lighting")}
+-- Keywords that flag a script as anti-cheat/exploit
+local ANTI_KEYWORDS = {
+    "anti","exploit","cheat","kick","ban","detect","backdoor",
+    "byfron","hyperion","monitor","security","guard","protect",
+    "punish","report","sanity","check","enforce","firewall",
+}
+
+local SCAN_SERVICES = {
+    workspace,
+    game:GetService("ReplicatedStorage"),
+    game:GetService("ReplicatedFirst"),
+    game:GetService("StarterGui"),
+    game:GetService("StarterPack"),
+    game:GetService("StarterPlayer"),
+    game:GetService("Lighting"),
+    game:GetService("SoundService"),
+    game:GetService("Players"),
+    game:GetService("Teams"),
+}
+
+local function nameMatches(name)
+    local low=name:lower()
+    for _,kw in ipairs(ANTI_KEYWORDS) do
+        if low:find(kw,1,true) then return true end
+    end
+    return false
+end
+
 RABtn.MouseButton1Click:Connect(function()
     local killed=0
-    for _,svc in ipairs(ANTI_SVCS) do
+    for _,svc in ipairs(SCAN_SERVICES) do
         pcall(function()
-            for _,obj in ipairs(svc:GetDescendants()) do
-                if obj.Name:lower():find("anti",1,true) then
-                    if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then obj.Disabled=true end
+            -- GetDescendants snapshot so we don't iterate a live-changing table
+            local descendants=svc:GetDescendants()
+            for _,obj in ipairs(descendants) do
+                if not obj or not obj.Parent then continue end
+                if nameMatches(obj.Name) then
+                    -- Disable scripts immediately before destroy (stops execution)
+                    if obj:IsA("BaseScript") then
+                        pcall(function() obj.Disabled=true end)
+                    end
+                    -- Disconnect remote events so they can't fire server-side callbacks
+                    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or obj:IsA("BindableEvent") then
+                        pcall(function() obj.OnClientEvent:Connect(function() end) end)
+                    end
                     pcall(function() obj:Destroy() end)
                     killed+=1
                 end
             end
         end)
     end
-    RAInfo.Text=killed>0 and (killed.." anti objects removed!") or "None found with 'Anti' in name"
+
+    -- Also nuke any LocalScripts inside PlayerGui that match
+    pcall(function()
+        for _,obj in ipairs(PlayerGui:GetDescendants()) do
+            if obj:IsA("BaseScript") and nameMatches(obj.Name) then
+                pcall(function() obj.Disabled=true; obj:Destroy() end)
+                killed+=1
+            end
+        end
+    end)
+
+    RAInfo.Text=killed>0 and (killed.." anti-cheat objects destroyed!") or "Nothing flagged — already clean"
     RAInfo.TextColor3=killed>0 and Color3.fromRGB(120,255,160) or Color3.fromRGB(255,200,80)
 end)
 
 -- ============================================================
--- RESPAWN
+-- RESPAWN — reapply all active features
 -- ============================================================
 LocalPlayer.CharacterAdded:Connect(function(char)
     if walkSpeedEnabled then local hum=char:WaitForChild("Humanoid"); hum.WalkSpeed=FAST_WALKSPEED end
@@ -779,7 +787,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     if instantPromptsEnabled then task.wait(1); disableInstant(); enableInstant() end
     if godModeEnabled then
         if godModeConnection then godModeConnection:Disconnect(); godModeConnection=nil end
-        if godHumConnection  then godHumConnection:Disconnect();  godHumConnection=nil  end
+        if godHumConnection  then godHumConnection:Disconnect(); godHumConnection=nil end
         task.wait(0.5); applyGodMode(char)
     end
 end)
@@ -788,10 +796,11 @@ end)
 -- STRUCTURE PANEL
 -- ============================================================
 local scannedText=""
-
 local SR1=Instance.new("Frame",StructureContent)
 SR1.Size=UDim2.new(1,0,0,38); SR1.Position=UDim2.new(0,0,0,0); SR1.BackgroundTransparency=1
-local sr1l=Instance.new("UIListLayout",SR1); sr1l.FillDirection=Enum.FillDirection.Horizontal; sr1l.Padding=UDim.new(0,5)
+Instance.new("UIListLayout",SR1).FillDirection=Enum.FillDirection.Horizontal
+Instance.new("UIListLayout",SR1).Padding=UDim.new(0,5)
+local sr1l=SR1:FindFirstChildOfClass("UIListLayout"); sr1l.FillDirection=Enum.FillDirection.Horizontal; sr1l.Padding=UDim.new(0,5)
 
 local ScanBtn=Instance.new("TextButton",SR1)
 ScanBtn.Size=UDim2.new(0.55,0,1,0); ScanBtn.BackgroundColor3=Color3.fromRGB(70,50,190)
@@ -838,52 +847,36 @@ local strl=Instance.new("UIListLayout",StructureScroll); strl.Padding=UDim.new(0
 local strp=Instance.new("UIPadding",StructureScroll)
 strp.PaddingLeft=UDim.new(0,6); strp.PaddingTop=UDim.new(0,4); strp.PaddingBottom=UDim.new(0,6)
 
-local SVCCOLORS={
-    Workspace=Color3.fromRGB(100,200,255),ReplicatedStorage=Color3.fromRGB(255,200,80),
-    ReplicatedFirst=Color3.fromRGB(255,170,60),StarterGui=Color3.fromRGB(120,255,180),
-    StarterPack=Color3.fromRGB(80,220,150),StarterPlayer=Color3.fromRGB(60,200,120),
-    Players=Color3.fromRGB(255,130,130),Lighting=Color3.fromRGB(255,255,100),
-    SoundService=Color3.fromRGB(200,160,255),Teams=Color3.fromRGB(255,160,100),
-}
-local CICONS={Model="[M]",Part="[P]",MeshPart="[MP]",UnionOperation="[U]",Script="[S]",
-    LocalScript="[LS]",ModuleScript="[MS]",RemoteEvent="[RE]",RemoteFunction="[RF]",
-    Folder="[F]",Tool="[T]",Configuration="[Cfg]",ProximityPrompt="[PP]",
-    Humanoid="[Hum]",Sound="[Snd]",WeldConstraint="[Weld]",Motor6D="[M6D]",DragDetector="[DD]",}
+local SVCCOLORS={Workspace=Color3.fromRGB(100,200,255),ReplicatedStorage=Color3.fromRGB(255,200,80),ReplicatedFirst=Color3.fromRGB(255,170,60),StarterGui=Color3.fromRGB(120,255,180),StarterPack=Color3.fromRGB(80,220,150),StarterPlayer=Color3.fromRGB(60,200,120),Players=Color3.fromRGB(255,130,130),Lighting=Color3.fromRGB(255,255,100),SoundService=Color3.fromRGB(200,160,255),Teams=Color3.fromRGB(255,160,100)}
+local CICONS={Model="[M]",Part="[P]",MeshPart="[MP]",UnionOperation="[U]",Script="[S]",LocalScript="[LS]",ModuleScript="[MS]",RemoteEvent="[RE]",RemoteFunction="[RF]",Folder="[F]",Tool="[T]",Configuration="[Cfg]",ProximityPrompt="[PP]",Humanoid="[Hum]",Sound="[Snd]",WeldConstraint="[Weld]",Motor6D="[M6D]",DragDetector="[DD]"}
 local function getIcon(obj) return CICONS[obj.ClassName] or "[-]" end
 
-local lineOrd=0
+local lineOrd2=0
 local function addLine(text,color,indent)
-    lineOrd+=1
+    lineOrd2+=1
     local lbl=Instance.new("TextLabel",StructureScroll)
     lbl.Size=UDim2.new(1,-8,0,16); lbl.BackgroundTransparency=1
     lbl.Text=string.rep("  ",indent)..text
     lbl.TextColor3=color or Color3.fromRGB(200,200,220); lbl.TextSize=11
     lbl.Font=Enum.Font.Code; lbl.TextXAlignment=Enum.TextXAlignment.Left
-    lbl.TextTruncate=Enum.TextTruncate.AtEnd; lbl.LayoutOrder=lineOrd
+    lbl.TextTruncate=Enum.TextTruncate.AtEnd; lbl.LayoutOrder=lineOrd2
 end
 
 local function clearStructure()
     for _,c in ipairs(StructureScroll:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end
-    lineOrd=0; scannedText=""
+    lineOrd2=0; scannedText=""
 end
 
-local SCAN_SVCS={
-    {name="Workspace",ref=workspace},
-    {name="ReplicatedStorage",ref=game:GetService("ReplicatedStorage")},
-    {name="ReplicatedFirst",ref=game:GetService("ReplicatedFirst")},
-    {name="StarterGui",ref=game:GetService("StarterGui")},
-    {name="StarterPack",ref=game:GetService("StarterPack")},
-    {name="StarterPlayer",ref=game:GetService("StarterPlayer")},
-    {name="Players",ref=game:GetService("Players")},
-    {name="Lighting",ref=game:GetService("Lighting")},
-    {name="SoundService",ref=game:GetService("SoundService")},
-    {name="Teams",ref=game:GetService("Teams")},
+local SCAN_SVCS2={
+    {name="Workspace",ref=workspace},{name="ReplicatedStorage",ref=game:GetService("ReplicatedStorage")},
+    {name="ReplicatedFirst",ref=game:GetService("ReplicatedFirst")},{name="StarterGui",ref=game:GetService("StarterGui")},
+    {name="StarterPack",ref=game:GetService("StarterPack")},{name="StarterPlayer",ref=game:GetService("StarterPlayer")},
+    {name="Players",ref=game:GetService("Players")},{name="Lighting",ref=game:GetService("Lighting")},
+    {name="SoundService",ref=game:GetService("SoundService")},{name="Teams",ref=game:GetService("Teams")},
 }
-local MAX_DEPTH=6
-
 local function scanAllServices(guiMode,printMode)
     local buf={}; local total=0
-    for _,s in ipairs(SCAN_SVCS) do
+    for _,s in ipairs(SCAN_SVCS2) do
         pcall(function()
             total+=#s.ref:GetDescendants()
             local color=SVCCOLORS[s.name] or Color3.fromRGB(200,200,220)
@@ -896,7 +889,7 @@ local function scanAllServices(guiMode,printMode)
                     local icon=getIcon(child); local cc=#child:GetChildren()
                     local suf=cc>0 and string.format(" [+%d]",cc) or ""
                     local line=string.format("%s %s (%s)%s",icon,child.Name,child.ClassName,suf)
-                    if guiMode and d<=MAX_DEPTH then addLine(line,Color3.fromRGB(190,190,210),d) end
+                    if guiMode and d<=6 then addLine(line,Color3.fromRGB(190,190,210),d) end
                     if printMode then print(string.rep("  ",d)..line) end
                     buf[#buf+1]=string.rep("  ",d)..line.."\n"
                     if cc>0 then dp(child,d+1) end
@@ -911,34 +904,20 @@ local function scanAllServices(guiMode,printMode)
 end
 
 ScanBtn.MouseButton1Click:Connect(function()
-    clearStructure()
-    ScanStatus.Text="Scanning..."; ScanStatus.TextColor3=Color3.fromRGB(180,170,255)
-    task.wait()
-    local text,total=scanAllServices(true,false)
-    scannedText=text
-    ScanStatus.Text=string.format("Done — %d objects  |  Copy to save",total)
-    ScanStatus.TextColor3=Color3.fromRGB(120,255,160)
+    clearStructure(); ScanStatus.Text="Scanning..."; ScanStatus.TextColor3=Color3.fromRGB(180,170,255); task.wait()
+    local text,total=scanAllServices(true,false); scannedText=text
+    ScanStatus.Text=string.format("Done — %d objects",total); ScanStatus.TextColor3=Color3.fromRGB(120,255,160)
 end)
-
 ClearBtn.MouseButton1Click:Connect(function()
-    clearStructure()
-    ScanStatus.Text="Press Scan to inspect workspace"; ScanStatus.TextColor3=Color3.fromRGB(120,110,180)
+    clearStructure(); ScanStatus.Text="Press Scan to inspect workspace"; ScanStatus.TextColor3=Color3.fromRGB(120,110,180)
 end)
-
 PrintBtn.MouseButton1Click:Connect(function()
-    ScanStatus.Text="Printing..."; ScanStatus.TextColor3=Color3.fromRGB(180,200,255)
-    task.wait()
-    print("===== KALO STRUCTURE DUMP =====")
-    local text,_=scanAllServices(false,true)
-    scannedText=text
-    print("===== END =====")
-    ScanStatus.Text="Printed to Output tab"; ScanStatus.TextColor3=Color3.fromRGB(120,255,160)
+    ScanStatus.Text="Printing..."; ScanStatus.TextColor3=Color3.fromRGB(180,200,255); task.wait()
+    print("===== KALO STRUCTURE DUMP ====="); local text,_=scanAllServices(false,true); scannedText=text
+    print("===== END ====="); ScanStatus.Text="Printed to Output tab"; ScanStatus.TextColor3=Color3.fromRGB(120,255,160)
 end)
-
 CopyBtn.MouseButton1Click:Connect(function()
-    if scannedText=="" then
-        ScanStatus.Text="Run Scan first!"; ScanStatus.TextColor3=Color3.fromRGB(255,200,80); return
-    end
+    if scannedText=="" then ScanStatus.Text="Run Scan first!"; ScanStatus.TextColor3=Color3.fromRGB(255,200,80); return end
     pcall(function() setclipboard(scannedText) end)
     ScanStatus.Text="Copied to clipboard!"; ScanStatus.TextColor3=Color3.fromRGB(120,255,160)
 end)
