@@ -1,282 +1,545 @@
--- MainMenu LocalScript
--- Place this inside StarterGui in Roblox Studio
--- ================================================
+-- ╔══════════════════════════════════════════════════════════╗
+-- ║          Personal Exploit Menu — Structure Scanner       ║
+-- ╚══════════════════════════════════════════════════════════╝
 
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players         = game:GetService("Players")
+local RunService      = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService    = game:GetService("TweenService")
 
-local player = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
--- Pickup RemoteEvent (your game's real pickup system)
-local PickUpItem = ReplicatedStorage:WaitForChild("Remotes")
-    :WaitForChild("Interaction")
-    :WaitForChild("PickUpItem")
+-- ─── Services to scan ────────────────────────────────────────────────────────
+local SCAN_TARGETS = {
+    "Workspace",
+    "ReplicatedStorage",
+    "ReplicatedFirst",
+    "StarterGui",
+    "StarterPack",
+    "StarterPlayer",
+    "Lighting",
+    "SoundService",
+    "Chat",
+    "Teams",
+}
 
--- ================================================
--- GUI SETUP
--- ================================================
+-- ─── Destroy old GUI if re-run ────────────────────────────────────────────────
+if PlayerGui:FindFirstChild("ExploitMenuGui") then
+    PlayerGui.ExploitMenuGui:Destroy()
+end
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MainMenu"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = player.PlayerGui
+-- ═══════════════════════════════════════════════════════════════════════════════
+--  THEME
+-- ═══════════════════════════════════════════════════════════════════════════════
+local THEME = {
+    BG          = Color3.fromRGB(18,  18,  24),
+    SURFACE     = Color3.fromRGB(26,  26,  36),
+    ACCENT      = Color3.fromRGB(120, 80, 220),
+    ACCENT2     = Color3.fromRGB(80,  160, 255),
+    TEXT        = Color3.fromRGB(230, 230, 240),
+    TEXT_DIM    = Color3.fromRGB(130, 130, 155),
+    BTN_CLIP    = Color3.fromRGB(100, 60,  200),
+    BTN_COPY    = Color3.fromRGB(40,  130, 200),
+    BTN_RESET   = Color3.fromRGB(180, 45,  70),
+    BORDER      = Color3.fromRGB(50,  50,  70),
+    OUTPUT_BG   = Color3.fromRGB(12,  12,  18),
+}
 
--- Main window frame
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
-mainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
+-- ═══════════════════════════════════════════════════════════════════════════════
+--  HELPERS
+-- ═══════════════════════════════════════════════════════════════════════════════
+local function newInstance(cls, props, parent)
+    local obj = Instance.new(cls)
+    for k, v in pairs(props) do
+        obj[k] = v
+    end
+    if parent then obj.Parent = parent end
+    return obj
+end
 
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local function addCorner(parent, radius)
+    return newInstance("UICorner", { CornerRadius = UDim.new(0, radius or 8) }, parent)
+end
 
-local mainStroke = Instance.new("UIStroke", mainFrame)
-mainStroke.Color = Color3.fromRGB(255, 255, 255)
-mainStroke.Thickness = 1.5
+local function addStroke(parent, color, thickness)
+    return newInstance("UIStroke", {
+        Color     = color or THEME.BORDER,
+        Thickness = thickness or 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, parent)
+end
 
--- Title bar
-local titleBar = Instance.new("Frame")
-titleBar.Name = "TitleBar"
-titleBar.Size = UDim2.new(1, 0, 0, 38)
-titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-titleBar.BorderSizePixel = 0
-titleBar.ZIndex = 2
-titleBar.Parent = mainFrame
+-- ═══════════════════════════════════════════════════════════════════════════════
+--  ROOT GUI
+-- ═══════════════════════════════════════════════════════════════════════════════
+local ScreenGui = newInstance("ScreenGui", {
+    Name             = "ExploitMenuGui",
+    ResetOnSpawn     = false,
+    ZIndexBehavior   = Enum.ZIndexBehavior.Sibling,
+    IgnoreGuiInset   = true,
+}, PlayerGui)
 
-Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
+-- ─── Main Window ─────────────────────────────────────────────────────────────
+local WIN_W, WIN_H = 540, 480
 
--- Patch to square off the bottom corners of title bar
-local titlePatch = Instance.new("Frame", titleBar)
-titlePatch.Size = UDim2.new(1, 0, 0.5, 0)
-titlePatch.Position = UDim2.new(0, 0, 0.5, 0)
-titlePatch.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-titlePatch.BorderSizePixel = 0
-titlePatch.ZIndex = 2
+local MainFrame = newInstance("Frame", {
+    Name            = "MainFrame",
+    Size            = UDim2.fromOffset(WIN_W, WIN_H),
+    Position        = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2),
+    BackgroundColor3 = THEME.BG,
+    ClipsDescendants = true,
+}, ScreenGui)
+addCorner(MainFrame, 12)
+addStroke(MainFrame, THEME.BORDER, 1)
 
-local titleLabel = Instance.new("TextLabel", titleBar)
-titleLabel.Size = UDim2.new(1, -45, 1, 0)
-titleLabel.Position = UDim2.new(0, 12, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "MENU"
-titleLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextScaled = true
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.ZIndex = 3
+-- ─── Top bar ─────────────────────────────────────────────────────────────────
+local TopBar = newInstance("Frame", {
+    Name            = "TopBar",
+    Size            = UDim2.new(1, 0, 0, 40),
+    BackgroundColor3 = THEME.SURFACE,
+    BorderSizePixel = 0,
+}, MainFrame)
+
+newInstance("UICorner", { CornerRadius = UDim.new(0, 12) }, TopBar)
+
+-- Flatten bottom corners of top bar
+newInstance("Frame", {
+    Size            = UDim2.new(1, 0, 0.5, 0),
+    Position        = UDim2.new(0, 0, 0.5, 0),
+    BackgroundColor3 = THEME.SURFACE,
+    BorderSizePixel = 0,
+    ZIndex          = 2,
+}, TopBar)
+
+-- Accent stripe
+local AccentStripe = newInstance("Frame", {
+    Size            = UDim2.new(0, 4, 1, -12),
+    Position        = UDim2.new(0, 10, 0, 6),
+    BackgroundColor3 = THEME.ACCENT,
+    ZIndex          = 3,
+}, TopBar)
+addCorner(AccentStripe, 3)
+
+-- Title
+newInstance("TextLabel", {
+    Text            = "⚙  Personal Exploit Menu",
+    Font            = Enum.Font.GothamBold,
+    TextSize        = 14,
+    TextColor3      = THEME.TEXT,
+    Size            = UDim2.new(1, -50, 1, 0),
+    Position        = UDim2.new(0, 22, 0, 0),
+    BackgroundTransparency = 1,
+    TextXAlignment  = Enum.TextXAlignment.Left,
+    ZIndex          = 4,
+}, TopBar)
 
 -- Close button
-local closeBtn = Instance.new("TextButton", mainFrame)
-closeBtn.Name = "CloseBtn"
-closeBtn.Size = UDim2.new(0, 28, 0, 28)
-closeBtn.Position = UDim2.new(1, -34, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-closeBtn.BorderSizePixel = 0
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextScaled = true
-closeBtn.ZIndex = 5
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+local CloseBtn = newInstance("TextButton", {
+    Text            = "✕",
+    Font            = Enum.Font.GothamBold,
+    TextSize        = 14,
+    TextColor3      = THEME.TEXT_DIM,
+    Size            = UDim2.fromOffset(30, 30),
+    Position        = UDim2.new(1, -35, 0.5, -15),
+    BackgroundColor3 = Color3.fromRGB(60, 30, 30),
+    ZIndex          = 5,
+}, TopBar)
+addCorner(CloseBtn, 6)
 
--- ================================================
--- SECTION: "Main"
--- ================================================
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
 
-local sectionLabel = Instance.new("TextLabel", mainFrame)
-sectionLabel.Size = UDim2.new(1, -20, 0, 22)
-sectionLabel.Position = UDim2.new(0, 10, 0, 46)
-sectionLabel.BackgroundTransparency = 1
-sectionLabel.Text = "── Main ──"
-sectionLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
-sectionLabel.Font = Enum.Font.GothamBold
-sectionLabel.TextScaled = true
-sectionLabel.ZIndex = 2
-
--- ================================================
--- TOGGLE: Auto Store Fuel
--- ================================================
-
-local toggleRow = Instance.new("Frame", mainFrame)
-toggleRow.Name = "AutoStoreFuelRow"
-toggleRow.Size = UDim2.new(1, -20, 0, 42)
-toggleRow.Position = UDim2.new(0, 10, 0, 75)
-toggleRow.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
-toggleRow.BorderSizePixel = 0
-toggleRow.ZIndex = 2
-Instance.new("UICorner", toggleRow).CornerRadius = UDim.new(0, 8)
-
-local rowStroke = Instance.new("UIStroke", toggleRow)
-rowStroke.Color = Color3.fromRGB(50, 50, 50)
-rowStroke.Thickness = 1
-
-local rowLabel = Instance.new("TextLabel", toggleRow)
-rowLabel.Size = UDim2.new(1, -70, 1, 0)
-rowLabel.Position = UDim2.new(0, 12, 0, 0)
-rowLabel.BackgroundTransparency = 1
-rowLabel.Text = "Auto Store Fuel"
-rowLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-rowLabel.Font = Enum.Font.Gotham
-rowLabel.TextScaled = true
-rowLabel.TextXAlignment = Enum.TextXAlignment.Left
-rowLabel.ZIndex = 3
-
--- Toggle pill
-local pill = Instance.new("Frame", toggleRow)
-pill.Size = UDim2.new(0, 48, 0, 26)
-pill.Position = UDim2.new(1, -58, 0.5, -13)
-pill.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-pill.BorderSizePixel = 0
-pill.ZIndex = 3
-Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
-
-local circle = Instance.new("Frame", pill)
-circle.Size = UDim2.new(0, 20, 0, 20)
-circle.Position = UDim2.new(0, 3, 0.5, -10)
-circle.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
-circle.BorderSizePixel = 0
-circle.ZIndex = 4
-Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
-
--- Invisible click catcher over the whole row
-local clickCatcher = Instance.new("TextButton", toggleRow)
-clickCatcher.Size = UDim2.new(1, 0, 1, 0)
-clickCatcher.BackgroundTransparency = 1
-clickCatcher.Text = ""
-clickCatcher.ZIndex = 5
-
--- ================================================
--- OPEN BUTTON (shown when menu is closed)
--- ================================================
-
-local openBtn = Instance.new("TextButton", screenGui)
-openBtn.Name = "OpenBtn"
-openBtn.Size = UDim2.new(0, 38, 0, 38)
-openBtn.Position = UDim2.new(0, 10, 0.5, -19)
-openBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-openBtn.BorderSizePixel = 0
-openBtn.Text = "☰"
-openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-openBtn.Font = Enum.Font.GothamBold
-openBtn.TextScaled = true
-openBtn.Visible = false
-Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0, 8)
-
-local openStroke = Instance.new("UIStroke", openBtn)
-openStroke.Color = Color3.fromRGB(255, 255, 255)
-openStroke.Thickness = 1.5
-
--- ================================================
--- TOGGLE ANIMATION
--- ================================================
-
-local isEnabled = false
-local loopThread = nil
-
-local function animateToggle(state)
-    TweenService:Create(pill, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-        BackgroundColor3 = state
-            and Color3.fromRGB(255, 255, 255)
-            or Color3.fromRGB(55, 55, 55)
-    }):Play()
-    TweenService:Create(circle, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-        Position = state
-            and UDim2.new(1, -23, 0.5, -10)
-            or UDim2.new(0, 3, 0.5, -10),
-        BackgroundColor3 = state
-            and Color3.fromRGB(0, 0, 0)
-            or Color3.fromRGB(180, 180, 180)
-    }):Play()
-end
-
--- ================================================
--- AUTO STORE FUEL LOGIC
--- ================================================
-
-local function getFuelItems()
-    local droppedItems = workspace:FindFirstChild("DroppedItems")
-    if not droppedItems then return {} end
-
-    local found = {}
-    for _, item in ipairs(droppedItems:GetChildren()) do
-        local name = item.Name
-        -- Matches both "Fuel" and "Refined Fuel" exactly
-        if name == "Fuel" or name == "Refined Fuel" then
-            table.insert(found, item)
+-- ─── Dragging ────────────────────────────────────────────────────────────────
+do
+    local dragging, dragStart, startPos
+    TopBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging  = true
+            dragStart = input.Position
+            startPos  = MainFrame.Position
         end
-    end
-    return found
-end
-
-local function getBasePart(model)
-    if model:IsA("Model") then
-        return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-    end
-    return nil
-end
-
-local function teleportTo(item)
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local part = getBasePart(item)
-    if not hrp or not part then return end
-
-    -- Teleport slightly above the item so physics settles
-    hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 4, 0))
-    task.wait(0.3)
-end
-
-local function pickUpItem(item)
-    -- Fire your game's real pickup RemoteEvent
-    -- The server will handle moving it into BackpackStorage
-    if item and item.Parent then
-        PickUpItem:FireServer(item)
-    end
-end
-
-local function startLoop()
-    loopThread = task.spawn(function()
-        while isEnabled do
-            local fuels = getFuelItems()
-            if #fuels > 0 then
-                for _, fuel in ipairs(fuels) do
-                    if not isEnabled then break end
-                    if fuel and fuel.Parent then
-                        teleportTo(fuel)
-                        pickUpItem(fuel)
-                        task.wait(0.5)
-                    end
-                end
-            end
-            task.wait(1.5)
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or
+                         input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            MainFrame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
         end
-        loopThread = nil
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
     end)
 end
 
--- ================================================
--- BUTTON CONNECTIONS
--- ================================================
+-- ─── Tab bar ─────────────────────────────────────────────────────────────────
+local TabBar = newInstance("Frame", {
+    Name            = "TabBar",
+    Size            = UDim2.new(1, -20, 0, 32),
+    Position        = UDim2.new(0, 10, 0, 46),
+    BackgroundColor3 = THEME.SURFACE,
+    BorderSizePixel = 0,
+}, MainFrame)
+addCorner(TabBar, 8)
 
-clickCatcher.MouseButton1Click:Connect(function()
-    isEnabled = not isEnabled
-    animateToggle(isEnabled)
-    if isEnabled then
-        startLoop()
+local TabLayout = newInstance("UIListLayout", {
+    FillDirection   = Enum.FillDirection.Horizontal,
+    HorizontalAlignment = Enum.HorizontalAlignment.Left,
+    Padding         = UDim.new(0, 4),
+    SortOrder       = Enum.SortOrder.LayoutOrder,
+}, TabBar)
+
+newInstance("UIPadding", {
+    PaddingLeft  = UDim.new(0, 6),
+    PaddingRight = UDim.new(0, 6),
+    PaddingTop   = UDim.new(0, 4),
+    PaddingBottom = UDim.new(0, 4),
+}, TabBar)
+
+local function makeTab(label, active)
+    local btn = newInstance("TextButton", {
+        Text            = label,
+        Font            = Enum.Font.GothamSemibold,
+        TextSize        = 12,
+        TextColor3      = active and THEME.TEXT or THEME.TEXT_DIM,
+        AutomaticSize   = Enum.AutomaticSize.X,
+        Size            = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = active and THEME.ACCENT or THEME.BG,
+        BorderSizePixel = 0,
+    }, TabBar)
+    addCorner(btn, 6)
+    newInstance("UIPadding", {
+        PaddingLeft  = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+    }, btn)
+    return btn
+end
+
+local StructureTab = makeTab("Structure", true)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+--  STRUCTURE PANEL
+-- ═══════════════════════════════════════════════════════════════════════════════
+local StructurePanel = newInstance("Frame", {
+    Name            = "StructurePanel",
+    Size            = UDim2.new(1, -20, 1, -126),
+    Position        = UDim2.new(0, 10, 0, 86),
+    BackgroundTransparency = 1,
+}, MainFrame)
+
+-- ─── Output box ──────────────────────────────────────────────────────────────
+local OutputFrame = newInstance("Frame", {
+    Size            = UDim2.new(1, 0, 1, -50),
+    Position        = UDim2.new(0, 0, 0, 0),
+    BackgroundColor3 = THEME.OUTPUT_BG,
+}, StructurePanel)
+addCorner(OutputFrame, 8)
+addStroke(OutputFrame, THEME.BORDER, 1)
+
+local ScrollFrame = newInstance("ScrollingFrame", {
+    Size            = UDim2.new(1, -8, 1, -8),
+    Position        = UDim2.new(0, 4, 0, 4),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ScrollBarThickness = 4,
+    ScrollBarImageColor3 = THEME.ACCENT,
+    CanvasSize      = UDim2.new(0, 0, 0, 0),
+    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+}, OutputFrame)
+
+local OutputLabel = newInstance("TextLabel", {
+    Name            = "OutputLabel",
+    Text            = "Press  [Clip]  to scan the game structure.",
+    Font            = Enum.Font.Code,
+    TextSize        = 12,
+    TextColor3      = THEME.TEXT_DIM,
+    Size            = UDim2.new(1, -10, 0, 0),
+    Position        = UDim2.new(0, 5, 0, 5),
+    BackgroundTransparency = 1,
+    TextXAlignment  = Enum.TextXAlignment.Left,
+    TextYAlignment  = Enum.TextYAlignment.Top,
+    TextWrapped     = true,
+    AutomaticSize   = Enum.AutomaticSize.Y,
+    RichText        = true,
+}, ScrollFrame)
+
+-- ─── Button row ──────────────────────────────────────────────────────────────
+local BtnRow = newInstance("Frame", {
+    Size            = UDim2.new(1, 0, 0, 38),
+    Position        = UDim2.new(0, 0, 1, -38),
+    BackgroundTransparency = 1,
+}, StructurePanel)
+
+local BtnLayout = newInstance("UIListLayout", {
+    FillDirection   = Enum.FillDirection.Horizontal,
+    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+    Padding         = UDim.new(0, 8),
+    SortOrder       = Enum.SortOrder.LayoutOrder,
+}, BtnRow)
+
+local function makeButton(label, color, order)
+    local btn = newInstance("TextButton", {
+        Text            = label,
+        Font            = Enum.Font.GothamBold,
+        TextSize        = 13,
+        TextColor3      = Color3.new(1, 1, 1),
+        Size            = UDim2.new(0, 148, 1, 0),
+        BackgroundColor3 = color,
+        BorderSizePixel = 0,
+        LayoutOrder     = order,
+        AutoButtonColor = false,
+    }, BtnRow)
+    addCorner(btn, 8)
+    addStroke(btn, color:lerp(Color3.new(1,1,1), 0.15), 1)
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.12), {
+            BackgroundColor3 = color:lerp(Color3.new(1,1,1), 0.12)
+        }):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.12), {
+            BackgroundColor3 = color
+        }):Play()
+    end)
+    return btn
+end
+
+local ClipBtn  = makeButton("⬡  Clip",  THEME.BTN_CLIP,  1)
+local CopyBtn  = makeButton("⎘  Copy",  THEME.BTN_COPY,  2)
+local ResetBtn = makeButton("↺  Reset", THEME.BTN_RESET, 3)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+--  STRUCTURE SCANNER LOGIC
+-- ═══════════════════════════════════════════════════════════════════════════════
+local lastOutput = ""
+
+local function getServiceSafe(name)
+    local ok, result = pcall(function()
+        return game:GetService(name)
+    end)
+    if ok then return result end
+    -- Fallback: direct index
+    ok, result = pcall(function()
+        return game[name]
+    end)
+    return ok and result or nil
+end
+
+local function buildTree(instance, depth, lines)
+    local indent = string.rep("  ", depth)
+    local className = instance.ClassName
+    local name      = instance.Name
+
+    -- Colour-code by class family
+    local tag
+    if className:find("Script") then
+        tag = string.format('<font color="#a8ff78">%s</font>', className)
+    elseif className:find("Model") or className == "Folder" then
+        tag = string.format('<font color="#ffd700">%s</font>', className)
+    elseif className:find("Part") or className:find("Mesh") or className:find("Union") then
+        tag = string.format('<font color="#78c8ff">%s</font>', className)
+    elseif className:find("Remote") then
+        tag = string.format('<font color="#ff9f78">%s</font>', className)
+    elseif className:find("Value") or className:find("Attribute") then
+        tag = string.format('<font color="#c878ff">%s</font>', className)
+    elseif className:find("Gui") or className:find("Frame") or className:find("Label") or className:find("Button") then
+        tag = string.format('<font color="#ff78c8">%s</font>', className)
+    else
+        tag = string.format('<font color="#aaaacc">%s</font>', className)
+    end
+
+    local nameTag = string.format('<font color="#e8e8ff">%s</font>', name)
+    table.insert(lines, indent .. tag .. "  " .. nameTag)
+
+    -- Recurse (pcall to guard locked descendants)
+    local ok, children = pcall(function()
+        return instance:GetChildren()
+    end)
+    if ok then
+        for _, child in ipairs(children) do
+            buildTree(child, depth + 1, lines)
+        end
+    end
+end
+
+local function runClip()
+    -- Flash button
+    TweenService:Create(ClipBtn, TweenInfo.new(0.08), {
+        BackgroundColor3 = THEME.BTN_CLIP:lerp(Color3.new(1,1,1), 0.25)
+    }):Play()
+    task.delay(0.15, function()
+        TweenService:Create(ClipBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = THEME.BTN_CLIP
+        }):Play()
+    end)
+
+    OutputLabel.Text = '<font color="#ffd700">⟳ Scanning game structure…</font>'
+    task.wait()
+
+    local lines = {}
+
+    -- Header
+    table.insert(lines, string.format(
+        '<font color="#888aaa">— Scanned: %s  |  PlaceId: %d —</font>',
+        os.date("%H:%M:%S"), game.PlaceId
+    ))
+    table.insert(lines, "")
+
+    for _, serviceName in ipairs(SCAN_TARGETS) do
+        local service = getServiceSafe(serviceName)
+        if service then
+            table.insert(lines, string.format(
+                '<font color="#ff9f78" size="13">▶ %s</font>',
+                serviceName
+            ))
+            local ok, children = pcall(function() return service:GetChildren() end)
+            if ok then
+                for _, child in ipairs(children) do
+                    buildTree(child, 1, lines)
+                end
+            else
+                table.insert(lines, '  <font color="#ff5555">[Access Denied]</font>')
+            end
+            table.insert(lines, "")
+        else
+            table.insert(lines, string.format(
+                '<font color="#555577">▷ %s  <font color="#ff5555">[Not Found]</font></font>',
+                serviceName
+            ))
+            table.insert(lines, "")
+        end
+    end
+
+    -- Plain-text version for clipboard (strip rich-text tags)
+    local plainLines = {}
+    for _, l in ipairs(lines) do
+        table.insert(plainLines, l:gsub("<[^>]+>", ""))
+    end
+    lastOutput = table.concat(plainLines, "\n")
+
+    OutputLabel.Text = table.concat(lines, "\n")
+end
+
+local function runCopy()
+    if lastOutput == "" then
+        OutputLabel.Text = '<font color="#ff5555">Nothing to copy — run Clip first.</font>'
+        return
+    end
+
+    -- Flash button
+    TweenService:Create(CopyBtn, TweenInfo.new(0.08), {
+        BackgroundColor3 = THEME.BTN_COPY:lerp(Color3.new(1,1,1), 0.25)
+    }):Play()
+    task.delay(0.15, function()
+        TweenService:Create(CopyBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = THEME.BTN_COPY
+        }):Play()
+    end)
+
+    -- Exploit clipboard (setclipboard is provided by most executors)
+    local copied = false
+    if setclipboard then
+        pcall(setclipboard, lastOutput)
+        copied = true
+    elseif copystring then
+        pcall(copystring, lastOutput)
+        copied = true
+    elseif Clipboard and Clipboard.set then
+        pcall(Clipboard.set, lastOutput)
+        copied = true
+    end
+
+    -- Brief status overlay
+    local prev = OutputLabel.Text
+    OutputLabel.Text = string.format(
+        '<font color="#a8ff78">%s  Copied %d characters to clipboard!</font>',
+        copied and "✓" or "ℹ", #lastOutput
+    )
+    task.delay(2, function()
+        if OutputLabel and OutputLabel.Parent then
+            OutputLabel.Text = prev
+        end
+    end)
+end
+
+local function runReset()
+    -- Flash button
+    TweenService:Create(ResetBtn, TweenInfo.new(0.08), {
+        BackgroundColor3 = THEME.BTN_RESET:lerp(Color3.new(1,1,1), 0.25)
+    }):Play()
+    task.delay(0.15, function()
+        TweenService:Create(ResetBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = THEME.BTN_RESET
+        }):Play()
+    end)
+
+    lastOutput = ""
+    OutputLabel.Text = "Press  [Clip]  to scan the game structure."
+    ScrollFrame.CanvasPosition = Vector2.zero
+end
+
+-- ─── Wire buttons ─────────────────────────────────────────────────────────────
+ClipBtn.MouseButton1Click:Connect(function()
+    task.spawn(runClip)
+end)
+CopyBtn.MouseButton1Click:Connect(function()
+    task.spawn(runCopy)
+end)
+ResetBtn.MouseButton1Click:Connect(function()
+    task.spawn(runReset)
+end)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+--  ENTRANCE ANIMATION
+-- ═══════════════════════════════════════════════════════════════════════════════
+MainFrame.BackgroundTransparency = 1
+MainFrame.Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2 + 20)
+
+local function setTransparency(frame, value)
+    for _, obj in ipairs(frame:GetDescendants()) do
+        if obj:IsA("Frame") or obj:IsA("TextLabel") or obj:IsA("TextButton") or
+           obj:IsA("ScrollingFrame") then
+            if obj.BackgroundTransparency < 1 then
+                obj.BackgroundTransparency = value
+            end
+        end
+        if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+            obj.TextTransparency = value
+        end
+    end
+end
+
+setTransparency(MainFrame, 1)
+
+TweenService:Create(MainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Quint), {
+    BackgroundTransparency = 0,
+    Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2),
+}):Play()
+task.delay(0.05, function()
+    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {
+        -- descendants handled individually below
+    }):Play()
+    for _, obj in ipairs(MainFrame:GetDescendants()) do
+        if obj:IsA("Frame") and obj.BackgroundTransparency == 1 then
+            -- keep fully transparent frames
+        elseif obj:IsA("Frame") then
+            TweenService:Create(obj, TweenInfo.new(0.25), { BackgroundTransparency = 0 }):Play()
+        elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+            if obj.BackgroundTransparency < 1 then
+                TweenService:Create(obj, TweenInfo.new(0.25), { BackgroundTransparency = 0 }):Play()
+            end
+            TweenService:Create(obj, TweenInfo.new(0.25), { TextTransparency = 0 }):Play()
+        end
     end
 end)
 
-closeBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-    openBtn.Visible = true
-end)
-
-openBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = true
-    openBtn.Visible = false
-end)
+print("[ExploitMenu] Loaded — drag the title bar to move, press Clip to scan.")
