@@ -17,8 +17,7 @@ local killAuraEnabled         = false
 local killAuraRange           = 20
 local killAuraConnection      = nil
 local fuelCollectorEnabled    = false
-local batteryCollectorEnabled = false
-local scrapCollectorEnabled   = false
+local bagCollectorEnabled     = false
 local instantPromptsEnabled   = false
 local godModeEnabled          = false
 local savedPromptData         = {}
@@ -29,9 +28,7 @@ local godHumConnection        = nil
 -- EXACT NAMES from workspace structure scan
 -- Items live in workspace.DroppedItems
 -- ============================================================
-local FUEL_ITEM_NAMES    = {"Fuel"}
-local BATTERY_ITEM_NAMES = {"Battery"}
-local SCRAP_ITEM_NAMES   = {"Scrap", "Screws"}
+local FUEL_ITEM_NAMES = {"Fuel"}
 
 -- ============================================================
 -- GUI
@@ -61,7 +58,7 @@ ks.Color=Color3.fromRGB(160,140,255); ks.Thickness=2
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name             = "MainFrame"
-MainFrame.Size             = UDim2.new(0,240,0,440)
+MainFrame.Size             = UDim2.new(0,240,0,420)
 MainFrame.Position         = UDim2.new(0,10,0,10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18,18,24)
 MainFrame.BorderSizePixel  = 0
@@ -171,7 +168,7 @@ local function toggleMinimize()
     TabBar.Visible=not minimized
     if minimized then MenuContent.Visible=false; StructureContent.Visible=false
     else switchTab(currentTab) end
-    MainFrame.Size=minimized and UDim2.new(0,240,0,44) or UDim2.new(0,240,0,440)
+    MainFrame.Size=minimized and UDim2.new(0,240,0,44) or UDim2.new(0,240,0,420)
     MinBtn.Text=minimized and "+" or "-"
 end
 MinBtn.MouseButton1Click:Connect(toggleMinimize)
@@ -277,6 +274,17 @@ local function getDroppedItems(names)
     return results
 end
 
+-- Get ALL items from DroppedItems (every child)
+local function getAllDroppedItems()
+    local folder = workspace:FindFirstChild("DroppedItems")
+    if not folder then return {} end
+    local results={}
+    for _,child in ipairs(folder:GetChildren()) do
+        results[#results+1]=child
+    end
+    return results
+end
+
 -- Find a named Part inside a model (recursive)
 local function findPartInModel(model,partName)
     for _,d in ipairs(model:GetDescendants()) do
@@ -299,7 +307,6 @@ end
 -- Generator has FuelZone (Part) with TouchInterest — items must overlap it
 -- ============================================================
 local function collectFuel(infoLabel)
-    -- Find Generator
     local genModel = findModelInWorkspace("Generator")
     if not genModel then
         infoLabel.Text="Generator not found in workspace"
@@ -307,7 +314,6 @@ local function collectFuel(infoLabel)
     end
     local fuelZone = findPartInModel(genModel,"FuelZone")
     if not fuelZone then
-        -- Fallback: use MainPart
         fuelZone = findPartInModel(genModel,"MainPart") or getModelPart(genModel)
     end
     if not fuelZone then
@@ -327,7 +333,6 @@ local function collectFuel(infoLabel)
         unanchorModel(item)
         local pp=getModelPart(item)
         if pp then
-            -- Place item slightly above the zone center so it falls in
             item:PivotTo(zoneCF * CFrame.new(0, 0.5 + count*0.2, 0))
             pp.AssemblyLinearVelocity=Vector3.new(0,-8,0)
             count+=1
@@ -338,78 +343,40 @@ local function collectFuel(infoLabel)
 end
 
 -- ============================================================
--- SCRAP COLLECTOR
--- Scrap/Screws (Model) from DroppedItems → Shredder's MainPart (TouchInterest)
--- The Shredder shreds items that touch its MainPart
+-- PUT IN BAG COLLECTOR
+-- Teleports ALL items from DroppedItems directly onto the player
+-- so the game's touch/pickup system collects them automatically.
 -- ============================================================
-local function collectScrap(infoLabel)
-    -- Find the Shredder
-    local shredder = findModelInWorkspace("Shredder")
-    if not shredder then
-        infoLabel.Text="Shredder not found in workspace"
-        infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
-    end
-    local shredMP = findPartInModel(shredder,"MainPart") or getModelPart(shredder)
-    if not shredMP then
-        infoLabel.Text="Shredder MainPart not found"
-        infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
-    end
-
-    local items = getDroppedItems(SCRAP_ITEM_NAMES)
-    if #items==0 then
-        infoLabel.Text="No Scrap/Screws in DroppedItems"
-        infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
-    end
-
-    local targetCF = shredMP.CFrame
-    local count=0
-    for _,item in ipairs(items) do
-        unanchorModel(item)
-        local pp=getModelPart(item)
-        if pp then
-            item:PivotTo(targetCF * CFrame.new(0, 0.4 + count*0.15, 0))
-            pp.AssemblyLinearVelocity=Vector3.new(0,-8,0)
-            count+=1
-        end
-    end
-    infoLabel.Text=count.." Scrap/Screws dropped into Shredder"
-    infoLabel.TextColor3=Color3.fromRGB(120,255,160)
-end
-
--- ============================================================
--- BATTERY COLLECTOR
--- Battery (Model) from DroppedItems → drop at player's feet so they
--- can walk to the collection zone (CollectBatteries proximity mechanic)
--- ============================================================
-local function collectBattery(infoLabel)
-    local char=LocalPlayer.Character
-    local root=char and char:FindFirstChild("HumanoidRootPart")
+local function collectAllToBag(infoLabel)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then
         infoLabel.Text="Respawn first — no character"
         infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
     end
 
-    local items = getDroppedItems(BATTERY_ITEM_NAMES)
+    local items = getAllDroppedItems()
     if #items==0 then
-        infoLabel.Text="No Battery items in DroppedItems"
+        infoLabel.Text="DroppedItems is empty"
         infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
     end
 
-    -- Scatter batteries in a small ring around player
-    local playerCF=root.CFrame
-    local count=0
-    for _,item in ipairs(items) do
-        unanchorModel(item)
-        local pp=getModelPart(item)
-        if pp then
-            local angle=(count/math.max(#items,1))*math.pi*2
-            local offset=Vector3.new(math.cos(angle)*2.5, -2, math.sin(angle)*2.5)
-            item:PivotTo(playerCF * CFrame.new(offset))
-            pp.AssemblyLinearVelocity=Vector3.new(0,-5,0)
-            count+=1
-        end
+    local playerCF = root.CFrame
+    local count = 0
+    for i,item in ipairs(items) do
+        pcall(function()
+            unanchorModel(item)
+            local pp = getModelPart(item)
+            if pp then
+                -- Stack items directly on top of the player
+                local offset = CFrame.new(0, -2 + (i * 0.1), 0)
+                item:PivotTo(playerCF * offset)
+                pp.AssemblyLinearVelocity = Vector3.new(0,-4,0)
+                count += 1
+            end
+        end)
     end
-    infoLabel.Text=count.." Batteries dropped at your feet — walk to collect zone"
+    infoLabel.Text=count.." items pulled to your position"
     infoLabel.TextColor3=Color3.fromRGB(120,255,160)
 end
 
@@ -419,7 +386,7 @@ local function makeCollector(collectFn, infoLabel, defaultText)
         task.spawn(function()
             while active do
                 collectFn(infoLabel)
-                task.wait(3)
+                task.wait(2)
             end
         end)
     end
@@ -541,25 +508,15 @@ local function setFuelCollector(on)
 end
 fcBtn.MouseButton1Click:Connect(function() setFuelCollector(not fuelCollectorEnabled) end)
 
--- Battery → drop at player feet
-local _,bcTrack,bcKnob,bcStatus,bcBtn=createToggleRow("Battery Collector",23)
-local battInfo=createInfoRow("Drops Batteries at your feet to collect",24)
-local battColl=makeCollector(collectBattery,battInfo,"Drops Batteries at your feet to collect")
-local function setBatteryCollector(on)
-    batteryCollectorEnabled=on; animateToggle(bcTrack,bcKnob,bcStatus,on)
-    if on then battColl.enable() else battColl.disable() end
+-- Put In Bag → teleports ALL DroppedItems to player every 2s
+local _,bgTrack,bgKnob,bgStatus,bgBtn=createToggleRow("Put In Bag",23)
+local bagInfo=createInfoRow("Pulls all dropped items to your position",24)
+local bagColl=makeCollector(collectAllToBag,bagInfo,"Pulls all dropped items to your position")
+local function setBagCollector(on)
+    bagCollectorEnabled=on; animateToggle(bgTrack,bgKnob,bgStatus,on)
+    if on then bagColl.enable() else bagColl.disable() end
 end
-bcBtn.MouseButton1Click:Connect(function() setBatteryCollector(not batteryCollectorEnabled) end)
-
--- Scrap/Screws → Shredder MainPart
-local _,scTrack,scKnob,scStatus,scBtn=createToggleRow("Scrap Collector",25)
-local scrapInfo=createInfoRow("Sends Scrap/Screws into Shredder",26)
-local scrapColl=makeCollector(collectScrap,scrapInfo,"Sends Scrap/Screws into Shredder")
-local function setScrapCollector(on)
-    scrapCollectorEnabled=on; animateToggle(scTrack,scKnob,scStatus,on)
-    if on then scrapColl.enable() else scrapColl.disable() end
-end
-scBtn.MouseButton1Click:Connect(function() setScrapCollector(not scrapCollectorEnabled) end)
+bgBtn.MouseButton1Click:Connect(function() setBagCollector(not bagCollectorEnabled) end)
 
 -- ============================================================
 -- INSTANT PROMPTS  (order 30)
