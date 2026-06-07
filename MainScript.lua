@@ -12,23 +12,31 @@ local DEFAULT_WALKSPEED = 16
 local FAST_WALKSPEED    = 55
 
 -- State
-local walkSpeedEnabled        = false
-local killAuraEnabled         = false
-local killAuraRange           = 20
-local killAuraConnection      = nil
-local fuelCollectorEnabled    = false
-local bagCollectorEnabled     = false
-local instantPromptsEnabled   = false
-local godModeEnabled          = false
-local savedPromptData         = {}
-local godModeConnection       = nil
-local godHumConnection        = nil
+local walkSpeedEnabled      = false
+local killAuraEnabled       = false
+local killAuraRange         = 20
+local killAuraConnection    = nil
+local fuelCollectorEnabled  = false
+local bagCollectorEnabled   = false
+local instantPromptsEnabled = false
+local godModeEnabled        = false
+local savedPromptData       = {}
+local godModeConnection     = nil
+local godHumConnection      = nil
+
+local FUEL_ITEM_NAMES = {"Fuel"}
 
 -- ============================================================
--- EXACT NAMES from workspace structure scan
--- Items live in workspace.DroppedItems
+-- KNOWN ITEMS (from workspace structure scan + common STA loot)
 -- ============================================================
-local FUEL_ITEM_NAMES = {"Fuel"}
+local ITEM_LIST = {
+    { section = "WEAPONS",     names = {"Knife","Bat","Crowbar","Machete","Pistol","Shotgun","Rifle","Sniper","Crossbow","AK47","M4A1","SMG","Revolver"} },
+    { section = "THROWABLES",  names = {"Grenade","Flashbang"} },
+    { section = "MEDICAL",     names = {"Bandage","Bloxiade","Medkit"} },
+    { section = "FOOD",        names = {"Beans","Chips","Tray","Spatula"} },
+    { section = "AMMO",        names = {"Pistol Ammo","Medium Ammo","Long Ammo","Shells","Screws","Scrap"} },
+    { section = "RESOURCES",   names = {"Battery","Fuel"} },
+}
 
 -- ============================================================
 -- GUI
@@ -58,7 +66,7 @@ ks.Color=Color3.fromRGB(160,140,255); ks.Thickness=2
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name             = "MainFrame"
-MainFrame.Size             = UDim2.new(0,240,0,420)
+MainFrame.Size             = UDim2.new(0,260,0,460)
 MainFrame.Position         = UDim2.new(0,10,0,10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18,18,24)
 MainFrame.BorderSizePixel  = 0
@@ -98,27 +106,29 @@ CloseBtn.Text="X"; CloseBtn.TextColor3=Color3.fromRGB(255,255,255)
 CloseBtn.TextSize=16; CloseBtn.Font=Enum.Font.GothamBold
 Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(0,8)
 
--- Tab bar
+-- Tab bar (3 tabs at ~33% each)
 local TabBar = Instance.new("Frame",MainFrame)
 TabBar.Size=UDim2.new(1,-16,0,34); TabBar.Position=UDim2.new(0,8,0,48)
 TabBar.BackgroundColor3=Color3.fromRGB(24,24,34); TabBar.BorderSizePixel=0
 Instance.new("UICorner",TabBar).CornerRadius=UDim.new(0,8)
 local tbl=Instance.new("UIListLayout",TabBar)
-tbl.FillDirection=Enum.FillDirection.Horizontal; tbl.Padding=UDim.new(0,4)
+tbl.FillDirection=Enum.FillDirection.Horizontal; tbl.Padding=UDim.new(0,3)
 local tbpad=Instance.new("UIPadding",TabBar)
-tbpad.PaddingLeft=UDim.new(0,4); tbpad.PaddingTop=UDim.new(0,4); tbpad.PaddingBottom=UDim.new(0,4)
+tbpad.PaddingLeft=UDim.new(0,3); tbpad.PaddingTop=UDim.new(0,3); tbpad.PaddingBottom=UDim.new(0,3)
 
 local function makeTab(label,order)
     local btn=Instance.new("TextButton",TabBar)
-    btn.Size=UDim2.new(0.5,-4,1,0); btn.BackgroundColor3=Color3.fromRGB(40,30,80)
+    btn.Size=UDim2.new(1/3,-4,1,0)
+    btn.BackgroundColor3=Color3.fromRGB(40,30,80)
     btn.BorderSizePixel=0; btn.Text=label
-    btn.TextColor3=Color3.fromRGB(180,170,255); btn.TextSize=13
+    btn.TextColor3=Color3.fromRGB(180,170,255); btn.TextSize=12
     btn.Font=Enum.Font.GothamSemibold; btn.LayoutOrder=order
     Instance.new("UICorner",btn).CornerRadius=UDim.new(0,6)
     return btn
 end
 local TabMenu      = makeTab("Menu",1)
-local TabStructure = makeTab("Structure",2)
+local TabItems     = makeTab("Items",2)
+local TabStructure = makeTab("Structure",3)
 
 -- Content areas
 local MenuContent = Instance.new("Frame",MainFrame)
@@ -136,6 +146,29 @@ local ListLayout=Instance.new("UIListLayout",ScrollFrame)
 ListLayout.SortOrder=Enum.SortOrder.LayoutOrder; ListLayout.Padding=UDim.new(0,8)
 local cpad=Instance.new("UIPadding",ScrollFrame); cpad.PaddingBottom=UDim.new(0,8)
 
+-- Items content area
+local ItemsContent = Instance.new("Frame",MainFrame)
+ItemsContent.Size=UDim2.new(1,-16,1,-92); ItemsContent.Position=UDim2.new(0,8,0,88)
+ItemsContent.BackgroundTransparency=1; ItemsContent.Visible=false
+
+local ItemsScroll = Instance.new("ScrollingFrame",ItemsContent)
+ItemsScroll.Size=UDim2.new(1,0,1,-28); ItemsScroll.Position=UDim2.new(0,0,0,0)
+ItemsScroll.BackgroundTransparency=1; ItemsScroll.BorderSizePixel=0
+ItemsScroll.ScrollBarThickness=3; ItemsScroll.ScrollBarImageColor3=Color3.fromRGB(100,80,255)
+ItemsScroll.CanvasSize=UDim2.new(0,0,0,0); ItemsScroll.AutomaticCanvasSize=Enum.AutomaticSize.Y
+ItemsScroll.ScrollingDirection=Enum.ScrollingDirection.Y
+local isl=Instance.new("UIListLayout",ItemsScroll)
+isl.SortOrder=Enum.SortOrder.LayoutOrder; isl.Padding=UDim.new(0,6)
+local ipad=Instance.new("UIPadding",ItemsScroll); ipad.PaddingBottom=UDim.new(0,8)
+
+local ItemsFeedback = Instance.new("TextLabel",ItemsContent)
+ItemsFeedback.Size=UDim2.new(1,0,0,24); ItemsFeedback.Position=UDim2.new(0,0,1,-24)
+ItemsFeedback.BackgroundColor3=Color3.fromRGB(22,22,32); ItemsFeedback.BorderSizePixel=0
+ItemsFeedback.Text="Press an item to spawn it at your feet"
+ItemsFeedback.TextColor3=Color3.fromRGB(140,130,200); ItemsFeedback.TextSize=11
+ItemsFeedback.Font=Enum.Font.Gotham
+Instance.new("UICorner",ItemsFeedback).CornerRadius=UDim.new(0,6)
+
 local StructureContent = Instance.new("Frame",MainFrame)
 StructureContent.Size=UDim2.new(1,-16,1,-92); StructureContent.Position=UDim2.new(0,8,0,88)
 StructureContent.BackgroundTransparency=1; StructureContent.Visible=false
@@ -144,16 +177,20 @@ StructureContent.BackgroundTransparency=1; StructureContent.Visible=false
 local currentTab="menu"
 local function switchTab(tab)
     currentTab=tab
-    local onMenu=(tab=="menu")
-    MenuContent.Visible=onMenu; StructureContent.Visible=not onMenu
-    TabMenu.BackgroundColor3      = onMenu and Color3.fromRGB(100,80,255) or Color3.fromRGB(40,30,80)
-    TabMenu.TextColor3            = onMenu and Color3.fromRGB(255,255,255) or Color3.fromRGB(180,170,255)
-    TabStructure.BackgroundColor3 = onMenu and Color3.fromRGB(40,30,80)   or Color3.fromRGB(100,80,255)
-    TabStructure.TextColor3       = onMenu and Color3.fromRGB(180,170,255) or Color3.fromRGB(255,255,255)
+    MenuContent.Visible   = (tab=="menu")
+    ItemsContent.Visible  = (tab=="items")
+    StructureContent.Visible = (tab=="structure")
+    local function style(btn, active)
+        btn.BackgroundColor3 = active and Color3.fromRGB(100,80,255) or Color3.fromRGB(40,30,80)
+        btn.TextColor3       = active and Color3.fromRGB(255,255,255) or Color3.fromRGB(180,170,255)
+    end
+    style(TabMenu,      tab=="menu")
+    style(TabItems,     tab=="items")
+    style(TabStructure, tab=="structure")
 end
 switchTab("menu")
--- NOTE: Only MouseButton1Click — TouchTap fires alongside it and causes double-toggle
-TabMenu.MouseButton1Click:Connect(function() switchTab("menu") end)
+TabMenu.MouseButton1Click:Connect(function()      switchTab("menu")      end)
+TabItems.MouseButton1Click:Connect(function()     switchTab("items")     end)
 TabStructure.MouseButton1Click:Connect(function() switchTab("structure") end)
 
 -- Close / Minimize
@@ -166,9 +203,10 @@ local minimized=false
 local function toggleMinimize()
     minimized=not minimized
     TabBar.Visible=not minimized
-    if minimized then MenuContent.Visible=false; StructureContent.Visible=false
+    if minimized then
+        MenuContent.Visible=false; ItemsContent.Visible=false; StructureContent.Visible=false
     else switchTab(currentTab) end
-    MainFrame.Size=minimized and UDim2.new(0,240,0,44) or UDim2.new(0,240,0,420)
+    MainFrame.Size=minimized and UDim2.new(0,260,0,44) or UDim2.new(0,260,0,460)
     MinBtn.Text=minimized and "+" or "-"
 end
 MinBtn.MouseButton1Click:Connect(toggleMinimize)
@@ -241,27 +279,48 @@ local function createSectionLabel(text,order)
 end
 
 -- ============================================================
--- GAME-AWARE COLLECTOR LOGIC
+-- ITEM HELPER FUNCTIONS
 -- ============================================================
--- Unanchor all BaseParts in a model so physics applies
-local function unanchorModel(obj)
-    local list={obj}
-    for _,d in ipairs(obj:GetDescendants()) do list[#list+1]=d end
-    for _,p in ipairs(list) do
-        if p:IsA("BasePart") then
-            p.Anchored=false; p.CanCollide=true
-            p.AssemblyLinearVelocity=Vector3.zero
-            p.AssemblyAngularVelocity=Vector3.zero
+local function claimNetworkOwnership(item)
+    -- Fire RequestNetworkOwnership on the item's DragDetector so the
+    -- server transfers physics ownership to this client before we move it
+    local drag = item:FindFirstChild("ItemDrag")
+    if drag then
+        local req = drag:FindFirstChild("RequestNetworkOwnership")
+        if req and req:IsA("RemoteEvent") then
+            pcall(function() req:FireServer() end)
         end
     end
 end
 
--- Get the PrimaryPart or first BasePart of a model
+local function unanchorModel(obj)
+    for _,p in ipairs(obj:GetDescendants()) do
+        if p:IsA("BasePart") then
+            p.Anchored=false
+            p.AssemblyLinearVelocity=Vector3.zero
+            p.AssemblyAngularVelocity=Vector3.zero
+        end
+    end
+    if obj:IsA("BasePart") then
+        obj.Anchored=false
+        obj.AssemblyLinearVelocity=Vector3.zero
+        obj.AssemblyAngularVelocity=Vector3.zero
+    end
+end
+
 local function getModelPart(model)
+    if model:IsA("BasePart") then return model end
     return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart",true)
 end
 
--- Find all models in DroppedItems whose name matches
+local function getAllDroppedItems()
+    local folder = workspace:FindFirstChild("DroppedItems")
+    if not folder then return {} end
+    local results={}
+    for _,child in ipairs(folder:GetChildren()) do results[#results+1]=child end
+    return results
+end
+
 local function getDroppedItems(names)
     local folder = workspace:FindFirstChild("DroppedItems")
     if not folder then return {} end
@@ -274,18 +333,6 @@ local function getDroppedItems(names)
     return results
 end
 
--- Get ALL items from DroppedItems (every child)
-local function getAllDroppedItems()
-    local folder = workspace:FindFirstChild("DroppedItems")
-    if not folder then return {} end
-    local results={}
-    for _,child in ipairs(folder:GetChildren()) do
-        results[#results+1]=child
-    end
-    return results
-end
-
--- Find a named Part inside a model (recursive)
 local function findPartInModel(model,partName)
     for _,d in ipairs(model:GetDescendants()) do
         if d:IsA("BasePart") and d.Name==partName then return d end
@@ -293,7 +340,6 @@ local function findPartInModel(model,partName)
     return nil
 end
 
--- Find a model anywhere in workspace by exact name
 local function findModelInWorkspace(name)
     for _,obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and obj.Name==name then return obj end
@@ -302,81 +348,199 @@ local function findModelInWorkspace(name)
 end
 
 -- ============================================================
+-- SPAWN ITEM — searches DroppedItems first, then all workspace,
+-- fires RequestNetworkOwnership, then teleports to player feet
+-- ============================================================
+local function spawnItemToPlayer(itemName)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then
+        ItemsFeedback.Text = "Respawn first — no character"
+        ItemsFeedback.TextColor3 = Color3.fromRGB(255,100,100)
+        return
+    end
+
+    -- 1. Search DroppedItems
+    local target = nil
+    local folder = workspace:FindFirstChild("DroppedItems")
+    if folder then
+        for _,child in ipairs(folder:GetChildren()) do
+            if child.Name == itemName then target=child; break end
+        end
+    end
+
+    -- 2. Broad workspace search (any folder)
+    if not target then
+        for _,obj in ipairs(workspace:GetDescendants()) do
+            if (obj:IsA("Model") or obj:IsA("Tool")) and obj.Name==itemName then
+                target=obj; break
+            end
+        end
+    end
+
+    -- 3. Try ReplicatedStorage for a template to clone
+    if not target then
+        local RS = game:GetService("ReplicatedStorage")
+        for _,obj in ipairs(RS:GetDescendants()) do
+            if (obj:IsA("Model") or obj:IsA("Tool")) and obj.Name==itemName then
+                local clone = obj:Clone()
+                clone.Parent = workspace
+                target = clone
+                break
+            end
+        end
+    end
+
+    if not target then
+        ItemsFeedback.Text = '"'..itemName..'" not found in game'
+        ItemsFeedback.TextColor3 = Color3.fromRGB(255,120,80)
+        return
+    end
+
+    -- Claim network ownership so the server lets us move it
+    claimNetworkOwnership(target)
+    task.wait(0.05)
+
+    pcall(function()
+        unanchorModel(target)
+        local pp = getModelPart(target)
+        if pp then
+            target:PivotTo(root.CFrame * CFrame.new(0, -2, 0))
+            pp.AssemblyLinearVelocity = Vector3.new(0, -4, 0)
+        end
+    end)
+
+    ItemsFeedback.Text = itemName .. " spawned at your feet!"
+    ItemsFeedback.TextColor3 = Color3.fromRGB(120,255,160)
+end
+
+-- ============================================================
+-- BUILD ITEMS TAB UI
+-- ============================================================
+local itemLO = 0
+local SECTION_COLORS = {
+    WEAPONS    = Color3.fromRGB(255,100,100),
+    THROWABLES = Color3.fromRGB(255,180,60),
+    MEDICAL    = Color3.fromRGB(80,220,150),
+    FOOD       = Color3.fromRGB(120,200,255),
+    AMMO       = Color3.fromRGB(200,160,255),
+    RESOURCES  = Color3.fromRGB(255,220,80),
+}
+
+for _,group in ipairs(ITEM_LIST) do
+    -- Section label
+    itemLO += 1
+    local secLbl = Instance.new("TextLabel",ItemsScroll)
+    secLbl.Size=UDim2.new(1,0,0,16); secLbl.BackgroundTransparency=1
+    secLbl.Text=group.section; secLbl.TextSize=10; secLbl.Font=Enum.Font.GothamBold
+    secLbl.TextColor3= SECTION_COLORS[group.section] or Color3.fromRGB(160,140,255)
+    secLbl.TextXAlignment=Enum.TextXAlignment.Left; secLbl.LayoutOrder=itemLO
+    Instance.new("UIPadding",secLbl).PaddingLeft=UDim.new(0,4)
+
+    -- Grid of item buttons (2 per row)
+    local names = group.names
+    for i=1,#names,2 do
+        itemLO += 1
+        local row = Instance.new("Frame",ItemsScroll)
+        row.Size=UDim2.new(1,0,0,36); row.BackgroundTransparency=1
+        row.LayoutOrder=itemLO
+        local rowLayout=Instance.new("UIListLayout",row)
+        rowLayout.FillDirection=Enum.FillDirection.Horizontal; rowLayout.Padding=UDim.new(0,5)
+
+        local function makeItemBtn(name)
+            local btn=Instance.new("TextButton",row)
+            btn.Size=UDim2.new(0.5,-3,1,0)
+            btn.BackgroundColor3=Color3.fromRGB(30,26,50)
+            btn.BorderSizePixel=0; btn.Text=name
+            btn.TextColor3=Color3.fromRGB(210,200,255); btn.TextSize=12
+            btn.Font=Enum.Font.GothamSemibold; btn.TextWrapped=true
+            local corner=Instance.new("UICorner",btn); corner.CornerRadius=UDim.new(0,8)
+            local stroke=Instance.new("UIStroke",btn)
+            stroke.Color=Color3.fromRGB(80,60,160); stroke.Thickness=1
+            btn.MouseButton1Click:Connect(function()
+                btn.BackgroundColor3=Color3.fromRGB(100,80,255)
+                task.delay(0.25, function() btn.BackgroundColor3=Color3.fromRGB(30,26,50) end)
+                spawnItemToPlayer(name)
+            end)
+        end
+
+        makeItemBtn(names[i])
+        if names[i+1] then makeItemBtn(names[i+1]) end
+    end
+
+    -- Spacer
+    itemLO += 1
+    local spacer=Instance.new("Frame",ItemsScroll)
+    spacer.Size=UDim2.new(1,0,0,4); spacer.BackgroundTransparency=1; spacer.LayoutOrder=itemLO
+end
+
+-- ============================================================
 -- FUEL COLLECTOR
--- Fuel (Model) from DroppedItems → FuelZone Part inside Generator
--- Generator has FuelZone (Part) with TouchInterest — items must overlap it
 -- ============================================================
 local function collectFuel(infoLabel)
     local genModel = findModelInWorkspace("Generator")
     if not genModel then
-        infoLabel.Text="Generator not found in workspace"
-        infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
+        infoLabel.Text="Generator not found"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
     end
     local fuelZone = findPartInModel(genModel,"FuelZone")
+        or findPartInModel(genModel,"MainPart") or getModelPart(genModel)
     if not fuelZone then
-        fuelZone = findPartInModel(genModel,"MainPart") or getModelPart(genModel)
+        infoLabel.Text="Generator FuelZone not found"; infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
     end
-    if not fuelZone then
-        infoLabel.Text="Generator FuelZone not found"
-        infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
-    end
-
     local items = getDroppedItems(FUEL_ITEM_NAMES)
     if #items==0 then
-        infoLabel.Text="No Fuel items in DroppedItems"
-        infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
+        infoLabel.Text="No Fuel in DroppedItems"; infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
     end
-
-    local zoneCF = fuelZone.CFrame
-    local count=0
+    local zoneCF=fuelZone.CFrame; local count=0
     for _,item in ipairs(items) do
-        unanchorModel(item)
-        local pp=getModelPart(item)
-        if pp then
-            item:PivotTo(zoneCF * CFrame.new(0, 0.5 + count*0.2, 0))
-            pp.AssemblyLinearVelocity=Vector3.new(0,-8,0)
-            count+=1
-        end
+        claimNetworkOwnership(item)
+        task.wait(0.02)
+        pcall(function()
+            unanchorModel(item)
+            local pp=getModelPart(item)
+            if pp then
+                item:PivotTo(zoneCF * CFrame.new(0, 0.5+count*0.2, 0))
+                pp.AssemblyLinearVelocity=Vector3.new(0,-8,0)
+                count+=1
+            end
+        end)
     end
-    infoLabel.Text=count.." Fuel dropped into Generator FuelZone"
+    infoLabel.Text=count.." Fuel → Generator FuelZone"
     infoLabel.TextColor3=Color3.fromRGB(120,255,160)
 end
 
 -- ============================================================
--- PUT IN BAG COLLECTOR
--- Teleports ALL items from DroppedItems directly onto the player
--- so the game's touch/pickup system collects them automatically.
+-- PUT IN BAG — ALL items from DroppedItems → player feet
+-- Fires RequestNetworkOwnership first so items aren't stuck
 -- ============================================================
 local function collectAllToBag(infoLabel)
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local char=LocalPlayer.Character
+    local root=char and char:FindFirstChild("HumanoidRootPart")
     if not root then
         infoLabel.Text="Respawn first — no character"
         infoLabel.TextColor3=Color3.fromRGB(255,100,100); return
     end
-
-    local items = getAllDroppedItems()
+    local items=getAllDroppedItems()
     if #items==0 then
         infoLabel.Text="DroppedItems is empty"
         infoLabel.TextColor3=Color3.fromRGB(255,200,80); return
     end
-
-    local playerCF = root.CFrame
-    local count = 0
+    local playerCF=root.CFrame; local count=0
     for i,item in ipairs(items) do
+        -- Claim ownership first so server lets client move/drag the item
+        claimNetworkOwnership(item)
+        task.wait(0.02)
         pcall(function()
             unanchorModel(item)
-            local pp = getModelPart(item)
+            local pp=getModelPart(item)
             if pp then
-                -- Stack items directly on top of the player
-                local offset = CFrame.new(0, -2 + (i * 0.1), 0)
-                item:PivotTo(playerCF * offset)
-                pp.AssemblyLinearVelocity = Vector3.new(0,-4,0)
-                count += 1
+                item:PivotTo(playerCF * CFrame.new(0, -2+(i*0.05), 0))
+                pp.AssemblyLinearVelocity=Vector3.new(0,-4,0)
+                count+=1
             end
         end)
     end
-    infoLabel.Text=count.." items pulled to your position"
+    infoLabel.Text=count.." items ready — drag or walk to collect"
     infoLabel.TextColor3=Color3.fromRGB(120,255,160)
 end
 
@@ -386,7 +550,7 @@ local function makeCollector(collectFn, infoLabel, defaultText)
         task.spawn(function()
             while active do
                 collectFn(infoLabel)
-                task.wait(2)
+                task.wait(3)
             end
         end)
     end
@@ -422,7 +586,6 @@ createSectionLabel("COMBAT",10)
 local _,kaTrack,kaKnob,kaStatus,kaBtn=createToggleRow("Kill Aura",11)
 local kaInfo=createInfoRow("Equip any weapon to activate",12)
 
--- Aura range slider
 local SliderOuter=Instance.new("Frame",ScrollFrame)
 SliderOuter.Size=UDim2.new(1,0,0,52); SliderOuter.BackgroundColor3=Color3.fromRGB(28,28,38)
 SliderOuter.BorderSizePixel=0; SliderOuter.LayoutOrder=13
@@ -498,7 +661,6 @@ kaBtn.MouseButton1Click:Connect(function() setKillAura(not killAuraEnabled) end)
 -- ============================================================
 createSectionLabel("COLLECTORS",20)
 
--- Fuel → Generator FuelZone
 local _,fcTrack,fcKnob,fcStatus,fcBtn=createToggleRow("Fuel Collector",21)
 local fuelInfo=createInfoRow("Sends Fuel to Generator FuelZone",22)
 local fuelColl=makeCollector(collectFuel,fuelInfo,"Sends Fuel to Generator FuelZone")
@@ -508,10 +670,9 @@ local function setFuelCollector(on)
 end
 fcBtn.MouseButton1Click:Connect(function() setFuelCollector(not fuelCollectorEnabled) end)
 
--- Put In Bag → teleports ALL DroppedItems to player every 2s
 local _,bgTrack,bgKnob,bgStatus,bgBtn=createToggleRow("Put In Bag",23)
-local bagInfo=createInfoRow("Pulls all dropped items to your position",24)
-local bagColl=makeCollector(collectAllToBag,bagInfo,"Pulls all dropped items to your position")
+local bagInfo=createInfoRow("Claims ownership then pulls ALL items to you",24)
+local bagColl=makeCollector(collectAllToBag,bagInfo,"Claims ownership then pulls ALL items to you")
 local function setBagCollector(on)
     bagCollectorEnabled=on; animateToggle(bgTrack,bgKnob,bgStatus,on)
     if on then bagColl.enable() else bagColl.disable() end
@@ -598,9 +759,7 @@ RABtn.MouseButton1Click:Connect(function()
         pcall(function()
             for _,obj in ipairs(svc:GetDescendants()) do
                 if obj.Name:lower():find("anti",1,true) then
-                    if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-                        obj.Disabled=true
-                    end
+                    if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then obj.Disabled=true end
                     pcall(function() obj:Destroy() end)
                     killed+=1
                 end
@@ -720,7 +879,7 @@ local SCAN_SVCS={
     {name="SoundService",ref=game:GetService("SoundService")},
     {name="Teams",ref=game:GetService("Teams")},
 }
-local MAX_DEPTH=6; local MAX_CH=40
+local MAX_DEPTH=6
 
 local function scanAllServices(guiMode,printMode)
     local buf={}; local total=0
@@ -757,7 +916,7 @@ ScanBtn.MouseButton1Click:Connect(function()
     task.wait()
     local text,total=scanAllServices(true,false)
     scannedText=text
-    ScanStatus.Text=string.format("Done — %d objects  |  Copy button to copy",total)
+    ScanStatus.Text=string.format("Done — %d objects  |  Copy to save",total)
     ScanStatus.TextColor3=Color3.fromRGB(120,255,160)
 end)
 
