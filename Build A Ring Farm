@@ -1,122 +1,164 @@
 
 ================================================================
-  ROBLOX TURRET + DISABLE ZOMBIE DAMAGE SCRIPTS
-  Two scripts total — place exactly as shown below.
+  ADMIN MENU — Full Package
+  Two scripts. Place exactly as labelled. Then loadstring or
+  paste the CLIENT script anywhere you like; the SERVER script
+  must live in ServerScriptService inside Roblox Studio.
 ================================================================
 
 ----------------------------------------------------------------
-  SCRIPT 1 OF 2
-  Type   : Script (server)
+  SCRIPT 1 OF 2  ·  SERVER
+  Type    : Script
   Location: ServerScriptService
-  Name   : TurretServer
+  Name    : AdminMenuServer
 ----------------------------------------------------------------
 
 local Players           = game:GetService("Players")
 local RunService        = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- ── Remote setup ─────────────────────────────────────────────
-local folder = ReplicatedStorage:FindFirstChild("_TurretSystem")
+-- ── Remote folder ─────────────────────────────────────────────
+local folder = ReplicatedStorage:FindFirstChild("_AdminMenu")
 if not folder then
     folder        = Instance.new("Folder")
-    folder.Name   = "_TurretSystem"
+    folder.Name   = "_AdminMenu"
     folder.Parent = ReplicatedStorage
 end
 
-local function getOrCreate(class, name, parent)
-    return parent:FindFirstChild(name) or (function()
-        local r       = Instance.new(class)
-        r.Name        = name
-        r.Parent      = parent
-        return r
-    end)()
+local function remote(class, name)
+    local r = folder:FindFirstChild(name)
+    if not r then
+        r        = Instance.new(class)
+        r.Name   = name
+        r.Parent = folder
+    end
+    return r
 end
 
-local ToggleEvent  = getOrCreate("RemoteEvent",    "TurretToggle",   folder)
-local DisableEvent = getOrCreate("RemoteEvent",    "DisableAttack",  folder)
+local GodEvent      = remote("RemoteEvent",    "GodToggle")
+local TurretEvent   = remote("RemoteEvent",    "TurretToggle")
+local DisableEvent  = remote("RemoteEvent",    "DisableAttack")
+local KillAllEvent  = remote("RemoteEvent",    "KillAll")
+local FreezeEvent   = remote("RemoteEvent",    "FreezeAll")
 
--- ── Config ───────────────────────────────────────────────────
-local PART_COUNT   = 10
-local ORBIT_RADIUS = 3
-local ORBIT_HEIGHT = 5
-local SCAN_RANGE   = 60
-local FIRE_RATE    = 0.4
-local DAMAGE_MIN   = 20
-local DAMAGE_MAX   = 30
+-- ── Config ────────────────────────────────────────────────────
+local ORBIT_RADIUS  = 3
+local ORBIT_HEIGHT  = 5
+local SCAN_RANGE    = 65
+local FIRE_RATE     = 0.35
+local DAMAGE_MIN    = 20
+local DAMAGE_MAX    = 30
+local PART_COUNT    = 10
 
--- Scripts to destroy when the player clicks "Disable Zombie Damage"
--- Add or remove names to match your game exactly
-local DAMAGE_SCRIPT_NAMES = {
+-- Names of scripts to wipe when "Disable Damage" is pressed
+local DAMAGE_SCRIPTS = {
     "AttackScript",
     "MobAI",
     "WalkAnimator",
     "RagdollHandler",
     "HealthbarScript",
+    "DamageScript",
+    "ZombieDamage",
+    "EnemyAttack",
 }
 
 local activeTurrets = {}
 
--- ── Find nearest enemy ────────────────────────────────────────
+-- ── Helpers ───────────────────────────────────────────────────
 local function findNearestEnemy(rootPos, playerChar)
-    local nearest, nearestDist = nil, SCAN_RANGE
+    local best, bestDist = nil, SCAN_RANGE
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Humanoid") and obj.Health > 0 then
-            local char = obj.Parent
-            if char ~= playerChar then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                    or char:FindFirstChild("Torso")
-                    or char:FindFirstChildOfClass("BasePart")
-                if root then
-                    local dist = (root.Position - rootPos).Magnitude
-                    if dist < nearestDist then
-                        nearest     = obj
-                        nearestDist = dist
-                    end
-                end
+        if obj:IsA("Humanoid") and obj.Health > 0 and obj.Parent ~= playerChar then
+            local root = obj.Parent:FindFirstChild("HumanoidRootPart")
+                or obj.Parent:FindFirstChild("Torso")
+                or obj.Parent:FindFirstChildOfClass("BasePart")
+            if root then
+                local d = (root.Position - rootPos).Magnitude
+                if d < bestDist then best, bestDist = obj, d end
             end
         end
     end
-    return nearest
+    return best
 end
 
--- ── Fire one bullet ──────────────────────────────────────────
 local function fireProjectile(fromPart, targetHum)
-    local targetChar = targetHum.Parent
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-        or targetChar:FindFirstChild("Torso")
-        or targetChar:FindFirstChildOfClass("BasePart")
-    if not targetRoot then return end
+    local tRoot = targetHum.Parent:FindFirstChild("HumanoidRootPart")
+        or targetHum.Parent:FindFirstChild("Torso")
+        or targetHum.Parent:FindFirstChildOfClass("BasePart")
+    if not tRoot then return end
 
-    local bullet          = Instance.new("Part")
-    bullet.Size           = Vector3.new(0.2, 0.2, 0.2)
-    bullet.Shape          = Enum.PartType.Ball
-    bullet.BrickColor     = BrickColor.new("Bright yellow")
-    bullet.Material       = Enum.Material.Neon
-    bullet.CastShadow     = false
-    bullet.CanCollide     = false
-    bullet.Anchored       = true
-    bullet.Position       = fromPart.Position
-    bullet.Parent         = workspace
+    local b           = Instance.new("Part")
+    b.Size            = Vector3.new(0.18, 0.18, 0.18)
+    b.Shape           = Enum.PartType.Ball
+    b.Color           = Color3.fromRGB(255, 220, 0)
+    b.Material        = Enum.Material.Neon
+    b.CastShadow      = false
+    b.CanCollide      = false
+    b.Anchored        = true
+    b.Position        = fromPart.Position
+    b.Parent          = workspace
 
-    local startPos   = fromPart.Position
-    local endPos     = targetRoot.Position
-    local travelTime = (endPos - startPos).Magnitude / 120
-    local steps      = math.max(1, math.floor(travelTime / 0.01))
+    local s = fromPart.Position
+    local e = tRoot.Position
+    local steps = math.max(1, math.floor((e - s).Magnitude / 120 / 0.01))
 
     task.spawn(function()
         for i = 1, steps do
-            if not bullet.Parent then break end
-            bullet.Position = startPos:Lerp(endPos, i / steps)
+            if not b.Parent then break end
+            b.Position = s:Lerp(e, i / steps)
             task.wait(0.01)
         end
-        bullet:Destroy()
+        b:Destroy()
         if targetHum and targetHum.Parent and targetHum.Health > 0 then
             targetHum:TakeDamage(math.random(DAMAGE_MIN, DAMAGE_MAX))
         end
     end)
 end
 
--- ── Activate turret ──────────────────────────────────────────
+-- ── God Mode ──────────────────────────────────────────────────
+GodEvent.OnServerEvent:Connect(function(player, state)
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    if state then
+        if not char:FindFirstChildOfClass("ForceField") then
+            local ff         = Instance.new("ForceField")
+            ff.Visible       = false
+            ff.Parent        = char
+        end
+        hum.MaxHealth = math.huge
+        hum.Health    = math.huge
+
+        if not char:FindFirstChild("_GodTag") then
+            local tag        = Instance.new("BoolValue")
+            tag.Name         = "_GodTag"
+            tag.Parent       = char
+            task.spawn(function()
+                while char:FindFirstChild("_GodTag") do
+                    if hum and hum.Parent then
+                        hum.MaxHealth = math.huge
+                        hum.Health    = math.huge
+                        pcall(function()
+                            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                        end)
+                    end
+                    task.wait(0.05)
+                end
+            end)
+        end
+    else
+        local ff  = char:FindFirstChildOfClass("ForceField")
+        if ff  then ff:Destroy() end
+        local tag = char:FindFirstChild("_GodTag")
+        if tag then tag:Destroy() end
+        hum.MaxHealth = 100
+        hum.Health    = 100
+    end
+end)
+
+-- ── Turret ────────────────────────────────────────────────────
 local function activateTurret(player)
     if activeTurrets[player] then return end
     local char = player.Character
@@ -124,25 +166,25 @@ local function activateTurret(player)
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local parts, connections = {}, {}
+    local parts, conns = {}, {}
 
     for i = 1, PART_COUNT do
-        local p           = Instance.new("Part")
-        p.Size            = Vector3.new(0.5, 0.5, 0.5)
-        p.Shape           = Enum.PartType.Ball
-        p.BrickColor      = BrickColor.new("Cyan")
-        p.Material        = Enum.Material.Neon
-        p.CastShadow      = false
-        p.CanCollide      = false
-        p.Anchored        = true
-        p.Parent          = workspace
-        parts[i]          = p
+        local p          = Instance.new("Part")
+        p.Size           = Vector3.new(0.5, 0.5, 0.5)
+        p.Shape          = Enum.PartType.Ball
+        p.Color          = Color3.fromRGB(0, 220, 255)
+        p.Material       = Enum.Material.Neon
+        p.CastShadow     = false
+        p.CanCollide     = false
+        p.Anchored       = true
+        p.Parent         = workspace
+        parts[i]         = p
     end
 
-    activeTurrets[player] = { parts = parts, connections = connections }
+    activeTurrets[player] = { parts = parts, conns = conns }
 
     local angle = 0
-    connections[#connections+1] = RunService.Heartbeat:Connect(function(dt)
+    conns[#conns+1] = RunService.Heartbeat:Connect(function(dt)
         local c = player.Character
         local r = c and c:FindFirstChild("HumanoidRootPart")
         if not r then return end
@@ -175,43 +217,95 @@ local function activateTurret(player)
     end)
 end
 
--- ── Deactivate turret ─────────────────────────────────────────
 local function deactivateTurret(player)
     local data = activeTurrets[player]
     if not data then return end
     for _, p in ipairs(data.parts) do pcall(function() p:Destroy() end) end
-    for _, c in ipairs(data.connections) do
+    for _, c in ipairs(data.conns) do
         pcall(function() if c.Connected then c:Disconnect() end end)
     end
     activeTurrets[player] = nil
 end
 
--- ── Disable zombie damage scripts ────────────────────────────
+TurretEvent.OnServerEvent:Connect(function(player, state)
+    if state then activateTurret(player) else deactivateTurret(player) end
+end)
+
+-- ── Disable damage scripts ────────────────────────────────────
 DisableEvent.OnServerEvent:Connect(function(player)
     local destroyed = 0
-    -- Search Workspace and all descendants
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if (obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript")) then
-            for _, scriptName in ipairs(DAMAGE_SCRIPT_NAMES) do
-                if obj.Name == scriptName then
+        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
+            for _, name in ipairs(DAMAGE_SCRIPTS) do
+                if obj.Name == name then
                     pcall(function()
-                        obj.Disabled = true   -- disable first
-                        obj:Destroy()         -- then remove
-                        destroyed = destroyed + 1
+                        obj.Disabled = true
+                        obj:Destroy()
+                        destroyed += 1
                     end)
                     break
                 end
             end
         end
     end
-    print("[TurretServer] Disabled " .. destroyed .. " damage script(s) for " .. player.Name)
+    print("[AdminMenu] " .. player.Name .. " wiped " .. destroyed .. " damage script(s)")
 end)
 
--- ── Remote listeners ─────────────────────────────────────────
-ToggleEvent.OnServerEvent:Connect(function(player, state)
-    if state then activateTurret(player) else deactivateTurret(player) end
+-- ── Kill All nearby enemies ───────────────────────────────────
+KillAllEvent.OnServerEvent:Connect(function(player)
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Humanoid") and obj.Health > 0 and obj.Parent ~= char then
+            local r = obj.Parent:FindFirstChild("HumanoidRootPart")
+                or obj.Parent:FindFirstChild("Torso")
+                or obj.Parent:FindFirstChildOfClass("BasePart")
+            if r and (r.Position - root.Position).Magnitude <= 80 then
+                pcall(function() obj.Health = 0 end)
+            end
+        end
+    end
 end)
 
+-- ── Freeze All nearby enemies ─────────────────────────────────
+local frozenParts = {}
+
+FreezeEvent.OnServerEvent:Connect(function(player, state)
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    if state then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Humanoid") and obj.Parent ~= char then
+                local r = obj.Parent:FindFirstChild("HumanoidRootPart")
+                if r and (r.Position - root.Position).Magnitude <= 80 then
+                    pcall(function()
+                        obj.WalkSpeed   = 0
+                        obj.JumpPower   = 0
+                        r.Anchored      = true
+                        table.insert(frozenParts, r)
+                    end)
+                end
+            end
+        end
+    else
+        for _, r in ipairs(frozenParts) do
+            pcall(function()
+                r.Anchored = false
+                local hum = r.Parent and r.Parent:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.WalkSpeed = 16
+                    hum.JumpPower = 50
+                end
+            end)
+        end
+        frozenParts = {}
+    end
+end)
+
+-- ── Cleanup on leave / respawn ────────────────────────────────
 Players.PlayerRemoving:Connect(deactivateTurret)
 
 Players.PlayerAdded:Connect(function(player)
@@ -226,136 +320,400 @@ end)
 
 
 ----------------------------------------------------------------
-  SCRIPT 2 OF 2
-  Type   : LocalScript (client)
-  Location: StarterGui
-  Name   : TurretClient
+  SCRIPT 2 OF 2  ·  CLIENT  (loadstring this one)
+  Type    : LocalScript
+  Location: StarterGui  — OR —  paste/loadstring from executor
+  Name    : AdminMenuClient
 ----------------------------------------------------------------
 
 local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
+local UserInputService  = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService        = game:GetService("RunService")
 
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
+local LP  = Players.LocalPlayer
+local PGui = LP:WaitForChild("PlayerGui")
 
-local folder       = ReplicatedStorage:WaitForChild("_TurretSystem", 15)
-local ToggleEvent  = folder and folder:WaitForChild("TurretToggle",  10)
-local DisableEvent = folder and folder:WaitForChild("DisableAttack", 10)
+-- ── Wait for remotes ──────────────────────────────────────────
+local folder       = ReplicatedStorage:WaitForChild("_AdminMenu", 15)
+local GodEvent     = folder and folder:WaitForChild("GodToggle",    10)
+local TurretEvent  = folder and folder:WaitForChild("TurretToggle", 10)
+local DisableEvent = folder and folder:WaitForChild("DisableAttack",10)
+local KillAllEvent = folder and folder:WaitForChild("KillAll",      10)
+local FreezeEvent  = folder and folder:WaitForChild("FreezeAll",    10)
 
-local turretOn      = false
-local attackDisabled = false
+-- ── Client-side god hooks (intercepts client damage calls) ────
+local godEnabled    = false
+local turretEnabled = false
+local freezeEnabled = false
+local dmgDisabled   = false
 
--- ── Helper: corner radius ─────────────────────────────────────
-local function addCorner(parent, radius)
-    local c         = Instance.new("UICorner")
-    c.CornerRadius  = UDim.new(0, radius or 10)
-    c.Parent        = parent
+local function getHum()
+    local c = LP.Character
+    return c and c:FindFirstChildOfClass("Humanoid")
 end
 
-local function addStroke(parent, color, thickness)
-    local s       = Instance.new("UIStroke")
-    s.Color       = color
-    s.Thickness   = thickness or 1.5
-    s.Parent      = parent
-end
+pcall(function()
+    local oldNC
+    oldNC = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        if godEnabled and getnamecallmethod() == "TakeDamage" then
+            local hum = getHum()
+            if hum and self == hum then return end
+        end
+        return oldNC(self, ...)
+    end))
+end)
 
--- ── Build GUI ─────────────────────────────────────────────────
-local old = PlayerGui:FindFirstChild("TurretUI")
-if old then old:Destroy() end
+pcall(function()
+    local oldNI
+    oldNI = hookmetamethod(game, "__newindex", newcclosure(function(self, key, val)
+        if godEnabled then
+            local hum = getHum()
+            if hum and self == hum and (key == "Health" or key == "MaxHealth") then
+                return oldNI(self, key, math.huge)
+            end
+        end
+        return oldNI(self, key, val)
+    end))
+end)
 
+-- ── Remove any old GUI ────────────────────────────────────────
+local prev = PGui:FindFirstChild("AdminMenuUI")
+if prev then prev:Destroy() end
+
+-- ── ScreenGui ─────────────────────────────────────────────────
 local Gui               = Instance.new("ScreenGui")
-Gui.Name                = "TurretUI"
+Gui.Name                = "AdminMenuUI"
 Gui.ResetOnSpawn        = false
 Gui.IgnoreGuiInset      = true
 Gui.ZIndexBehavior      = Enum.ZIndexBehavior.Sibling
-Gui.Parent              = PlayerGui
+Gui.DisplayOrder        = 999
+Gui.Parent              = PGui
 
--- Panel frame
-local Panel                   = Instance.new("Frame")
-Panel.Size                    = UDim2.new(0, 200, 0, 110)
-Panel.Position                = UDim2.new(0.5, -100, 0, 10)
-Panel.BackgroundColor3        = Color3.fromRGB(14, 14, 22)
-Panel.BorderSizePixel         = 0
-Panel.Active                  = true
-Panel.Draggable               = true
-Panel.Parent                  = Gui
-addCorner(Panel, 12)
-addStroke(Panel, Color3.fromRGB(60, 60, 180), 1.5)
+-- ── Colours ───────────────────────────────────────────────────
+local C = {
+    bg       = Color3.fromRGB(10,  10,  18),
+    panel    = Color3.fromRGB(16,  16,  28),
+    titleBg  = Color3.fromRGB(20,  20,  40),
+    accent   = Color3.fromRGB(80,  80, 220),
+    text     = Color3.fromRGB(210, 210, 255),
+    subtext  = Color3.fromRGB(130, 130, 170),
+    green    = Color3.fromRGB(50,  200,  80),
+    red      = Color3.fromRGB(220,  55,  55),
+    yellow   = Color3.fromRGB(220, 180,  40),
+    orange   = Color3.fromRGB(220, 110,  30),
+    darkGreen= Color3.fromRGB(15,   55,  20),
+    darkRed  = Color3.fromRGB(55,   15,  15),
+    darkOrange=Color3.fromRGB(55,   35,  10),
+}
 
-local Layout          = Instance.new("UIListLayout")
-Layout.Padding        = UDim.new(0, 8)
-Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-Layout.VerticalAlignment   = Enum.VerticalAlignment.Center
-Layout.Parent         = Panel
-
-local Padding         = Instance.new("UIPadding")
-Padding.PaddingTop    = UDim.new(0, 10)
-Padding.PaddingBottom = UDim.new(0, 10)
-Padding.Parent        = Panel
-
--- ── Button factory ────────────────────────────────────────────
-local function makeButton(text, bgColor, strokeColor)
-    local b               = Instance.new("TextButton")
-    b.Size                = UDim2.new(0.82, 0, 0, 38)
-    b.BackgroundColor3    = bgColor
-    b.BorderSizePixel     = 0
-    b.Text                = text
-    b.TextColor3          = Color3.fromRGB(230, 230, 255)
-    b.TextSize            = 14
-    b.Font                = Enum.Font.GothamBold
-    b.AutoButtonColor     = false
-    b.Parent              = Panel
-    addCorner(b, 8)
-    addStroke(b, strokeColor, 1.5)
-
-    b.MouseEnter:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.12), { Size = UDim2.new(0.86, 0, 0, 40) }):Play()
-    end)
-    b.MouseLeave:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.12), { Size = UDim2.new(0.82, 0, 0, 38) }):Play()
-    end)
-    return b
+local function corner(p, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r or 8)
+    c.Parent = p
 end
 
-local TurretBtn  = makeButton("🔵  Turret: OFF",           Color3.fromRGB(25, 25, 45), Color3.fromRGB(60,  60, 180))
-local DisableBtn = makeButton("🗡  Disable Zombie Damage", Color3.fromRGB(55, 15, 15), Color3.fromRGB(180, 40,  40))
+local function stroke(p, col, thick)
+    local s       = Instance.new("UIStroke")
+    s.Color       = col or C.accent
+    s.Thickness   = thick or 1.5
+    s.Parent      = p
+end
 
--- ── Turret toggle ─────────────────────────────────────────────
-TurretBtn.MouseButton1Click:Connect(function()
-    if not ToggleEvent then return end
-    turretOn = not turretOn
-    ToggleEvent:FireServer(turretOn)
+local function label(parent, text, size, color, font, xAlign)
+    local l                     = Instance.new("TextLabel")
+    l.Size                      = UDim2.new(1, 0, 0, size + 4)
+    l.BackgroundTransparency    = 1
+    l.Text                      = text
+    l.TextSize                  = size
+    l.TextColor3                = color or C.text
+    l.Font                      = font  or Enum.Font.Gotham
+    l.TextXAlignment            = xAlign or Enum.TextXAlignment.Center
+    l.Parent                    = parent
+    return l
+end
 
-    if turretOn then
-        TurretBtn.Text             = "🟡  Turret: ON"
-        TurretBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 20)
-        TweenService:Create(TurretBtn, TweenInfo.new(0.2),
-            { TextColor3 = Color3.fromRGB(120, 255, 120) }):Play()
-        -- update stroke green
-        local s = TurretBtn:FindFirstChildOfClass("UIStroke")
-        if s then s.Color = Color3.fromRGB(60, 200, 60) end
-    else
-        TurretBtn.Text             = "🔵  Turret: OFF"
-        TurretBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
-        TweenService:Create(TurretBtn, TweenInfo.new(0.2),
-            { TextColor3 = Color3.fromRGB(230, 230, 255) }):Play()
-        local s = TurretBtn:FindFirstChildOfClass("UIStroke")
-        if s then s.Color = Color3.fromRGB(60, 60, 180) end
+-- ── Main Panel ───────────────────────────────────────────────
+local Panel               = Instance.new("Frame")
+Panel.Size                = UDim2.new(0, 240, 0, 370)
+Panel.Position            = UDim2.new(0, 20, 0.5, -185)
+Panel.BackgroundColor3    = C.bg
+Panel.BorderSizePixel     = 0
+Panel.Active              = true
+Panel.Draggable           = true
+Panel.ClipsDescendants    = true
+Panel.Parent              = Gui
+corner(Panel, 12)
+stroke(Panel, C.accent, 1.5)
+
+-- ── Title bar ────────────────────────────────────────────────
+local TitleBar              = Instance.new("Frame")
+TitleBar.Size               = UDim2.new(1, 0, 0, 44)
+TitleBar.BackgroundColor3   = C.titleBg
+TitleBar.BorderSizePixel    = 0
+TitleBar.ZIndex             = 2
+TitleBar.Parent             = Panel
+corner(TitleBar, 12)
+
+-- Fix bottom corners of title bar
+local TitleFix              = Instance.new("Frame")
+TitleFix.Size               = UDim2.new(1, 0, 0.5, 0)
+TitleFix.Position           = UDim2.new(0, 0, 0.5, 0)
+TitleFix.BackgroundColor3   = C.titleBg
+TitleFix.BorderSizePixel    = 0
+TitleFix.ZIndex             = 1
+TitleFix.Parent             = TitleBar
+
+local TitleText             = Instance.new("TextLabel")
+TitleText.Size              = UDim2.new(1, -40, 1, 0)
+TitleText.Position          = UDim2.new(0, 12, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text              = "☠  ADMIN MENU"
+TitleText.TextSize          = 15
+TitleText.Font              = Enum.Font.GothamBold
+TitleText.TextColor3        = C.text
+TitleText.TextXAlignment    = Enum.TextXAlignment.Left
+TitleText.ZIndex            = 3
+TitleText.Parent            = TitleBar
+
+-- Minimise button
+local MinBtn                = Instance.new("TextButton")
+MinBtn.Size                 = UDim2.new(0, 28, 0, 28)
+MinBtn.Position             = UDim2.new(1, -36, 0.5, -14)
+MinBtn.BackgroundColor3     = Color3.fromRGB(35, 35, 60)
+MinBtn.BorderSizePixel      = 0
+MinBtn.Text                 = "—"
+MinBtn.TextColor3           = C.subtext
+MinBtn.TextSize             = 14
+MinBtn.Font                 = Enum.Font.GothamBold
+MinBtn.ZIndex               = 4
+MinBtn.Parent               = TitleBar
+corner(MinBtn, 6)
+
+-- ── Body (scrolls/hides on minimise) ─────────────────────────
+local Body                  = Instance.new("Frame")
+Body.Size                   = UDim2.new(1, 0, 1, -44)
+Body.Position               = UDim2.new(0, 0, 0, 44)
+Body.BackgroundTransparency = 1
+Body.BorderSizePixel        = 0
+Body.Parent                 = Panel
+
+local BodyLayout            = Instance.new("UIListLayout")
+BodyLayout.Padding          = UDim.new(0, 6)
+BodyLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+BodyLayout.SortOrder        = Enum.SortOrder.LayoutOrder
+BodyLayout.Parent           = Body
+
+local BodyPad               = Instance.new("UIPadding")
+BodyPad.PaddingTop          = UDim.new(0, 10)
+BodyPad.PaddingBottom       = UDim.new(0, 10)
+BodyPad.Parent              = Body
+
+-- ── Section label helper ──────────────────────────────────────
+local function sectionLabel(text, order)
+    local l                     = Instance.new("TextLabel")
+    l.Size                      = UDim2.new(0.88, 0, 0, 18)
+    l.BackgroundTransparency    = 1
+    l.Text                      = text
+    l.TextSize                  = 11
+    l.Font                      = Enum.Font.GothamBold
+    l.TextColor3                = C.subtext
+    l.TextXAlignment            = Enum.TextXAlignment.Left
+    l.LayoutOrder               = order
+    l.Parent                    = Body
+    return l
+end
+
+-- ── Toggle button helper ──────────────────────────────────────
+local function makeToggleBtn(textOff, textOn, offBg, onBg, offStroke, onStroke, order)
+    local btn                   = Instance.new("TextButton")
+    btn.Size                    = UDim2.new(0.88, 0, 0, 42)
+    btn.BackgroundColor3        = offBg
+    btn.BorderSizePixel         = 0
+    btn.Text                    = textOff
+    btn.TextColor3              = C.text
+    btn.TextSize                = 14
+    btn.Font                    = Enum.Font.GothamBold
+    btn.AutoButtonColor         = false
+    btn.LayoutOrder             = order
+    btn.Parent                  = Body
+    corner(btn, 8)
+    stroke(btn, offStroke, 1.5)
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), { Size = UDim2.new(0.92, 0, 0, 44) }):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), { Size = UDim2.new(0.88, 0, 0, 42) }):Play()
+    end)
+
+    local active = false
+    local s = btn:FindFirstChildOfClass("UIStroke")
+
+    local function setVisual(on)
+        btn.Text             = on and textOn  or textOff
+        btn.BackgroundColor3 = on and onBg    or offBg
+        if s then s.Color   = on and onStroke or offStroke end
+        TweenService:Create(btn, TweenInfo.new(0.15),
+            { TextColor3 = on and C.green or C.text }):Play()
+    end
+
+    return btn, function() return active end, function(state)
+        active = state
+        setVisual(active)
+    end
+end
+
+-- ── One-shot button helper ────────────────────────────────────
+local function makeActionBtn(text, bg, strokeColor, order)
+    local btn                   = Instance.new("TextButton")
+    btn.Size                    = UDim2.new(0.88, 0, 0, 42)
+    btn.BackgroundColor3        = bg
+    btn.BorderSizePixel         = 0
+    btn.Text                    = text
+    btn.TextColor3              = C.text
+    btn.TextSize                = 14
+    btn.Font                    = Enum.Font.GothamBold
+    btn.AutoButtonColor         = false
+    btn.LayoutOrder             = order
+    btn.Parent                  = Body
+    corner(btn, 8)
+    stroke(btn, strokeColor, 1.5)
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), { Size = UDim2.new(0.92, 0, 0, 44) }):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), { Size = UDim2.new(0.88, 0, 0, 42) }):Play()
+    end)
+
+    return btn
+end
+
+-- ── Build the menu items ──────────────────────────────────────
+
+sectionLabel("── DEFENCE ──────────────────", 1)
+
+local GodBtn, getGod, setGod = makeToggleBtn(
+    "🔴  God Mode: OFF", "🟢  God Mode: ON",
+    C.darkRed, C.darkGreen,
+    C.red,     C.green, 2
+)
+
+sectionLabel("── OFFENCE ──────────────────", 3)
+
+local TurretBtn, getTurret, setTurret = makeToggleBtn(
+    "🔵  Turret: OFF", "🟡  Turret: ON",
+    Color3.fromRGB(15, 20, 50), Color3.fromRGB(15, 45, 15),
+    C.accent, C.green, 4
+)
+
+local KillBtn = makeActionBtn("💀  Kill All Nearby",  C.darkRed,    C.red,    5)
+local FreezeBtn, getFreeze, setFreeze = makeToggleBtn(
+    "🧊  Freeze All: OFF", "🧊  Freeze All: ON",
+    Color3.fromRGB(10, 30, 50), Color3.fromRGB(10, 55, 80),
+    Color3.fromRGB(60, 140, 220), Color3.fromRGB(100, 210, 255), 6
+)
+
+sectionLabel("── SCRIPTS ──────────────────", 7)
+
+local DisableBtn  = makeActionBtn("🗡  Disable Zombie Damage", C.darkRed,    C.red,    8)
+
+-- ── Divider ───────────────────────────────────────────────────
+local div                   = Instance.new("Frame")
+div.Size                    = UDim2.new(0.88, 0, 0, 1)
+div.BackgroundColor3        = Color3.fromRGB(40, 40, 70)
+div.BorderSizePixel         = 0
+div.LayoutOrder             = 9
+div.Parent                  = Body
+
+-- Version tag
+local ver                   = Instance.new("TextLabel")
+ver.Size                    = UDim2.new(0.88, 0, 0, 18)
+ver.BackgroundTransparency  = 1
+ver.Text                    = "v1.0 · github"
+ver.TextSize                = 10
+ver.Font                    = Enum.Font.Gotham
+ver.TextColor3              = Color3.fromRGB(70, 70, 110)
+ver.TextXAlignment          = Enum.TextXAlignment.Center
+ver.LayoutOrder             = 10
+ver.Parent                  = Body
+
+-- ── Minimise logic ───────────────────────────────────────────
+local minimised = false
+MinBtn.MouseButton1Click:Connect(function()
+    minimised = not minimised
+    local targetH = minimised and 44 or 370
+    MinBtn.Text   = minimised and "+" or "—"
+    TweenService:Create(Panel, TweenInfo.new(0.25, Enum.EasingStyle.Quart),
+        { Size = UDim2.new(0, 240, 0, targetH) }):Play()
+end)
+
+-- ── Button logic ──────────────────────────────────────────────
+
+-- God Mode
+GodBtn.MouseButton1Click:Connect(function()
+    if not GodEvent then return end
+    local on = not getGod()
+    godEnabled = on
+    setGod(on)
+    GodEvent:FireServer(on)
+
+    if on then
+        -- Client spin loop for extra coverage
+        task.spawn(function()
+            while godEnabled do
+                local hum = getHum()
+                if hum and hum.Parent then
+                    pcall(function()
+                        hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                        hum.MaxHealth = math.huge
+                        hum.Health    = math.huge
+                    end)
+                end
+                task.wait()
+            end
+        end)
     end
 end)
 
--- ── Disable zombie damage ─────────────────────────────────────
+-- Turret
+TurretBtn.MouseButton1Click:Connect(function()
+    if not TurretEvent then return end
+    local on = not getTurret()
+    setTurret(on)
+    TurretEvent:FireServer(on)
+end)
+
+-- Kill All
+KillBtn.MouseButton1Click:Connect(function()
+    if not KillAllEvent then return end
+    KillAllEvent:FireServer()
+    -- Flash button
+    KillBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
+    TweenService:Create(KillBtn, TweenInfo.new(0.5),
+        { BackgroundColor3 = C.darkRed }):Play()
+end)
+
+-- Freeze All toggle
+FreezeBtn.MouseButton1Click:Connect(function()
+    if not FreezeEvent then return end
+    local on = not getFreeze()
+    setFreeze(on)
+    FreezeEvent:FireServer(on)
+end)
+
+-- Disable Zombie Damage (one-shot)
+local dmgDone = false
 DisableBtn.MouseButton1Click:Connect(function()
-    if not DisableEvent then return end
-    if attackDisabled then return end  -- only let them press once
-    attackDisabled = true
-
+    if not DisableEvent or dmgDone then return end
+    dmgDone = true
     DisableEvent:FireServer()
-
     DisableBtn.Text             = "✅  Damage Disabled"
-    DisableBtn.BackgroundColor3 = Color3.fromRGB(15, 40, 15)
-    DisableBtn.TextColor3       = Color3.fromRGB(100, 230, 100)
+    DisableBtn.BackgroundColor3 = C.darkGreen
     local s = DisableBtn:FindFirstChildOfClass("UIStroke")
-    if s then s.Color = Color3.fromRGB(60, 200, 60) end
+    if s then s.Color = C.green end
+    TweenService:Create(DisableBtn, TweenInfo.new(0.2),
+        { TextColor3 = C.green }):Play()
 end)
