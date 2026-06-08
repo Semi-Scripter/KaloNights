@@ -1,8 +1,7 @@
--- Personal Exploit Menu v3
--- Mobile-optimized | Structure | Items | Anti-Cheat Toggle
+-- Personal Exploit Menu v4
+-- Mobile-optimized | Structure | Items | Scripts
 
 local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService     = game:GetService("TweenService")
 local LocalPlayer      = Players.LocalPlayer
@@ -24,14 +23,15 @@ local C = {
     DIM     = Color3.fromRGB(110, 110, 132),
     WHITE   = Color3.fromRGB(255, 255, 255),
     BTN     = Color3.fromRGB(40, 40, 54),
-    CLIP    = Color3.fromRGB(52, 96, 158),
-    COPY    = Color3.fromRGB(46, 106, 80),
-    RESET   = Color3.fromRGB(116, 46, 54),
-    ITEM    = Color3.fromRGB(100, 80, 40),
-    AC_OFF  = Color3.fromRGB(58, 58, 75),
-    AC_ON   = Color3.fromRGB(50, 130, 70),
     OUTPUT  = Color3.fromRGB(12, 12, 18),
     BADGE   = Color3.fromRGB(50, 50, 68),
+    CLIP    = Color3.fromRGB(52,  96, 158),
+    COPY    = Color3.fromRGB(46, 106,  80),
+    RESET   = Color3.fromRGB(116, 46,  54),
+    ITEM    = Color3.fromRGB(100, 80,  40),
+    SCRIPT  = Color3.fromRGB(60,  80, 130),
+    AC_OFF  = Color3.fromRGB(58,  58,  75),
+    AC_ON   = Color3.fromRGB(50, 130,  70),
 }
 
 ----------------------------------------------------------------
@@ -65,7 +65,7 @@ local ITEM_KEYWORDS = {
     "pomegranate","pomelo","quince","rambutan","raspberry","redcurrant",
     "salak","soursop","starfruit","strawberry","tamarind","tangerine",
     "watermelon","yuzu",
-    -- Roblox-game exotic fruits
+    -- Roblox exotic / devil fruits
     "mythic","divine","prismatic","corrupted","void","cosmic","rainbow",
     "carnival","tropical","bubblegum","frozen","radioactive","acid",
     "moonberry","sunfruit","starberry","glowfruit","shadowfruit",
@@ -115,7 +115,7 @@ local ITEM_KEYWORDS = {
     "tent","tarp","blanket","campfire","backpack","bag","pouch",
     "sack","chest","crate","box","barrel","key","lockpick",
     "compass","map","radio","signal","whistle","parachute",
-    -- General item words
+    -- General
     "fruit","item","goods","loot","drop","reward","prize","pickup",
     "resource","material","ingredient","component","token","coin",
     "currency","trophy","badge","medal","ticket","voucher","pack",
@@ -133,6 +133,16 @@ local AC_PATTERNS = {
     "securitycheck","antiexploit","anti_exploit","exploitban",
 }
 
+local SCRIPT_SCAN_SVCS = {
+    "Workspace","ReplicatedStorage","ReplicatedFirst",
+    "StarterGui","StarterPack","StarterPlayer",
+    "Lighting","SoundService","Chat","Teams","ServerScriptService",
+}
+
+local SCRIPT_CLASSES = {
+    Script=true, LocalScript=true, ModuleScript=true,
+}
+
 ----------------------------------------------------------------
 -- HELPERS
 ----------------------------------------------------------------
@@ -147,26 +157,26 @@ local function corner(p, r)
     new("UICorner",{CornerRadius=UDim.new(0,r or 6)},p)
 end
 
-local function pad(p, l, r, t, b)
+local function pad(p,l,r,t,b)
     new("UIPadding",{
         PaddingLeft=UDim.new(0,l or 0), PaddingRight=UDim.new(0,r or 0),
         PaddingTop=UDim.new(0,t or 0),  PaddingBottom=UDim.new(0,b or 0),
     },p)
 end
 
-local function vlist(p, gap)
+local function vlist(p,gap)
     return new("UIListLayout",{
         FillDirection=Enum.FillDirection.Vertical,
         SortOrder=Enum.SortOrder.LayoutOrder,
-        Padding=UDim.new(0, gap or 6),
+        Padding=UDim.new(0,gap or 6),
     },p)
 end
 
-local function hlist(p, gap)
+local function hlist(p,gap)
     return new("UIListLayout",{
         FillDirection=Enum.FillDirection.Horizontal,
         SortOrder=Enum.SortOrder.LayoutOrder,
-        Padding=UDim.new(0, gap or 6),
+        Padding=UDim.new(0,gap or 0),
     },p)
 end
 
@@ -180,7 +190,7 @@ local function mkBtn(text, color, parent, sz, order)
     corner(b,6)
     b.MouseEnter:Connect(function()
         TweenService:Create(b,TweenInfo.new(0.1),{
-            BackgroundColor3=color:lerp(Color3.new(1,1,1),0.1)
+            BackgroundColor3=color:lerp(Color3.new(1,1,1),0.12)
         }):Play()
     end)
     b.MouseLeave:Connect(function()
@@ -211,18 +221,8 @@ local function mkOutput(parent, h, order)
         TextXAlignment=Enum.TextXAlignment.Left,
         TextYAlignment=Enum.TextYAlignment.Top,
         TextWrapped=true, AutomaticSize=Enum.AutomaticSize.Y,
-        RichText=false,
     },scroll)
     return outer, scroll, lbl
-end
-
-local function mkBtnRow(parent, order)
-    local row = new("Frame",{
-        Size=UDim2.new(1,0,0,34), BackgroundTransparency=1,
-        LayoutOrder=order,
-    },parent)
-    hlist(row,6)
-    return row
 end
 
 local function sectionLbl(text, parent, order)
@@ -242,15 +242,15 @@ local function safeGet(name)
 end
 
 local function copyToClipboard(text)
-    if setclipboard  then pcall(setclipboard, text);  return true end
-    if copystring    then pcall(copystring,    text);  return true end
+    if setclipboard then pcall(setclipboard,text); return true end
+    if copystring   then pcall(copystring,text);   return true end
     return false
 end
 
 ----------------------------------------------------------------
 -- ROOT GUI
 ----------------------------------------------------------------
-local W, H = 310, 460
+local W, H = 310, 480
 
 local Gui = new("ScreenGui",{
     Name="_ExploitMenu", ResetOnSpawn=false,
@@ -274,12 +274,10 @@ local Header = new("Frame",{
     BackgroundColor3=C.HEADER, BorderSizePixel=0,
 },Main)
 corner(Header,10)
--- flatten bottom corners
 new("Frame",{
     Size=UDim2.new(1,0,0.5,0), Position=UDim2.new(0,0,0.5,0),
     BackgroundColor3=C.HEADER, BorderSizePixel=0,
 },Header)
-
 new("TextLabel",{
     Text="Exploit Menu", Font=Enum.Font.GothamBold, TextSize=13,
     TextColor3=C.TEXT, BackgroundTransparency=1,
@@ -287,7 +285,7 @@ new("TextLabel",{
     TextXAlignment=Enum.TextXAlignment.Left, ZIndex=3,
 },Header)
 new("TextLabel",{
-    Text="v3.0", Font=Enum.Font.Gotham, TextSize=10,
+    Text="v4.0", Font=Enum.Font.Gotham, TextSize=10,
     TextColor3=C.DIM, BackgroundTransparency=1,
     Size=UDim2.new(0,28,1,0), Position=UDim2.new(0,98,0,0),
     TextXAlignment=Enum.TextXAlignment.Left, ZIndex=3,
@@ -343,7 +341,7 @@ do
 end
 
 ----------------------------------------------------------------
--- TAB BAR  (3 tabs)
+-- TAB BAR  (3 tabs: Structure | Items | Scripts)
 ----------------------------------------------------------------
 local TabBar = new("Frame",{
     Size=UDim2.new(1,0,0,28),
@@ -352,8 +350,10 @@ local TabBar = new("Frame",{
 },Main)
 hlist(TabBar,0)
 
-local TabBtns = {}
-local TAB_LABELS = {"Structure","Items","Anti-Cheat"}
+local TabBtns     = {}
+local TAB_LABELS  = {"Structure","Items","Scripts"}
+local TAB_COLORS  = {C.CLIP, C.ITEM, C.SCRIPT}
+
 for i,lbl in ipairs(TAB_LABELS) do
     local t = new("TextButton",{
         Text=lbl, Font=Enum.Font.GothamSemibold, TextSize=11,
@@ -370,7 +370,6 @@ local Indicator = new("Frame",{
     BackgroundColor3=C.CLIP, BorderSizePixel=0, ZIndex=5,
 },TabBar)
 
--- divider line
 new("Frame",{
     Size=UDim2.new(1,0,0,1),
     Position=UDim2.new(0,0,0,66),
@@ -399,22 +398,43 @@ end
 
 ----------------------------------------------------------------
 -- PANEL 1 — STRUCTURE
+-- Buttons: [Clip] [Copy] [Reset]  +  [Anti] on a second row
 ----------------------------------------------------------------
 local PStruct = mkPanel(true)
 sectionLbl("Structure Scanner", PStruct, 1)
 
-local _,ScrollStruct,OutStruct = mkOutput(PStruct, 220, 2)
+local _,ScrollStruct,OutStruct = mkOutput(PStruct, 196, 2)
 OutStruct.Text = "Press [Clip] to scan the game tree."
 
-local RowStruct = mkBtnRow(PStruct, 3)
+-- Row 1: Clip / Copy / Reset
+local RowStruct = new("Frame",{
+    Size=UDim2.new(1,0,0,34), BackgroundTransparency=1, LayoutOrder=3,
+},PStruct)
+hlist(RowStruct,6)
 local BtnClip   = mkBtn("Clip",  C.CLIP,  RowStruct, UDim2.new(0.34,0,1,0), 1)
 local BtnSCopy  = mkBtn("Copy",  C.COPY,  RowStruct, UDim2.new(0.33,-3,1,0), 2)
 local BtnSReset = mkBtn("Reset", C.RESET, RowStruct, UDim2.new(0.33,-3,1,0), 3)
 
+-- Row 2: Anti (full width)
+local RowAnti = new("Frame",{
+    Size=UDim2.new(1,0,0,34), BackgroundTransparency=1, LayoutOrder=4,
+},PStruct)
+hlist(RowAnti,0)
+local AntiBtn = mkBtn("  Anti-Cheat Remover: OFF", C.AC_OFF, RowAnti, UDim2.new(1,0,1,0), 1)
+
+-- Node count label
 local NodeCount = new("TextLabel",{
     Text="", Font=Enum.Font.Gotham, TextSize=10,
     TextColor3=C.DIM, BackgroundTransparency=1,
-    Size=UDim2.new(1,0,0,16), LayoutOrder=4,
+    Size=UDim2.new(1,0,0,14), LayoutOrder=5,
+    TextXAlignment=Enum.TextXAlignment.Left,
+},PStruct)
+
+-- AC status label
+local ACStatus = new("TextLabel",{
+    Text="", Font=Enum.Font.Gotham, TextSize=10,
+    TextColor3=C.DIM, BackgroundTransparency=1,
+    Size=UDim2.new(1,0,0,14), LayoutOrder=6,
     TextXAlignment=Enum.TextXAlignment.Left,
 },PStruct)
 
@@ -427,12 +447,12 @@ sectionLbl("Item Scanner  (Tools · Produce · Accessories · More)", PItems, 1)
 local _,ScrollItems,OutItems = mkOutput(PItems, 186, 2)
 OutItems.Text = "Press [Item Clip] to find items, fruits, crops, and tools."
 
-local RowItems  = mkBtnRow(PItems, 3)
+local RowItems  = new("Frame",{Size=UDim2.new(1,0,0,34),BackgroundTransparency=1,LayoutOrder=3},PItems)
+hlist(RowItems,6)
 local BtnIClip  = mkBtn("Item Clip", C.ITEM,  RowItems, UDim2.new(0.44,0,1,0), 1)
 local BtnICopy  = mkBtn("Copy",      C.COPY,  RowItems, UDim2.new(0.28,-3,1,0), 2)
 local BtnIReset = mkBtn("Reset",     C.RESET, RowItems, UDim2.new(0.28,-3,1,0), 3)
 
--- Badge rows
 local BR1 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=4},PItems)
 hlist(BR1,4)
 local BR2 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=5},PItems)
@@ -441,12 +461,11 @@ hlist(BR2,4)
 local function mkBadge(txt, parent)
     local f = new("Frame",{Size=UDim2.new(0.5,-2,1,0),BackgroundColor3=C.BADGE,BorderSizePixel=0},parent)
     corner(f,5)
-    local t = new("TextLabel",{
+    return new("TextLabel",{
         Text=txt, Font=Enum.Font.Gotham, TextSize=10,
         TextColor3=C.DIM, BackgroundTransparency=1,
         Size=UDim2.new(1,0,1,0), TextXAlignment=Enum.TextXAlignment.Center,
     },f)
-    return t
 end
 
 local BadgeTools   = mkBadge("Tools: 0",   BR1)
@@ -455,48 +474,45 @@ local BadgeAcc     = mkBadge("Acc: 0",     BR2)
 local BadgeOther   = mkBadge("Other: 0",   BR2)
 
 ----------------------------------------------------------------
--- PANEL 3 — ANTI-CHEAT
+-- PANEL 3 — SCRIPTS
 ----------------------------------------------------------------
-local PAC = mkPanel(false)
-sectionLbl("Anti-Cheat Remover", PAC, 1)
+local PScripts = mkPanel(false)
+sectionLbl("Script Scanner  (Script · LocalScript · ModuleScript)", PScripts, 1)
 
--- Big toggle
-local ToggleWrap = new("Frame",{
-    Size=UDim2.new(1,0,0,52), BackgroundColor3=C.PANEL,
-    BorderSizePixel=0, LayoutOrder=2,
-},PAC)
-corner(ToggleWrap,8)
-new("UIStroke",{Color=C.LINE,Thickness=1},ToggleWrap)
+local _,ScrollScripts,OutScripts = mkOutput(PScripts, 196, 2)
+OutScripts.Text = "Press [Clip Scripts] to scan all scripts in the game."
 
-local ToggleBtn = new("TextButton",{
-    Text="  AC Remover: OFF",
-    Font=Enum.Font.GothamBold, TextSize=14,
-    TextColor3=C.DIM, BackgroundColor3=C.AC_OFF,
-    Size=UDim2.new(1,-16,0,36),
-    Position=UDim2.new(0,8,0.5,-18),
-    BorderSizePixel=0, AutoButtonColor=false,
-},ToggleWrap)
-corner(ToggleBtn,7)
+local RowScripts = new("Frame",{
+    Size=UDim2.new(1,0,0,34), BackgroundTransparency=1, LayoutOrder=3,
+},PScripts)
+hlist(RowScripts,6)
+local BtnSclip  = mkBtn("Clip Scripts", C.SCRIPT, RowScripts, UDim2.new(0.44,0,1,0), 1)
+local BtnSsCopy = mkBtn("Copy",         C.COPY,   RowScripts, UDim2.new(0.28,-3,1,0), 2)
+local BtnSsReset= mkBtn("Reset",        C.RESET,  RowScripts, UDim2.new(0.28,-3,1,0), 3)
 
-local ACStatus = new("TextLabel",{
-    Text="Toggle ON to continuously strip all anti-cheat scripts.",
-    Font=Enum.Font.Gotham, TextSize=10, TextColor3=C.DIM,
-    BackgroundTransparency=1, Size=UDim2.new(1,0,0,16),
-    LayoutOrder=3, TextXAlignment=Enum.TextXAlignment.Left,
-    TextWrapped=true,
-},PAC)
+-- Script count badges
+local SBR1 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=4},PScripts)
+hlist(SBR1,4)
+local SBR2 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=5},PScripts)
+hlist(SBR2,4)
 
-local _,ScrollAC,OutAC = mkOutput(PAC, 208, 4)
-OutAC.Text = "AC Remover log will appear here."
+local BadgeSc   = mkBadge("Script: 0",       SBR1)
+local BadgeLs   = mkBadge("LocalScript: 0",  SBR1)
+local BadgeMs   = mkBadge("ModuleScript: 0", SBR2)
+local BadgeSs   = mkBadge("Total: 0",        SBR2)
 
-local ACClearBtn = mkBtn("Clear Log", C.RESET, PAC, UDim2.new(1,0,0,30), 5)
+local ScriptCount = new("TextLabel",{
+    Text="", Font=Enum.Font.Gotham, TextSize=10,
+    TextColor3=C.DIM, BackgroundTransparency=1,
+    Size=UDim2.new(1,0,0,14), LayoutOrder=6,
+    TextXAlignment=Enum.TextXAlignment.Left,
+},PScripts)
 
 ----------------------------------------------------------------
 -- TAB SWITCHING
 ----------------------------------------------------------------
-local TAB_COLORS   = {C.CLIP, C.ITEM, C.AC_ON}
-local TAB_PANELS   = {PStruct, PItems, PAC}
-local activeTab    = 1
+local TAB_PANELS = {PStruct, PItems, PScripts}
+local activeTab  = 1
 
 local function switchTab(idx)
     activeTab = idx
@@ -513,7 +529,7 @@ local function switchTab(idx)
 end
 
 for i=1,3 do
-    local idx = i
+    local idx=i
     TabBtns[i].MouseButton1Click:Connect(function() switchTab(idx) end)
 end
 switchTab(1)
@@ -541,8 +557,7 @@ local function buildTree(inst, depth, lines, count)
 end
 
 BtnClip.MouseButton1Click:Connect(function()
-    OutStruct.Text = "Scanning..."
-    NodeCount.Text = ""
+    OutStruct.Text = "Scanning..." ; NodeCount.Text=""
     task.wait(0.05)
     local ok,err = pcall(function()
         local lines = {}
@@ -585,6 +600,86 @@ BtnSReset.MouseButton1Click:Connect(function()
 end)
 
 ----------------------------------------------------------------
+-- ANTI-CHEAT TOGGLE  (on Structure panel)
+----------------------------------------------------------------
+local acEnabled     = false
+local acTotalKilled = 0
+
+local function nameIsAC(name)
+    local low = name:lower()
+    for _,p in ipairs(AC_PATTERNS) do
+        if low:find(p,1,true) then return true end
+    end
+    return false
+end
+
+local function deepScanAC(root, found, depth)
+    if depth > 8 then return end
+    local ok,kids = pcall(function() return root:GetChildren() end)
+    if not ok then return end
+    for _,child in ipairs(kids) do
+        local okN,nm  = pcall(function() return child.Name      end)
+        local okC,cls = pcall(function() return child.ClassName end)
+        if okN and okC then
+            if nameIsAC(nm) then table.insert(found, child) end
+            if cls=="Folder" or cls=="Model" or cls=="Configuration" then
+                deepScanAC(child, found, depth+1)
+            end
+        end
+    end
+end
+
+local AC_SVCS = {
+    "Workspace","ReplicatedStorage","StarterGui",
+    "ReplicatedFirst","StarterPack","StarterPlayer",
+}
+
+local function runACPass()
+    local found = {}
+    for _,svcName in ipairs(AC_SVCS) do
+        local svc = safeGet(svcName)
+        if svc then deepScanAC(svc, found, 0) end
+    end
+    local killed = 0
+    for _,inst in ipairs(found) do
+        local ok = pcall(function()
+            if inst:IsA("BaseScript") then inst.Disabled=true end
+            inst:Destroy()
+        end)
+        if ok then killed=killed+1; acTotalKilled=acTotalKilled+1 end
+    end
+    if killed > 0 then
+        ACStatus.Text = string.format("AC: removed %d scripts this pass  |  total: %d", killed, acTotalKilled)
+    end
+end
+
+local function setACToggle(on)
+    acEnabled = on
+    if on then
+        AntiBtn.Text             = "  Anti-Cheat Remover: ON"
+        AntiBtn.BackgroundColor3 = C.AC_ON
+        ACStatus.Text            = "Running — scanning every 2 s…"
+        task.spawn(runACPass)
+        task.spawn(function()
+            while acEnabled do
+                task.wait(2)
+                if acEnabled then runACPass() end
+            end
+        end)
+    else
+        AntiBtn.Text             = "  Anti-Cheat Remover: OFF"
+        AntiBtn.BackgroundColor3 = C.AC_OFF
+        ACStatus.Text            = string.format("Stopped.  Total removed this session: %d", acTotalKilled)
+    end
+end
+
+AntiBtn.MouseButton1Click:Connect(function() setACToggle(not acEnabled) end)
+
+Gui.AncestryChanged:Connect(function()
+    if not Gui.Parent then acEnabled=false end
+end)
+
+----------------------------------------------------------------
 -- ITEM SCANNER LOGIC
 ----------------------------------------------------------------
 local lastItemOut = ""
@@ -603,18 +698,15 @@ local function itemCategory(cn, nm)
     local low = nm:lower()
     if cn=="Tool" or cn=="HopperBin" or cn=="Gear" then return "tool" end
     if cn=="Accessory" or cn=="Hat" or cn=="Shirt" or cn=="Pants" or cn=="ShirtGraphic" then return "acc" end
-    if low:find("fruit",1,true) or low:find("seed",1,true) or low:find("crop",1,true)
-    or low:find("berry",1,true) or low:find("plant",1,true) or low:find("mushroom",1,true)
-    or low:find("flower",1,true) or low:find("egg",1,true) or low:find("fish",1,true)
-    or low:find("harvest",1,true) or low:find("produce",1,true) or low:find("vegeta",1,true)
-    or low:find("apple",1,true) or low:find("orange",1,true) or low:find("banana",1,true)
-    or low:find("mango",1,true) or low:find("melon",1,true) or low:find("grape",1,true)
-    or low:find("carrot",1,true) or low:find("potato",1,true) or low:find("corn",1,true)
-    or low:find("tomato",1,true) or low:find("pumpkin",1,true) or low:find("sprout",1,true)
-    or low:find("sapling",1,true) or low:find("cherry",1,true) or low:find("lemon",1,true)
-    or low:find("peach",1,true) or low:find("pear",1,true) or low:find("kiwi",1,true)
-    or low:find("coconut",1,true) or low:find("dragonfruit",1,true) or low:find("strawberry",1,true)
-    then return "produce" end
+    local produceKw = {
+        "fruit","seed","crop","berry","plant","mushroom","flower","egg","fish",
+        "harvest","produce","apple","orange","banana","mango","melon","grape",
+        "carrot","potato","corn","tomato","pumpkin","sprout","sapling","cherry",
+        "lemon","peach","pear","kiwi","coconut","dragonfruit","strawberry",
+    }
+    for _,k in ipairs(produceKw) do
+        if low:find(k,1,true) then return "produce" end
+    end
     return "other"
 end
 
@@ -628,23 +720,19 @@ local function deepScanItems(root, results, seen, depth)
         if okC and okN then
             local ptr = tostring(child)
             if not seen[ptr] then
-                local byClass   = itemMatchClass(cn)
-                local byKw      = itemMatchKeyword(nm)
+                local byClass = itemMatchClass(cn)
+                local byKw    = itemMatchKeyword(nm)
                 if byClass or byKw then
-                    seen[ptr] = true
+                    seen[ptr]=true
                     table.insert(results,{
-                        cn=cn, nm=nm,
-                        cat=itemCategory(cn,nm),
+                        cn=cn, nm=nm, cat=itemCategory(cn,nm),
                         how=(byClass and byKw) and "class+kw" or byClass and "class" or "keyword",
                     })
                 end
             end
-            -- recurse into containers only
-            if cn=="Folder" or cn=="Model" or cn=="Tool" or cn=="Configuration" then
-                deepScanItems(child, results, seen, depth+1)
-            elseif not (cn:find("Part") or cn:find("Mesh") or cn:find("Decal")
-                     or cn:find("Sound") or cn:find("Weld") or cn:find("Motor")
-                     or cn:find("Constraint")) then
+            if not (cn:find("Part") or cn:find("Mesh") or cn:find("Decal")
+                 or cn:find("Sound") or cn:find("Weld") or cn:find("Motor")
+                 or cn:find("Constraint")) then
                 deepScanItems(child, results, seen, depth+1)
             end
         end
@@ -652,20 +740,17 @@ local function deepScanItems(root, results, seen, depth)
 end
 
 BtnIClip.MouseButton1Click:Connect(function()
-    OutItems.Text="Deep scanning..."
-    BadgeTools.Text="Tools: ?" ; BadgeProduce.Text="Produce: ?"
-    BadgeAcc.Text="Acc: ?"     ; BadgeOther.Text="Other: ?"
+    OutItems.Text="Deep scanning…"
+    BadgeTools.Text="Tools:?" ; BadgeProduce.Text="Produce:?"
+    BadgeAcc.Text="Acc:?"     ; BadgeOther.Text="Other:?"
     task.wait(0.05)
-
     local ok,err = pcall(function()
         local results,seen,lines = {},{},{}
         local tC,pC,aC,oC = 0,0,0,0
-
-        local function addSection(label, root)
+        local function addSec(label, root)
             local before = #results
             deepScanItems(root, results, seen, 0)
-            local added = #results - before
-            if added > 0 then
+            if #results > before then
                 table.insert(lines,">> "..label)
                 for i=before+1,#results do
                     local e=results[i]
@@ -674,53 +759,39 @@ BtnIClip.MouseButton1Click:Connect(function()
                 table.insert(lines,"")
             end
         end
-
-        -- Backpack
         local bp = LocalPlayer:FindFirstChild("Backpack")
-        if bp then addSection("LocalPlayer.Backpack", bp) end
-
-        -- Equipped character
+        if bp then addSec("LocalPlayer.Backpack",bp) end
         local char = LocalPlayer.Character
-        if char then addSection("Character (Equipped)", char) end
-
-        -- Game services
+        if char then addSec("Character (Equipped)",char) end
         for _,svcName in ipairs(ITEM_SOURCES) do
-            local svc = safeGet(svcName)
-            if svc then addSection(svcName, svc) end
+            local svc=safeGet(svcName)
+            if svc then addSec(svcName,svc) end
         end
-
-        -- Tally
         for _,e in ipairs(results) do
             if     e.cat=="tool"    then tC=tC+1
             elseif e.cat=="produce" then pC=pC+1
             elseif e.cat=="acc"     then aC=aC+1
             else                         oC=oC+1 end
         end
-
-        if #results==0 then
-            table.insert(lines,"No items found.")
-        else
+        if #results==0 then table.insert(lines,"No items found.") else
             table.insert(lines,string.format(
                 "-- Total: %d  (Tools:%d  Produce:%d  Acc:%d  Other:%d)",
-                #results, tC, pC, aC, oC
-            ))
+                #results,tC,pC,aC,oC))
         end
-
-        lastItemOut      = table.concat(lines,"\n")
-        OutItems.Text    = lastItemOut
-        BadgeTools.Text  = "Tools: "..tC
-        BadgeProduce.Text= "Produce: "..pC
-        BadgeAcc.Text    = "Acc: "..aC
-        BadgeOther.Text  = "Other: "..oC
+        lastItemOut       = table.concat(lines,"\n")
+        OutItems.Text     = lastItemOut
+        BadgeTools.Text   = "Tools: "..tC
+        BadgeProduce.Text = "Produce: "..pC
+        BadgeAcc.Text     = "Acc: "..aC
+        BadgeOther.Text   = "Other: "..oC
     end)
-
     if not ok then OutItems.Text="Item scan error:\n"..tostring(err) end
 end)
 
 BtnICopy.MouseButton1Click:Connect(function()
     if lastItemOut=="" then OutItems.Text="Run Item Clip first."; return end
-    local copied = copyToClipboard(lastItemOut)
-    local prev = OutItems.Text
+    local copied=copyToClipboard(lastItemOut)
+    local prev=OutItems.Text
     OutItems.Text = copied and ("Copied "..#lastItemOut.." chars!") or "setclipboard unavailable."
     task.delay(2.5,function() if OutItems and OutItems.Parent then OutItems.Text=prev end end)
 end)
@@ -734,128 +805,136 @@ BtnIReset.MouseButton1Click:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- ANTI-CHEAT TOGGLE LOGIC
+-- SCRIPT SCANNER LOGIC
 ----------------------------------------------------------------
-local acEnabled     = false
-local acTotalKilled = 0
-local acLog         = {}
+local lastScriptOut = ""
 
-local function nameIsAC(name)
-    local low = name:lower()
-    for _,p in ipairs(AC_PATTERNS) do
-        if low:find(p,1,true) then return true end
-    end
-    return false
-end
-
-local function deepScanAC(root, found, depth)
-    if depth > 8 then return end
+local function deepScanScripts(root, results, seen, depth)
+    if depth > 12 then return end
     local ok,kids = pcall(function() return root:GetChildren() end)
     if not ok then return end
     for _,child in ipairs(kids) do
-        local okN,nm  = pcall(function() return child.Name      end)
-        local okC,cls = pcall(function() return child.ClassName end)
-        if okN and okC then
-            if nameIsAC(nm) then
-                table.insert(found, child)
+        local okC,cn = pcall(function() return child.ClassName end)
+        local okN,nm = pcall(function() return child.Name      end)
+        if okC and okN then
+            local ptr = tostring(child)
+            if SCRIPT_CLASSES[cn] and not seen[ptr] then
+                seen[ptr]=true
+                local disabled=""
+                pcall(function()
+                    if child:IsA("BaseScript") and child.Disabled then
+                        disabled=" [DISABLED]"
+                    end
+                end)
+                table.insert(results,{cn=cn, nm=nm, disabled=disabled})
             end
-            if cls=="Folder" or cls=="Model" or cls=="Configuration" then
-                deepScanAC(child, found, depth+1)
-            end
+            deepScanScripts(child, results, seen, depth+1)
         end
     end
 end
 
-local AC_SCAN_SVCS = {
-    "Workspace","ReplicatedStorage","StarterGui",
-    "ReplicatedFirst","StarterPack","StarterPlayer",
-}
-
-local function runACPass()
-    local found = {}
-    for _,svcName in ipairs(AC_SCAN_SVCS) do
-        local svc = safeGet(svcName)
-        if svc then deepScanAC(svc, found, 0) end
-    end
-
-    local killed = 0
-    for _,inst in ipairs(found) do
-        local _,nm  = pcall(function() return inst.Name end)
-        local name  = nm or "?"
-        local ok    = pcall(function()
-            if inst:IsA("BaseScript") then inst.Disabled=true end
-            inst:Destroy()
-        end)
-        if ok then
-            killed = killed+1
-            acTotalKilled = acTotalKilled+1
-            table.insert(acLog, 1, "+ Removed: "..name)
-            if #acLog > 100 then table.remove(acLog) end
-        end
-    end
-
-    if killed > 0 then
-        OutAC.Text = string.format("[ Total removed: %d ]\n\n", acTotalKilled)
-            ..table.concat(acLog,"\n")
-    end
-end
-
-local function setACToggle(on)
-    acEnabled = on
-    if on then
-        ToggleBtn.Text             = "  AC Remover: ON"
-        ToggleBtn.TextColor3       = C.WHITE
-        ToggleBtn.BackgroundColor3 = C.AC_ON
-        ACStatus.Text              = "Running — scanning every 2s."
-        TweenService:Create(Indicator,TweenInfo.new(0.15),{BackgroundColor3=C.AC_ON}):Play()
-        task.spawn(runACPass)
-        task.spawn(function()
-            while acEnabled do
-                task.wait(2)
-                if acEnabled then runACPass() end
+BtnSclip.MouseButton1Click:Connect(function()
+    OutScripts.Text="Scanning for scripts…"
+    BadgeSc.Text="Script:?"
+    BadgeLs.Text="LocalScript:?"
+    BadgeMs.Text="ModuleScript:?"
+    BadgeSs.Text="Total:?"
+    ScriptCount.Text=""
+    task.wait(0.05)
+    local ok,err = pcall(function()
+        local results,seen,lines = {},{},{}
+        local scC,lsC,msC = 0,0,0
+        table.insert(lines, string.format("[ %s  |  PlaceId: %d ]\n", os.date("%H:%M:%S"), game.PlaceId))
+        for _,svcName in ipairs(SCRIPT_SCAN_SVCS) do
+            local svc=safeGet(svcName)
+            if svc then
+                local before = #results
+                deepScanScripts(svc, results, seen, 0)
+                if #results > before then
+                    table.insert(lines,">> "..svcName)
+                    for i=before+1,#results do
+                        local e=results[i]
+                        table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.disabled)
+                    end
+                    table.insert(lines,"")
+                end
             end
-        end)
-    else
-        acEnabled                  = false
-        ToggleBtn.Text             = "  AC Remover: OFF"
-        ToggleBtn.TextColor3       = C.DIM
-        ToggleBtn.BackgroundColor3 = C.AC_OFF
-        ACStatus.Text              = "Toggle ON to continuously strip all anti-cheat scripts."
-        TweenService:Create(Indicator,TweenInfo.new(0.15),{BackgroundColor3=TAB_COLORS[activeTab]}):Play()
-    end
-end
-
-ToggleBtn.MouseButton1Click:Connect(function() setACToggle(not acEnabled) end)
-
-ACClearBtn.MouseButton1Click:Connect(function()
-    acLog={} ; acTotalKilled=0
-    OutAC.Text="AC Remover log will appear here."
-    ScrollAC.CanvasPosition=Vector2.zero
+        end
+        -- also check Character and PlayerScripts
+        local char = LocalPlayer.Character
+        if char then
+            local before = #results
+            deepScanScripts(char, results, seen, 0)
+            if #results > before then
+                table.insert(lines,">> Character")
+                for i=before+1,#results do
+                    local e=results[i]
+                    table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.disabled)
+                end
+                table.insert(lines,"")
+            end
+        end
+        local ps = LocalPlayer:FindFirstChild("PlayerScripts")
+        if ps then
+            local before = #results
+            deepScanScripts(ps, results, seen, 0)
+            if #results > before then
+                table.insert(lines,">> PlayerScripts")
+                for i=before+1,#results do
+                    local e=results[i]
+                    table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.disabled)
+                end
+                table.insert(lines,"")
+            end
+        end
+        for _,e in ipairs(results) do
+            if     e.cn=="Script"       then scC=scC+1
+            elseif e.cn=="LocalScript"  then lsC=lsC+1
+            elseif e.cn=="ModuleScript" then msC=msC+1 end
+        end
+        local total = #results
+        if total==0 then
+            table.insert(lines,"No accessible scripts found.")
+        else
+            table.insert(lines,string.format(
+                "-- Total: %d  (Script:%d  LocalScript:%d  ModuleScript:%d)",
+                total,scC,lsC,msC))
+        end
+        lastScriptOut     = table.concat(lines,"\n")
+        OutScripts.Text   = lastScriptOut
+        ScriptCount.Text  = total.." scripts found"
+        BadgeSc.Text  = "Script: "..scC
+        BadgeLs.Text  = "LocalScript: "..lsC
+        BadgeMs.Text  = "Module: "..msC
+        BadgeSs.Text  = "Total: "..total
+    end)
+    if not ok then OutScripts.Text="Script scan error:\n"..tostring(err) end
 end)
 
-Gui.AncestryChanged:Connect(function()
-    if not Gui.Parent then acEnabled=false end
+BtnSsCopy.MouseButton1Click:Connect(function()
+    if lastScriptOut=="" then OutScripts.Text="Run Clip Scripts first."; return end
+    local copied=copyToClipboard(lastScriptOut)
+    local prev=OutScripts.Text
+    OutScripts.Text = copied and ("Copied "..#lastScriptOut.." chars!") or "setclipboard unavailable."
+    task.delay(2.5,function() if OutScripts and OutScripts.Parent then OutScripts.Text=prev end end)
+end)
+
+BtnSsReset.MouseButton1Click:Connect(function()
+    lastScriptOut=""
+    OutScripts.Text="Press [Clip Scripts] to scan all scripts in the game."
+    BadgeSc.Text="Script: 0" ; BadgeLs.Text="LocalScript: 0"
+    BadgeMs.Text="Module: 0" ; BadgeSs.Text="Total: 0"
+    ScriptCount.Text="" ; ScrollScripts.CanvasPosition=Vector2.zero
 end)
 
 ----------------------------------------------------------------
 -- OPEN ANIMATION
 ----------------------------------------------------------------
 Main.BackgroundTransparency = 1
-Main.Position = UDim2.new(0.5,-W/2, 0.5,-H/2+16)
+Main.Position = UDim2.new(0.5,-W/2, 0.5,-H/2+14)
 TweenService:Create(Main,TweenInfo.new(0.22,Enum.EasingStyle.Quint),{
     BackgroundTransparency=0,
     Position=UDim2.new(0.5,-W/2,0.5,-H/2),
 }):Play()
-task.delay(0.06,function()
-    for _,o in ipairs(Main:GetDescendants()) do
-        if (o:IsA("Frame") or o:IsA("TextButton") or o:IsA("TextLabel"))
-        and o.BackgroundTransparency < 1 then
-            TweenService:Create(o,TweenInfo.new(0.18),{BackgroundTransparency=0}):Play()
-        end
-        if o:IsA("TextLabel") or o:IsA("TextButton") then
-            TweenService:Create(o,TweenInfo.new(0.18),{TextTransparency=0}):Play()
-        end
-    end
-end)
 
-print("[ExploitMenu v3] Loaded — Structure | Items | Anti-Cheat")
+print("[ExploitMenu v4] Loaded — Structure | Items | Scripts")
