@@ -1,4 +1,4 @@
--- Exploit Menu v9  |  Structure · Items · Test · Fruits
+-- Exploit Menu v9  |  Structure · Items · Scripts · Fruits
 
 local Players          = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -26,7 +26,6 @@ local CITM  = Color3.fromRGB(100,80,40)
 local CSCR  = Color3.fromRGB(55,75,125)
 local CAC0  = Color3.fromRGB(58,58,75)
 local CAC1  = Color3.fromRGB(50,130,70)
-local CTST  = Color3.fromRGB(70,50,120)
 local CFR1  = Color3.fromRGB(48,105,60)    -- common fruit
 local CFR2  = Color3.fromRGB(130,90,20)    -- rare fruit
 local CFR3  = Color3.fromRGB(90,30,110)    -- exotic fruit
@@ -257,7 +256,7 @@ end
 
 local Tab1=makeTab("Structure",0)
 local Tab2=makeTab("Items",    1)
-local Tab3=makeTab("Test",     2)
+local Tab3=makeTab("Scripts",  2)
 local Tab4=makeTab("Fruits",   3)
 
 -- indicator (absolute position, outside any layout)
@@ -390,33 +389,33 @@ local ACLbl  =makeInfo(P1,6)
 --  PANEL 2 — ITEMS
 -- ════════════════════════════════════════════════════════════
 local P2=makePanel()
-makeLbl("Item & Script Scanner",P2,1)
-local _,ScI,OuI=makeOut(P2,138,2)
-OuI.Text="Press [Item Clip] or [Clip Scripts] to scan."
+makeLbl("Item Scanner",P2,1)
+local _,ScI,OuI=makeOut(P2,165,2)
+OuI.Text="Press [Item Clip] to scan."
 local RI1=makeBtnRow(P2,27,3)
 local BIC =makeBtn("Item Clip",CITM,RI1,UDim2.new(0.44,0,1,0),1)
 local BICp=makeBtn("Copy",CCOPY,RI1,UDim2.new(0.28,-5,1,0),2)
 local BIRs=makeBtn("Reset",CRST,RI1,UDim2.new(0.28,-5,1,0),3)
-local BSC=makeBtn("  Clip Scripts  (Script · LocalScript · ModuleScript)",CSCR,P2,UDim2.new(1,0,0,27),4)
-local IBR1=makeBadgeRow(P2,5); local IBR2=makeBadgeRow(P2,6)
+local IBR1=makeBadgeRow(P2,4); local IBR2=makeBadgeRow(P2,5)
 local BgTools=makeBadge("Tools:0",IBR1); local BgProduce=makeBadge("Produce:0",IBR1)
 local BgAcc  =makeBadge("Acc:0",IBR2);  local BgOther  =makeBadge("Other:0",IBR2)
-local SBR1=makeBadgeRow(P2,7); local SBR2=makeBadgeRow(P2,8)
-local BgSc=makeBadge("Script:0",SBR1);  local BgLs=makeBadge("LocalScript:0",SBR1)
-local BgMs=makeBadge("Module:0",SBR2);  local BgTt=makeBadge("Total:0",SBR2)
-local ILbl=makeInfo(P2,9)
+local ILbl=makeInfo(P2,6)
 
 -- ════════════════════════════════════════════════════════════
---  PANEL 3 — TEST
+--  PANEL 3 — SCRIPTS
 -- ════════════════════════════════════════════════════════════
 local P3=makePanel()
-makeLbl("Script Self-Test",P3,1)
-local _,ScT,OuT=makeOut(P3,200,2)
-OuT.Text="Press [Run Tests] to verify everything is working."
-local RT1=makeBtnRow(P3,27,3)
-local BRunT =makeBtn("Run Tests",CTST,RT1,UDim2.new(0.6,0,1,0),1)
-local BClearT=makeBtn("Clear",CRST,RT1,UDim2.new(0.4,-5,1,0),2)
-local TestInfo=makeInfo(P3,4)
+makeLbl("Script Scanner",P3,1)
+local _,ScP,OuP=makeOut(P3,172,2)
+OuP.Text="Press [Clip Scripts] to scan the entire game for scripts."
+local RSP=makeBtnRow(P3,27,3)
+local BCS  =makeBtn("Clip Scripts",CSCR,RSP,UDim2.new(0.44,0,1,0),1)
+local BCSCp=makeBtn("Copy",CCOPY,RSP,UDim2.new(0.28,-5,1,0),2)
+local BCSRs=makeBtn("Reset",CRST,RSP,UDim2.new(0.28,-5,1,0),3)
+local SSR1=makeBadgeRow(P3,4); local SSR2=makeBadgeRow(P3,5)
+local BgSc=makeBadge("Script:0",SSR1);  local BgLs=makeBadge("LocalScript:0",SSR1)
+local BgMs=makeBadge("Module:0",SSR2);  local BgTt=makeBadge("Total:0",SSR2)
+local SLbl=makeInfo(P3,6)
 
 -- ════════════════════════════════════════════════════════════
 --  PANEL 4 — FRUITS
@@ -470,7 +469,6 @@ local function giveFruit(name)
     local RS = safeGet("ReplicatedStorage")
     if not RS then return false,"No ReplicatedStorage" end
 
-    -- Search locations in priority order
     local locs = {
         RS:FindFirstChild("Crops"),
         RS:FindFirstChild("SpecialFruits"),
@@ -486,10 +484,8 @@ local function giveFruit(name)
                 local ok,err = pcall(function()
                     local clone = item:Clone()
                     if clone:IsA("Tool") then
-                        -- Goes straight to backpack
                         clone.Parent = LP.Backpack
                     else
-                        -- Place in workspace near the player
                         local char = LP.Character
                         local root = char and char:FindFirstChild("HumanoidRootPart")
                         if root then
@@ -499,7 +495,6 @@ local function giveFruit(name)
                                 if clone.PrimaryPart then
                                     clone:SetPrimaryPartCFrame(cf)
                                 else
-                                    -- try to move all BaseParts
                                     for _,p in ipairs(clone:GetDescendants()) do
                                         if p:IsA("BasePart") then p.CFrame=cf; break end
                                     end
@@ -529,7 +524,6 @@ for idx,info in ipairs(FRUITS) do
     local dname, iname, tier = info[1], info[2], info[3]
     local col = TIER_COLORS[tier]
 
-    -- Tier divider label
     if tier ~= lastTier then
         lastTier = tier
         local div2=Instance.new("TextLabel",FruitInner)
@@ -572,7 +566,7 @@ end
 -- ════════════════════════════════════════════════════════════
 local ALL_TABS   = {Tab1,Tab2,Tab3,Tab4}
 local ALL_PANELS = {P1,P2,P3,P4}
-local ALL_COLS   = {CCLIP,CITM,CTST,CFR1}
+local ALL_COLS   = {CCLIP,CITM,CSCR,CFR1}
 local curTab     = 0
 
 local function switchTab(idx)
@@ -759,11 +753,14 @@ BICp.MouseButton1Click:Connect(function()
     task.delay(2.5,function() if OuI and OuI.Parent then OuI.Text=prev end end)
 end)
 BIRs.MouseButton1Click:Connect(function()
-    lastIOut=""; OuI.Text="Press [Item Clip] or [Clip Scripts] to scan."
+    lastIOut=""; OuI.Text="Press [Item Clip] to scan."
     BgTools.Text="Tools:0"; BgProduce.Text="Produce:0"; BgAcc.Text="Acc:0"; BgOther.Text="Other:0"
-    BgSc.Text="Script:0"; BgLs.Text="LocalScript:0"; BgMs.Text="Module:0"; BgTt.Text="Total:0"
     ILbl.Text=""; ScI.CanvasPosition=Vector2.zero
 end)
+
+-- ════════════════════════════════════════════════════════════
+--  SCRIPTS LOGIC
+-- ════════════════════════════════════════════════════════════
 local lastScOut=""
 local function deepScripts(root,res,seen,d)
     if d>12 then return end
@@ -782,8 +779,8 @@ local function deepScripts(root,res,seen,d)
         end
     end
 end
-BSC.MouseButton1Click:Connect(function()
-    OuI.Text="Scanning scripts…"; ILbl.Text=""
+BCS.MouseButton1Click:Connect(function()
+    OuP.Text="Scanning scripts…"; SLbl.Text=""
     BgSc.Text="…"; BgLs.Text="…"; BgMs.Text="…"; BgTt.Text="…"; task.wait(0.05)
     local ok,er=pcall(function()
         local res,seen,L={},{},{}; local scC,lsC,msC=0,0,0
@@ -821,44 +818,21 @@ BSC.MouseButton1Click:Connect(function()
         local tot=#res
         if tot==0 then table.insert(L,"No accessible scripts found.")
         else table.insert(L,string.format("-- Total:%d (Script:%d LocalScript:%d Module:%d)",tot,scC,lsC,msC)) end
-        lastScOut=table.concat(L,"\n"); OuI.Text=lastScOut; ILbl.Text=tot.." scripts found"
+        lastScOut=table.concat(L,"\n"); OuP.Text=lastScOut; SLbl.Text=tot.." scripts found"
         BgSc.Text="Script:"..scC; BgLs.Text="LocalScript:"..lsC; BgMs.Text="Module:"..msC; BgTt.Text="Total:"..tot
     end)
-    if not ok then OuI.Text="Script error:\n"..tostring(er) end
+    if not ok then OuP.Text="Script error:\n"..tostring(er) end
 end)
-
--- ════════════════════════════════════════════════════════════
---  TEST LOGIC
--- ════════════════════════════════════════════════════════════
-BRunT.MouseButton1Click:Connect(function()
-    OuT.Text="Running…"; TestInfo.Text=""; task.wait(0.1)
-    local lines={}; local pass,fail=0,0
-    local function check(name,fn)
-        local ok,res=pcall(fn); local s=ok and res
-        if s then pass=pass+1; table.insert(lines,"[PASS]  "..name)
-        else fail=fail+1; table.insert(lines,"[FAIL]  "..name.." — "..(ok and "false" or tostring(res))) end
-    end
-    check("GUI in PlayerGui",              function() return PGui:FindFirstChild("_EM9")~=nil end)
-    check("Main frame visible",            function() return Main.Visible==true end)
-    check("Panel 1 (Structure) exists",    function() return P1:IsA("Frame") end)
-    check("Panel 2 (Items) exists",        function() return P2:IsA("Frame") end)
-    check("Panel 3 (Test) exists",         function() return P3:IsA("Frame") end)
-    check("Panel 4 (Fruits) exists",       function() return P4:IsA("Frame") end)
-    check("All 4 tabs exist",              function() return Tab1 and Tab2 and Tab3 and Tab4 end)
-    check("Workspace accessible",          function() return safeGet("Workspace")~=nil end)
-    check("ReplicatedStorage accessible",  function() return safeGet("ReplicatedStorage")~=nil end)
-    check("LocalPlayer exists",            function() return LP~=nil end)
-    check("Clipboard available",           function() return setclipboard~=nil or copystring~=nil end)
-    check("Fruits table has 60+ entries",  function() return #FRUITS>=60 end)
-    check("On Test tab (P3 visible)",      function() return P3.Visible==true end)
-    check("P1 not visible on Test tab",    function() return P1.Visible==false end)
-    check("P4 not visible on Test tab",    function() return P4.Visible==false end)
-    table.insert(lines,""); table.insert(lines,string.format("Done — %d passed / %d failed",pass,fail))
-    OuT.Text=table.concat(lines,"\n"); TestInfo.Text=string.format("%d/%d tests passed",pass,pass+fail)
+BCSCp.MouseButton1Click:Connect(function()
+    if lastScOut=="" then OuP.Text="Run Clip Scripts first."; return end
+    local ok=doclip(lastScOut); local prev=OuP.Text
+    OuP.Text=ok and ("Copied "..#lastScOut.." chars!") or "setclipboard unavailable."
+    task.delay(2.5,function() if OuP and OuP.Parent then OuP.Text=prev end end)
 end)
-BClearT.MouseButton1Click:Connect(function()
-    OuT.Text="Press [Run Tests] to verify everything is working."
-    TestInfo.Text=""; ScT.CanvasPosition=Vector2.zero
+BCSRs.MouseButton1Click:Connect(function()
+    lastScOut=""; OuP.Text="Press [Clip Scripts] to scan the entire game for scripts."
+    BgSc.Text="Script:0"; BgLs.Text="LocalScript:0"; BgMs.Text="Module:0"; BgTt.Text="Total:0"
+    SLbl.Text=""; ScP.CanvasPosition=Vector2.zero
 end)
 
 -- ── OPEN ANIMATION ───────────────────────────────────────────
@@ -869,4 +843,4 @@ TweenService:Create(Main,TweenInfo.new(0.2,Enum.EasingStyle.Quint),{
     Position=UDim2.new(0.5,-W/2,0.5,-H/2),
 }):Play()
 
-print("[ExploitMenu v9]  Structure | Items | Test | Fruits — all panels ready")
+print("[ExploitMenu v9]  Structure | Items | Scripts | Fruits — all panels ready")
