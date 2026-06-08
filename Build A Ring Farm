@@ -205,33 +205,81 @@ local function safeGet(n)
 end
 
 local RS = safeGet("ReplicatedStorage")
+local WS = safeGet("Workspace")
 
 local function getRemote(name)
     return RS and RS:FindFirstChild(name,true) or nil
 end
 
-local function dropNearPlayer(clone)
+-- Position any instance near the player's feet
+local function placeNearPlayer(inst)
     local char = LP.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    if not root then clone.Parent = workspace; return end
-    clone.Parent = workspace
-    local cf = root.CFrame * CFrame.new(math.random(-3,3), 1, math.random(-4,-2))
-    if clone:IsA("Model") then
-        if clone.PrimaryPart then clone:SetPrimaryPartCFrame(cf)
+    local cf = root and (root.CFrame * CFrame.new(0, 0.5, -2)) or CFrame.new(0,5,0)
+    if inst:IsA("Tool") then
+        local h = inst:FindFirstChild("FakeHandle") or inst:FindFirstChild("Handle")
+        if h then pcall(function() h.Anchored=false; h.CFrame=cf end) end
+    elseif inst:IsA("Model") then
+        if inst.PrimaryPart then
+            pcall(function() inst:SetPrimaryPartCFrame(cf) end)
         else
-            for _,p in ipairs(clone:GetDescendants()) do
-                if p:IsA("BasePart") then p.CFrame=cf; break end
+            for _,p in ipairs(inst:GetDescendants()) do
+                if p:IsA("BasePart") then pcall(function() p.CFrame=cf end); break end
             end
         end
-    elseif clone:IsA("BasePart") then clone.CFrame = cf end
+    elseif inst:IsA("BasePart") then
+        pcall(function() inst.CFrame=cf end)
+    end
 end
 
-local function cloneToPlayer(item)
+-- ── PRIMARY GIVE METHOD: server-side pickup ───────────────────
+-- Clones the item into workspace > DroppedItems (where the game
+-- keeps all world-spawned loot), positions it at the player's feet,
+-- then fires PickUpItem:FireServer(clone).  The server's pickup
+-- handler adds it to the backpack WITH GunServer / all scripts running.
+local function giveViaPickup(item)
+    local pickupRE = RS and RS:FindFirstChild("PickUpItem")
+    if not pickupRE then return false, "PickUpItem remote not found" end
+
+    local droppedFolder = WS and (WS:FindFirstChild("DroppedItems") or WS)
+    if not droppedFolder then return false, "No Workspace" end
+
+    local clone = item:Clone()
+    placeNearPlayer(clone)
+    clone.Parent = droppedFolder
+
+    task.wait(0.05) -- one frame so engine registers the new instance
+
+    local ok, err = pcall(function() pickupRE:FireServer(clone) end)
+
+    -- auto-cleanup in case server rejected it
+    task.delay(4, function()
+        pcall(function() if clone and clone.Parent then clone:Destroy() end end)
+    end)
+
+    return ok, ok and "Got via server pickup ✓" or tostring(err)
+end
+
+-- ── SECONDARY GIVE METHOD: direct backpack clone ──────────────
+-- Used for non-scripted loot (food, armor, resources, crystals)
+-- where no server script needs to run.
+local function giveDirectClone(item)
     local clone = item:Clone()
     if clone:IsA("Tool") then
         clone.Parent = LP.Backpack
     else
-        dropNearPlayer(clone)
+        local char = LP.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        clone.Parent = WS or workspace
+        if root then
+            local cf = root.CFrame * CFrame.new(math.random(-2,2),1,math.random(-4,-2))
+            if clone:IsA("Model") then
+                if clone.PrimaryPart then clone:SetPrimaryPartCFrame(cf)
+                else for _,p in ipairs(clone:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CFrame=cf; break end
+                end end
+            elseif clone:IsA("BasePart") then clone.CFrame=cf end
+        end
     end
 end
 
@@ -245,30 +293,36 @@ local function findInRS(iname, folder)
             if item then return item end
         end
     end
-    -- fallback: search RS root
     local item = RS:FindFirstChild(iname)
     if item then return item end
-    -- fallback: deep search
     return RS:FindFirstChild(iname, true)
 end
 
-local function giveItem(iname, folder)
-    if not RS then return false, "No ReplicatedStorage" end
-    local item = findInRS(iname, folder)
-    if not item then return false, iname.." not found" end
-    local ok, err = pcall(cloneToPlayer, item)
-    return ok, ok and ("Got: "..iname.." ✓") or tostring(err)
-end
-
+-- For weapons/tools — use server pickup so scripts run
 local function giveGun(iname)
     if not RS then return false, "No ReplicatedStorage" end
     local gunsFolder = RS:FindFirstChild("Guns")
     local item = gunsFolder and gunsFolder:FindFirstChild(iname)
     if not item then item = RS:FindFirstChild(iname, true) end
-    if not item then return false, iname.." not in RS > Guns" end
-    local ok, err = pcall(function()
-        local clone = item:Clone(); clone.Parent = LP.Backpack
-    end)
+    if not item then return false, iname.." not found in RS > Guns" end
+    return giveViaPickup(item)
+end
+
+-- For gear (melee/throwables/specials) — also use server pickup
+local function giveGear(iname)
+    if not RS then return false, "No ReplicatedStorage" end
+    local item = RS:FindFirstChild(iname) or RS:FindFirstChild(iname, true)
+    if not item then return false, iname.." not found in RS" end
+    return giveViaPickup(item)
+end
+
+-- For loot (food/armor/resources/crystals) — direct clone is fine,
+-- these items have no server scripts that need to fire
+local function giveLoot(iname, folder)
+    if not RS then return false, "No ReplicatedStorage" end
+    local item = findInRS(iname, folder)
+    if not item then return false, iname.." not found" end
+    local ok, err = pcall(giveDirectClone, item)
     return ok, ok and ("Got: "..iname.." ✓") or tostring(err)
 end
 
@@ -509,7 +563,7 @@ for idx,info in ipairs(GEAR) do
     local cn,cc,cb,cd = iname,col,btn,dname
     btn.MouseButton1Click:Connect(function()
         cb.Text = "Giving…"
-        local ok,msg = giveItem(cn, nil)
+        local ok,msg = giveGear(cn)
         setStatus(GearStatus, msg, ok)
         cb.Text = cd
         if ok then flash(cb,cc) end
@@ -534,7 +588,7 @@ for idx,info in ipairs(LOOT) do
     local cn,cfl,cc,cb,cd = iname,folder,col,btn,dname
     btn.MouseButton1Click:Connect(function()
         cb.Text = "Giving…"
-        local ok,msg = giveItem(cn, cfl)
+        local ok,msg = giveLoot(cn, cfl)
         setStatus(LootStatus, msg, ok)
         cb.Text = cd
         if ok then flash(cb,cc) end
