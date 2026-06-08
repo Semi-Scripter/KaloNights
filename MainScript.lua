@@ -158,8 +158,14 @@ local function safeGet(n)
     ok,r=pcall(function() return game[n] end); return ok and r or nil
 end
 local function doclip(txt)
-    if setclipboard then pcall(setclipboard,txt); return true end
-    if copystring   then pcall(copystring,txt);   return true end
+    if setclipboard then
+        local ok = pcall(setclipboard, txt)
+        return ok
+    end
+    if copystring then
+        local ok = pcall(copystring, txt)
+        return ok
+    end
     return false
 end
 
