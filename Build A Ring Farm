@@ -1,863 +1,363 @@
--- ╔══════════════════════════════════════════════════════════╗
--- ║   Survive The Apocalypse — Exploit Menu                 ║
--- ║   Guns · Gear · Loot · Player                          ║
--- ║   PlaceId: 116139828947259                             ║
--- ╚══════════════════════════════════════════════════════════╝
+-- // GOD MODE SCRIPT — Loadstring Compatible
+-- // Client + Server-side validation with GUI toggle
+-- // Place as a LocalScript or run via loadstring()
 
-local Players      = game:GetService("Players")
-local UIS          = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local RunService   = game:GetService("RunService")
-local LP           = Players.LocalPlayer
-local PGui         = LP:WaitForChild("PlayerGui")
+local Players        = game:GetService("Players")
+local RunService     = game:GetService("RunService")
+local TweenService   = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-if PGui:FindFirstChild("_STA") then PGui._STA:Destroy() end
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
--- ── COLORS ───────────────────────────────────────────────────
-local BG     = Color3.fromRGB(10,10,12)
-local PANEL  = Color3.fromRGB(16,16,20)
-local HDR    = Color3.fromRGB(20,18,14)
-local LINE   = Color3.fromRGB(40,36,28)
-local TEXT   = Color3.fromRGB(218,210,195)
-local DIM    = Color3.fromRGB(90,82,68)
-local WHITE  = Color3.fromRGB(255,255,255)
-local BTN    = Color3.fromRGB(32,30,24)
-local CRST   = Color3.fromRGB(130,28,28)
+local GodEnabled  = false
+local Connections = {}
+local ShieldBill  = nil
 
--- Category accents — military / post-apocalyptic palette
-local C_PIS  = Color3.fromRGB(52,80,42)    -- pistols / small guns
-local C_RIF  = Color3.fromRGB(35,65,30)    -- rifles
-local C_HVY  = Color3.fromRGB(28,50,22)    -- heavy / special guns
-local C_SHT  = Color3.fromRGB(70,50,18)    -- shotguns
-local C_MEL  = Color3.fromRGB(105,30,30)   -- melee
-local C_THR  = Color3.fromRGB(120,60,18)   -- throwables
-local C_POT  = Color3.fromRGB(60,25,90)    -- potions / compounds
-local C_SPE  = Color3.fromRGB(28,55,85)    -- special / boss abilities
-local C_ARM  = Color3.fromRGB(55,65,40)    -- armor
-local C_FOD  = Color3.fromRGB(80,55,18)    -- food
-local C_MED  = Color3.fromRGB(28,85,55)    -- medical
-local C_RES  = Color3.fromRGB(60,45,20)    -- resources
-local C_CRY  = Color3.fromRGB(38,68,108)   -- alien crystals / gems
-local C_P1   = Color3.fromRGB(40,75,120)   -- player speed
-local C_P2   = Color3.fromRGB(30,100,65)   -- player jump / fly on
-local C_P3   = Color3.fromRGB(115,30,30)   -- anti-cheat
+-- ============================================================
+-- SERVER REMOTE SETUP
+-- Attempts to register a RemoteFunction so the server
+-- validates and applies a real ForceField + health lock.
+-- Works when you have executor access to inject server code.
+-- If the remote already exists (e.g. another loader created it)
+-- we reuse it safely.
+-- ============================================================
+local GodRemote
+local remoteFolder = ReplicatedStorage:FindFirstChild("_GodValidation")
 
--- ── WEAPON DATA ───────────────────────────────────────────────
--- Guns  { display, rsName, color, category }  — all in RS > Guns folder
-local GUNS = {
-    -- Pistols
-    {"Pistol",           "Pistol",           C_PIS, "Pistols"},
-    {"Revolver",         "Revolver",         C_PIS, "Pistols"},
-    {"Desert Eagle",     "Desert Eagle",     C_PIS, "Pistols"},
-    -- SMGs
-    {"Uzi",              "Uzi",              C_RIF, "SMGs"},
-    {"Combat SMG",       "Combat SMG",       C_RIF, "SMGs"},
-    -- Rifles
-    {"Rifle",            "Rifle",            C_RIF, "Rifles"},
-    {"Assault Rifle",    "Assault Rifle",    C_RIF, "Rifles"},
-    {"AK-47",            "AK-47",            C_RIF, "Rifles"},
-    {"SVD",              "SVD",              C_RIF, "Rifles"},
-    {"LMG",              "LMG",              C_RIF, "Rifles"},
-    -- Snipers
-    {"Sniper",           "Sniper",           C_HVY, "Snipers"},
-    {"Heavy Sniper",     "Heavy Sniper",     C_HVY, "Snipers"},
-    -- Shotguns
-    {"Shotgun",          "Shotgun",          C_SHT, "Shotguns"},
-    {"Double Barrel",    "Double Barrel",    C_SHT, "Shotguns"},
-    {"AA-12",            "AA-12",            C_SHT, "Shotguns"},
-    {"Ion Shotgun",      "Ion Shotgun",      C_SHT, "Shotguns"},
-    -- Special Guns
-    {"Minigun",          "Minigun",          C_HVY, "Special Guns"},
-    {"Flamethrower",     "Flamethrower",     C_HVY, "Special Guns"},
-    {"Grenade Launcher", "Grenade Launcher", C_HVY, "Special Guns"},
-    {"Crossbow",         "Crossbow",         C_HVY, "Special Guns"},
-    {"Explosive Crossbow","Explosive Crossbow",C_HVY,"Special Guns"},
-    {"Freeze Ray",       "Freeze Ray",       C_HVY, "Special Guns"},
-    {"Ray Gun",          "Ray Gun",          C_HVY, "Special Guns"},
-    {"MediGun",          "MediGun",          C_HVY, "Special Guns"},
-}
-
--- Gear  { display, rsName, color, category }  — in RS directly
-local GEAR = {
-    -- Melee
-    {"Bat",              "Bat",              C_MEL, "Melee"},
-    {"Crowbar",          "Crowbar",          C_MEL, "Melee"},
-    {"Wrench",           "Wrench",           C_MEL, "Melee"},
-    {"Hatchet",          "Hatchet",          C_MEL, "Melee"},
-    {"Spiked Bat",       "Spiked Bat",       C_MEL, "Melee"},
-    {"Katana",           "Katana",           C_MEL, "Melee"},
-    {"Fire Axe",         "Fire Axe",         C_MEL, "Melee"},
-    {"Sledgehammer",     "Sledgehammer",     C_MEL, "Melee"},
-    {"Spear",            "Spear",            C_MEL, "Melee"},
-    {"Knife",            "Knife",            C_MEL, "Melee"},
-    {"Mace",             "Mace",             C_MEL, "Melee"},
-    {"Chainsaw",         "Chainsaw",         C_MEL, "Melee"},
-    {"Scythe",           "Scythe",           C_MEL, "Melee"},
-    {"Dark Scythe",      "Dark Scythe",      C_MEL, "Melee"},
-    {"Energy Blade",     "Energy Blade",     C_MEL, "Melee"},
-    {"Power Hammer",     "Power Hammer",     C_MEL, "Melee"},
-    {"Bloodthirster",    "Bloodthirster",    C_MEL, "Melee"},
-    {"Riot Shield",      "Riot Shield",      C_MEL, "Melee"},
-    -- Throwables
-    {"Molotov",          "Molotov",          C_THR, "Throwables"},
-    {"Grenade",          "Grenade",          C_THR, "Throwables"},
-    {"Tear Gas",         "Tear Gas",         C_THR, "Throwables"},
-    {"Flashbang",        "Flashbang",        C_THR, "Throwables"},
-    {"Barbed Wire",      "Barbed Wire",      C_THR, "Throwables"},
-    -- Potions & Compounds
-    {"Medkit",           "Medkit",           C_POT, "Potions"},
-    {"Bandage",          "Bandage",          C_POT, "Potions"},
-    {"Weakening Potion", "Weakening Potion", C_POT, "Potions"},
-    {"Ice Potion",       "Ice Potion",       C_POT, "Potions"},
-    {"Acid Potion",      "Acid Potion",      C_POT, "Potions"},
-    {"Compound H",       "Compound H",       C_POT, "Potions"},
-    {"Compound S",       "Compound S",       C_POT, "Potions"},
-    {"Compound I",       "Compound I",       C_POT, "Potions"},
-    {"Compound R",       "Compound R",       C_POT, "Potions"},
-    {"Recovery Compound","Recovery Compound",C_POT, "Potions"},
-    {"Bloater Core",     "Bloater Core",     C_POT, "Potions"},
-    -- Special / Boss Abilities
-    {"Summon Zombies",   "Summon Zombies",   C_SPE, "Special"},
-    {"Summon Brute",     "Summon Brute",     C_SPE, "Special"},
-    {"Attack Order",     "Attack Order",     C_SPE, "Special"},
-    {"Airstrike",        "Airstrike",        C_SPE, "Special"},
-    {"The Past",         "The Past",         C_SPE, "Special"},
-    {"The Future",       "The Future",       C_SPE, "Special"},
-    {"The Present",      "The Present",      C_SPE, "Special"},
-    {"Call of the Dead", "Call of the Dead", C_SPE, "Special"},
-    {"Remote Arsenal",   "Remote Arsenal",   C_SPE, "Special"},
-    {"Psychic Editor",   "Psychic Editor",   C_SPE, "Special"},
-    {"Stalk",            "Stalk",            C_SPE, "Special"},
-    {"Requiem",          "Requiem",          C_SPE, "Special"},
-    {"Summon",           "Summon",           C_SPE, "Special"},
-    {"Taunt",            "Taunt",            C_SPE, "Special"},
-    {"Muscle Eye",       "Muscle Eye",       C_SPE, "Special"},
-    {"Nuclear Rod",      "Nuclear Rod",      C_SPE, "Special"},
-    {"Tainted Steel",    "Tainted Steel",    C_SPE, "Special"},
-    {"Screamer Claw",    "Screamer Claw",    C_SPE, "Special"},
-    {"Spitter Heart",    "Spitter Heart",    C_SPE, "Special"},
-    {"Rotten Flesh",     "Rotten Flesh",     C_SPE, "Special"},
-    {"Military Keycard", "Military Keycard", C_SPE, "Special"},
-    {"Sealed Blood Gem", "Sealed Blood Gem", C_SPE, "Special"},
-    {"Suppressor",       "Suppressor",       C_SPE, "Special"},
-    {"Blueprint",        "Blueprint",        C_SPE, "Special"},
-    {"Control Pad",      "Control Pad",      C_SPE, "Special"},
-    {"Repair Hammer",    "Repair Hammer",    C_SPE, "Special"},
-    {"Brewing Stand",    "Brewing Stand",    C_SPE, "Special"},
-}
-
--- Loot  { display, rsName, color, category, folder }
--- folder: nil=RS root, "Armor","Food","Resources","AlienCrystals","Backpacks","Ammo"
-local LOOT = {
-    -- Armor
-    {"Light Armor",      "Light Armor",      C_ARM, "Armor",   "Armor"},
-    {"Medium Armor",     "Medium Armor",     C_ARM, "Armor",   "Armor"},
-    {"Heavy Armor",      "Heavy Armor",      C_ARM, "Armor",   "Armor"},
-    {"Power Armor",      "Power Armor",      C_ARM, "Armor",   "Armor"},
-    {"Power Armor Arm",  "Power Armor Arm",  C_ARM, "Armor",   "Armor"},
-    {"Power Armor Core", "Power Armor Core", C_ARM, "Armor",   "Armor"},
-    -- Backpacks
-    {"Good Backpack",    "Good Backpack",    C_RES, "Backpacks","Backpacks"},
-    {"Great Backpack",   "Great Backpack",   C_RES, "Backpacks","Backpacks"},
-    -- Food
-    {"Beans",            "Beans",            C_FOD, "Food",    "Food"},
-    {"Carrot",           "Carrot",           C_FOD, "Food",    "Food"},
-    {"Chips",            "Chips",            C_FOD, "Food",    "Food"},
-    {"Bloxy Cola",       "Bloxy Cola",       C_FOD, "Food",    "Food"},
-    {"Bloxiade",         "Bloxiade",         C_FOD, "Food",    "Food"},
-    {"Spatula",          "Spatula",          C_FOD, "Food",    "Food"},
-    -- Resources
-    {"Battery Pack",     "Battery Pack",     C_RES, "Resources","Resources"},
-    {"Scrap",            "Scrap",            C_RES, "Resources", nil},
-    {"Fuel",             "Fuel",             C_RES, "Resources", nil},
-    {"Battery",          "Battery",          C_RES, "Resources", nil},
-    {"Screws",           "Screws",           C_RES, "Resources", nil},
-    {"Wood Planks",      "WoodPlanks",       C_RES, "Resources", nil},
-    -- Ammo
-    {"Pistol Ammo",      "Pistol Ammo",      C_RES, "Ammo",    "Ammo"},
-    {"Medium Ammo",      "Medium Ammo",      C_RES, "Ammo",    "Ammo"},
-    {"Long Ammo",        "Long Ammo",        C_RES, "Ammo",    "Ammo"},
-    {"Shells",           "Shells",           C_RES, "Ammo",    "Ammo"},
-    {"Ammo Box",         "Ammo Box",         C_RES, "Ammo",    "Ammo"},
-    -- Alien Crystals & Gems
-    {"Green Alien Crystal", "Green Alien Crystal",  C_CRY,"Crystals","AlienCrystals"},
-    {"Orange Alien Crystal","Orange Alien Crystal", C_CRY,"Crystals","AlienCrystals"},
-    {"Blue Alien Crystal",  "Blue Alien Crystal",   C_CRY,"Crystals","AlienCrystals"},
-    {"Purple Alien Crystal","Purple Alien Crystal",  C_CRY,"Crystals","AlienCrystals"},
-    {"Yellow Alien Crystal","Yellow Alien Crystal",  C_CRY,"Crystals","AlienCrystals"},
-    {"Emerald",             "Emerald",              C_CRY,"Crystals", nil},
-    {"Blood Gem",           "Blood Gem",            C_CRY,"Crystals", nil},
-    -- Misc structures/items
-    {"Bear Trap",        "Bear Trap",        C_RES, "Misc",    nil},
-    {"Healing Pad",      "Healing Pad",      C_MED, "Misc",    nil},
-    {"Torch",            "Torch",            C_RES, "Misc",    nil},
-    {"Lantern",          "Lantern",          C_RES, "Misc",    nil},
-    {"Arrow",            "Arrow",            C_RES, "Misc",    nil},
-    {"Explosive Arrow",  "ExplosiveArrow",   C_THR, "Misc",    nil},
-}
-
--- ── UTIL ─────────────────────────────────────────────────────
-local function safeGet(n)
-    local ok,r = pcall(game.GetService,game,n)
-    if ok and r then return r end
-    ok,r = pcall(function() return game[n] end)
-    return ok and r or nil
+if not remoteFolder then
+    remoteFolder = Instance.new("Folder")
+    remoteFolder.Name = "_GodValidation"
+    remoteFolder.Parent = ReplicatedStorage
 end
 
-local RS = safeGet("ReplicatedStorage")
-local WS = safeGet("Workspace")
-
-local function getRemote(name)
-    return RS and RS:FindFirstChild(name,true) or nil
+GodRemote = remoteFolder:FindFirstChild("GodToggle")
+if not GodRemote then
+    GodRemote = Instance.new("RemoteFunction")
+    GodRemote.Name = "GodToggle"
+    GodRemote.Parent = remoteFolder
 end
 
--- Position any instance near the player's feet
-local function placeNearPlayer(inst)
-    local char = LP.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local cf = root and (root.CFrame * CFrame.new(0, 0.5, -2)) or CFrame.new(0,5,0)
-    if inst:IsA("Tool") then
-        local h = inst:FindFirstChild("FakeHandle") or inst:FindFirstChild("Handle")
-        if h then pcall(function() h.Anchored=false; h.CFrame=cf end) end
-    elseif inst:IsA("Model") then
-        if inst.PrimaryPart then
-            pcall(function() inst:SetPrimaryPartCFrame(cf) end)
-        else
-            for _,p in ipairs(inst:GetDescendants()) do
-                if p:IsA("BasePart") then pcall(function() p.CFrame=cf end); break end
+-- Server-side handler (runs once inside pcall so it never errors)
+pcall(function()
+    local function applyServerSide(player, state)
+        local char = player.Character
+        if not char then return false end
+
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return false end
+
+        if state then
+            -- Add a real ForceField (server-authoritative)
+            if not char:FindFirstChildOfClass("ForceField") then
+                local ff      = Instance.new("ForceField")
+                ff.Visible    = false
+                ff.Parent     = char
             end
+
+            -- Lock max health on the server
+            humanoid.MaxHealth = math.huge
+            humanoid.Health    = math.huge
+
+            -- Continuously restore health server-side
+            if not char:FindFirstChild("_GodHB") then
+                local tag = Instance.new("BoolValue")
+                tag.Name  = "_GodHB"
+                tag.Parent = char
+
+                task.spawn(function()
+                    while char and char:FindFirstChild("_GodHB") do
+                        if humanoid and humanoid.Parent then
+                            humanoid.MaxHealth = math.huge
+                            humanoid.Health    = math.huge
+
+                            local state_ = humanoid:GetState()
+                            if state_ == Enum.HumanoidStateType.Dead then
+                                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                            end
+                        end
+                        task.wait(0.03)
+                    end
+                end)
+            end
+        else
+            -- Disable: remove FF and restore defaults
+            local ff = char:FindFirstChildOfClass("ForceField")
+            if ff then ff:Destroy() end
+
+            local tag = char:FindFirstChild("_GodHB")
+            if tag then tag:Destroy() end
+
+            humanoid.MaxHealth = 100
+            humanoid.Health    = 100
         end
-    elseif inst:IsA("BasePart") then
-        pcall(function() inst.CFrame=cf end)
+
+        return true
     end
-end
 
--- ── PRIMARY GIVE METHOD: server-side pickup ───────────────────
--- Clones the item into workspace > DroppedItems (where the game
--- keeps all world-spawned loot), positions it at the player's feet,
--- then fires PickUpItem:FireServer(clone).  The server's pickup
--- handler adds it to the backpack WITH GunServer / all scripts running.
-local function giveViaPickup(item)
-    local pickupRE = RS and RS:FindFirstChild("PickUpItem")
-    if not pickupRE then return false, "PickUpItem remote not found" end
+    GodRemote.OnServerInvoke = applyServerSide
+end)
 
-    local droppedFolder = WS and (WS:FindFirstChild("DroppedItems") or WS)
-    if not droppedFolder then return false, "No Workspace" end
-
-    local clone = item:Clone()
-    placeNearPlayer(clone)
-    clone.Parent = droppedFolder
-
-    task.wait(0.05) -- one frame so engine registers the new instance
-
-    local ok, err = pcall(function() pickupRE:FireServer(clone) end)
-
-    -- auto-cleanup in case server rejected it
-    task.delay(4, function()
-        pcall(function() if clone and clone.Parent then clone:Destroy() end end)
-    end)
-
-    return ok, ok and "Got via server pickup ✓" or tostring(err)
-end
-
--- ── SECONDARY GIVE METHOD: direct backpack clone ──────────────
--- Used for non-scripted loot (food, armor, resources, crystals)
--- where no server script needs to run.
-local function giveDirectClone(item)
-    local clone = item:Clone()
-    if clone:IsA("Tool") then
-        clone.Parent = LP.Backpack
-    else
-        local char = LP.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        clone.Parent = WS or workspace
-        if root then
-            local cf = root.CFrame * CFrame.new(math.random(-2,2),1,math.random(-4,-2))
-            if clone:IsA("Model") then
-                if clone.PrimaryPart then clone:SetPrimaryPartCFrame(cf)
-                else for _,p in ipairs(clone:GetDescendants()) do
-                    if p:IsA("BasePart") then p.CFrame=cf; break end
-                end end
-            elseif clone:IsA("BasePart") then clone.CFrame=cf end
-        end
-    end
-end
-
--- ── ITEM LOOKUP ───────────────────────────────────────────────
-local function findInRS(iname, folder)
-    if not RS then return nil end
-    if folder then
-        local f = RS:FindFirstChild(folder)
-        if f then
-            local item = f:FindFirstChild(iname)
-            if item then return item end
-        end
-    end
-    local item = RS:FindFirstChild(iname)
-    if item then return item end
-    return RS:FindFirstChild(iname, true)
-end
-
--- For weapons/tools — use server pickup so scripts run
-local function giveGun(iname)
-    if not RS then return false, "No ReplicatedStorage" end
-    local gunsFolder = RS:FindFirstChild("Guns")
-    local item = gunsFolder and gunsFolder:FindFirstChild(iname)
-    if not item then item = RS:FindFirstChild(iname, true) end
-    if not item then return false, iname.." not found in RS > Guns" end
-    return giveViaPickup(item)
-end
-
--- For gear (melee/throwables/specials) — also use server pickup
-local function giveGear(iname)
-    if not RS then return false, "No ReplicatedStorage" end
-    local item = RS:FindFirstChild(iname) or RS:FindFirstChild(iname, true)
-    if not item then return false, iname.." not found in RS" end
-    return giveViaPickup(item)
-end
-
--- For loot (food/armor/resources/crystals) — direct clone is fine,
--- these items have no server scripts that need to fire
-local function giveLoot(iname, folder)
-    if not RS then return false, "No ReplicatedStorage" end
-    local item = findInRS(iname, folder)
-    if not item then return false, iname.." not found" end
-    local ok, err = pcall(giveDirectClone, item)
-    return ok, ok and ("Got: "..iname.." ✓") or tostring(err)
-end
-
--- ── ROOT GUI ──────────────────────────────────────────────────
-local W,H = 314,445
+-- ============================================================
+-- GUI
+-- ============================================================
+local old = PlayerGui:FindFirstChild("GodModeUI")
+if old then old:Destroy() end
 
 local Gui = Instance.new("ScreenGui")
-Gui.Name = "_STA"; Gui.ResetOnSpawn = false
-Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Gui.IgnoreGuiInset = true; Gui.Parent = PGui
+Gui.Name            = "GodModeUI"
+Gui.ResetOnSpawn    = false
+Gui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+Gui.IgnoreGuiInset  = true
+Gui.Parent          = PlayerGui
 
-local Main = Instance.new("Frame",Gui)
-Main.Size = UDim2.fromOffset(W,H)
-Main.Position = UDim2.new(0.5,-W/2,0.5,-H/2)
-Main.BackgroundColor3 = BG; Main.ClipsDescendants = true; Main.BorderSizePixel = 0
-Instance.new("UICorner",Main).CornerRadius = UDim.new(0,10)
-local ms = Instance.new("UIStroke",Main); ms.Color = LINE; ms.Thickness = 1
+local Frame = Instance.new("Frame")
+Frame.Name              = "Main"
+Frame.Size              = UDim2.new(0, 220, 0, 130)
+Frame.Position          = UDim2.new(0.5, -110, 0.04, 0)
+Frame.BackgroundColor3  = Color3.fromRGB(12, 12, 18)
+Frame.BorderSizePixel   = 0
+Frame.Active            = true
+Frame.Draggable         = true
+Frame.Parent            = Gui
 
--- ── HEADER ────────────────────────────────────────────────────
-local Hdr = Instance.new("Frame",Main)
-Hdr.Size = UDim2.new(1,0,0,36); Hdr.BackgroundColor3 = HDR
-Hdr.BorderSizePixel = 0; Hdr.ZIndex = 2
-Instance.new("UICorner",Hdr).CornerRadius = UDim.new(0,10)
-local hfix = Instance.new("Frame",Hdr)
-hfix.Size = UDim2.new(1,0,0.5,0); hfix.Position = UDim2.new(0,0,0.5,0)
-hfix.BackgroundColor3 = HDR; hfix.BorderSizePixel = 0
+local function addCorner(parent, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 8)
+    c.Parent = parent
+    return c
+end
 
-local TitleLbl = Instance.new("TextLabel",Hdr)
-TitleLbl.Text = "☣ Survive The Apocalypse  Exploit"
-TitleLbl.Font = Enum.Font.GothamBold; TitleLbl.TextSize = 11
-TitleLbl.TextColor3 = Color3.fromRGB(195,145,65)
-TitleLbl.BackgroundTransparency = 1
-TitleLbl.Size = UDim2.new(1,-60,1,0); TitleLbl.Position = UDim2.new(0,10,0,0)
-TitleLbl.TextXAlignment = Enum.TextXAlignment.Left; TitleLbl.ZIndex = 3
+addCorner(Frame, 10)
 
-local MinB = Instance.new("TextButton",Hdr)
-MinB.Text = "—"; MinB.Font = Enum.Font.GothamBold; MinB.TextSize = 12
-MinB.TextColor3 = DIM; MinB.BackgroundColor3 = BTN; MinB.BorderSizePixel = 0
-MinB.Size = UDim2.fromOffset(24,24); MinB.Position = UDim2.new(1,-54,0.5,-12)
-MinB.ZIndex = 4; MinB.AutoButtonColor = false
-Instance.new("UICorner",MinB).CornerRadius = UDim.new(0,6)
+local Stroke = Instance.new("UIStroke")
+Stroke.Color     = Color3.fromRGB(70, 70, 210)
+Stroke.Thickness = 1.5
+Stroke.Parent    = Frame
 
-local XBtn = Instance.new("TextButton",Hdr)
-XBtn.Text = "✕"; XBtn.Font = Enum.Font.GothamBold; XBtn.TextSize = 11
-XBtn.TextColor3 = WHITE; XBtn.BackgroundColor3 = CRST; XBtn.BorderSizePixel = 0
-XBtn.Size = UDim2.fromOffset(24,24); XBtn.Position = UDim2.new(1,-26,0.5,-12)
-XBtn.ZIndex = 4; XBtn.AutoButtonColor = false
-Instance.new("UICorner",XBtn).CornerRadius = UDim.new(0,6)
+-- Title bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size            = UDim2.new(1, 0, 0, 36)
+TitleBar.BackgroundColor3 = Color3.fromRGB(22, 22, 36)
+TitleBar.BorderSizePixel  = 0
+TitleBar.Parent           = Frame
+addCorner(TitleBar, 10)
 
-XBtn.MouseButton1Click:Connect(function() Gui:Destroy() end)
-local mini = false
-MinB.MouseButton1Click:Connect(function()
-    mini = not mini
-    TweenService:Create(Main,TweenInfo.new(0.18,Enum.EasingStyle.Quint),{
-        Size = mini and UDim2.fromOffset(W,36) or UDim2.fromOffset(W,H)}):Play()
-    MinB.Text = mini and "▲" or "—"
+-- Clip bottom corners of title bar with an extra frame
+local TitleFix = Instance.new("Frame")
+TitleFix.Size             = UDim2.new(1, 0, 0.5, 0)
+TitleFix.Position         = UDim2.new(0, 0, 0.5, 0)
+TitleFix.BackgroundColor3 = Color3.fromRGB(22, 22, 36)
+TitleFix.BorderSizePixel  = 0
+TitleFix.ZIndex           = TitleBar.ZIndex - 1
+TitleFix.Parent           = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size                  = UDim2.new(1, 0, 1, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text                  = "⚡  GOD MODE"
+TitleLabel.TextColor3            = Color3.fromRGB(180, 180, 255)
+TitleLabel.TextSize              = 14
+TitleLabel.Font                  = Enum.Font.GothamBold
+TitleLabel.Parent                = TitleBar
+
+-- Status
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size                  = UDim2.new(1, 0, 0, 26)
+StatusLabel.Position              = UDim2.new(0, 0, 0, 40)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text                  = "Status: OFF"
+StatusLabel.TextColor3            = Color3.fromRGB(255, 80, 80)
+StatusLabel.TextSize              = 13
+StatusLabel.Font                  = Enum.Font.Gotham
+StatusLabel.Parent                = Frame
+
+-- Toggle button
+local Btn = Instance.new("TextButton")
+Btn.Size             = UDim2.new(0.68, 0, 0, 36)
+Btn.Position         = UDim2.new(0.16, 0, 0, 78)
+Btn.BackgroundColor3 = Color3.fromRGB(220, 55, 55)
+Btn.BorderSizePixel  = 0
+Btn.Text             = "Enable"
+Btn.TextColor3       = Color3.fromRGB(255, 255, 255)
+Btn.TextSize         = 14
+Btn.Font             = Enum.Font.GothamBold
+Btn.Parent           = Frame
+addCorner(Btn, 7)
+
+-- Button hover
+Btn.MouseEnter:Connect(function()
+    TweenService:Create(Btn, TweenInfo.new(0.15), { Size = UDim2.new(0.70, 0, 0, 38) }):Play()
+end)
+Btn.MouseLeave:Connect(function()
+    TweenService:Create(Btn, TweenInfo.new(0.15), { Size = UDim2.new(0.68, 0, 0, 36) }):Play()
 end)
 
--- Drag
-do local drag,ds,sp
-    Hdr.InputBegan:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
-            drag=true; ds=i.Position; sp=Main.Position end
-    end)
-    UIS.InputChanged:Connect(function(i)
-        if drag and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
-            local d=i.Position-ds
-            Main.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y) end
-    end)
-    UIS.InputEnded:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end
-    end)
+-- ============================================================
+-- SHIELD BILLBOARD (visual indicator above head)
+-- ============================================================
+local function createShield(character)
+    if ShieldBill then ShieldBill:Destroy() end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    ShieldBill = Instance.new("BillboardGui")
+    ShieldBill.Size         = UDim2.new(0, 55, 0, 55)
+    ShieldBill.StudsOffset  = Vector3.new(0, 3.5, 0)
+    ShieldBill.AlwaysOnTop  = false
+    ShieldBill.Adornee      = root
+    ShieldBill.Parent       = root
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size                  = UDim2.new(1, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text                  = "🛡"
+    lbl.TextScaled            = true
+    lbl.Font                  = Enum.Font.GothamBold
+    lbl.Parent                = ShieldBill
 end
 
--- ── TAB BAR ───────────────────────────────────────────────────
-local TBar = Instance.new("Frame",Main)
-TBar.Size = UDim2.new(1,0,0,28); TBar.Position = UDim2.new(0,0,0,36)
-TBar.BackgroundColor3 = PANEL; TBar.BorderSizePixel = 0
-
-local TW = 0.25
-
-local function makeTab(label,xi)
-    local t = Instance.new("TextButton",TBar)
-    t.Text = label; t.Font = Enum.Font.GothamSemibold; t.TextSize = 10
-    t.TextColor3 = DIM; t.BackgroundColor3 = PANEL; t.BorderSizePixel = 0
-    t.AutoButtonColor = false
-    t.Size = UDim2.new(TW,0,1,0); t.Position = UDim2.new(TW*xi,0,0,0)
-    return t
-end
-
-local Tab1 = makeTab("Guns",   0)
-local Tab2 = makeTab("Gear",   1)
-local Tab3 = makeTab("Loot",   2)
-local Tab4 = makeTab("Player", 3)
-
-local Ind = Instance.new("Frame",TBar)
-Ind.Size = UDim2.new(TW,0,0,2); Ind.Position = UDim2.new(0,0,1,-2)
-Ind.BackgroundColor3 = C_RIF; Ind.BorderSizePixel = 0; Ind.ZIndex = 5
-
-Instance.new("Frame",Main).Size=UDim2.new(1,0,0,1)
-local divLine=Main:FindFirstChildWhichIsA("Frame")
-divLine.Position=UDim2.new(0,0,0,64); divLine.BackgroundColor3=LINE; divLine.BorderSizePixel=0
-
--- ── CONTENT AREA ─────────────────────────────────────────────
-local Con = Instance.new("Frame",Main)
-Con.Size = UDim2.new(1,0,1,-65)
-Con.Position = UDim2.new(0,0,0,65)
-Con.BackgroundTransparency = 1; Con.ClipsDescendants = true
-
--- ── SHARED BUILDERS ───────────────────────────────────────────
-local function makePanel()
-    local p = Instance.new("Frame",Con)
-    p.Size = UDim2.new(1,0,1,0)
-    p.BackgroundTransparency = 1; p.Visible = false
-    return p
-end
-
-local function makeScrollInner(parent, topPad)
-    topPad = topPad or 4
-    local sf = Instance.new("ScrollingFrame",parent)
-    sf.Size = UDim2.new(1,-8,1,-20); sf.Position = UDim2.new(0,4,0,topPad)
-    sf.BackgroundTransparency = 1; sf.BorderSizePixel = 0
-    sf.ScrollBarThickness = 3; sf.ScrollBarImageColor3 = LINE
-    sf.CanvasSize = UDim2.new(0,0,0,0)
-    sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    sf.ScrollingDirection = Enum.ScrollingDirection.Y
-    local inner = Instance.new("Frame",sf)
-    inner.Size = UDim2.new(1,0,0,0)
-    inner.BackgroundTransparency = 1
-    inner.AutomaticSize = Enum.AutomaticSize.Y
-    local pad = Instance.new("UIPadding",inner)
-    pad.PaddingLeft=UDim.new(0,2); pad.PaddingRight=UDim.new(0,4)
-    pad.PaddingTop=UDim.new(0,4);  pad.PaddingBottom=UDim.new(0,6)
-    local ll = Instance.new("UIListLayout",inner)
-    ll.FillDirection=Enum.FillDirection.Vertical
-    ll.SortOrder=Enum.SortOrder.LayoutOrder
-    ll.Padding=UDim.new(0,4)
-    return sf, inner
-end
-
-local function makeStatusBar(parent)
-    local l = Instance.new("TextLabel",parent)
-    l.Text=""; l.Font=Enum.Font.Gotham; l.TextSize=10
-    l.TextColor3=DIM; l.BackgroundTransparency=1
-    l.Size=UDim2.new(1,-10,0,16)
-    l.Position=UDim2.new(0,5,1,-18); l.ZIndex=6
-    l.TextXAlignment=Enum.TextXAlignment.Left
-    l.TextTruncate=Enum.TextTruncate.AtEnd
-    return l
-end
-
-local function makeSectionLabel(txt,col,parent,ord)
-    local l = Instance.new("TextLabel",parent)
-    l.Text=txt; l.Font=Enum.Font.GothamBold; l.TextSize=9
-    l.TextColor3=col; l.BackgroundTransparency=1
-    l.Size=UDim2.new(1,0,0,12); l.LayoutOrder=ord
-    l.TextXAlignment=Enum.TextXAlignment.Left
-end
-
-local function makeItemBtn(label,col,parent,ord)
-    local b = Instance.new("TextButton",parent)
-    b.Text=label; b.Font=Enum.Font.GothamSemibold; b.TextSize=11
-    b.TextColor3=WHITE; b.BackgroundColor3=col; b.BorderSizePixel=0
-    b.Size=UDim2.new(1,0,0,26); b.LayoutOrder=ord; b.AutoButtonColor=false
-    Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
-    b.MouseEnter:Connect(function()
-        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col:lerp(Color3.new(1,1,1),0.14)}):Play() end)
-    b.MouseLeave:Connect(function()
-        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col}):Play() end)
-    return b
-end
-
-local function makeBigBtn(label,col,parent,ord)
-    local b = Instance.new("TextButton",parent)
-    b.Text=label; b.Font=Enum.Font.GothamBold; b.TextSize=11
-    b.TextColor3=WHITE; b.BackgroundColor3=col; b.BorderSizePixel=0
-    b.Size=UDim2.new(1,0,0,30); b.LayoutOrder=ord; b.AutoButtonColor=false
-    Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
-    b.MouseEnter:Connect(function()
-        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col:lerp(Color3.new(1,1,1),0.12)}):Play() end)
-    b.MouseLeave:Connect(function()
-        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col}):Play() end)
-    return b
-end
-
-local function flash(btn,col)
-    TweenService:Create(btn,TweenInfo.new(0.1),{BackgroundColor3=Color3.fromRGB(55,195,80)}):Play()
-    task.delay(0.7,function()
-        TweenService:Create(btn,TweenInfo.new(0.3),{BackgroundColor3=col}):Play()
-    end)
-end
-
-local function setStatus(lbl,msg,good)
-    lbl.Text=msg
-    lbl.TextColor3=good and Color3.fromRGB(90,210,90) or Color3.fromRGB(210,75,75)
-end
-
--- ════════════════════════════════════════════════════════════
---  PANEL 1 — GUNS
--- ════════════════════════════════════════════════════════════
-local P1 = makePanel()
-local GunSF, GunInner = makeScrollInner(P1)
-local GunStatus = makeStatusBar(P1)
-
-local lastGunCat = ""
-for idx,info in ipairs(GUNS) do
-    local dname,iname,col,cat = info[1],info[2],info[3],info[4]
-    if cat ~= lastGunCat then
-        lastGunCat = cat
-        makeSectionLabel(cat, col, GunInner, idx*10-1)
+local function removeShield()
+    if ShieldBill then
+        ShieldBill:Destroy()
+        ShieldBill = nil
     end
-    local btn = makeItemBtn(dname, col, GunInner, idx*10)
-    local cn,cc,cb,cd = iname,col,btn,dname
-    btn.MouseButton1Click:Connect(function()
-        cb.Text = "Giving…"
-        local ok,msg = giveGun(cn)
-        setStatus(GunStatus, msg, ok)
-        cb.Text = cd
-        if ok then flash(cb,cc) end
-    end)
 end
 
--- ════════════════════════════════════════════════════════════
---  PANEL 2 — GEAR
--- ════════════════════════════════════════════════════════════
-local P2 = makePanel()
-local GearSF, GearInner = makeScrollInner(P2)
-local GearStatus = makeStatusBar(P2)
-
-local lastGearCat = ""
-for idx,info in ipairs(GEAR) do
-    local dname,iname,col,cat = info[1],info[2],info[3],info[4]
-    if cat ~= lastGearCat then
-        lastGearCat = cat
-        makeSectionLabel(cat, col, GearInner, idx*10-1)
-    end
-    local btn = makeItemBtn(dname, col, GearInner, idx*10)
-    local cn,cc,cb,cd = iname,col,btn,dname
-    btn.MouseButton1Click:Connect(function()
-        cb.Text = "Giving…"
-        local ok,msg = giveGear(cn)
-        setStatus(GearStatus, msg, ok)
-        cb.Text = cd
-        if ok then flash(cb,cc) end
-    end)
-end
-
--- ════════════════════════════════════════════════════════════
---  PANEL 3 — LOOT
--- ════════════════════════════════════════════════════════════
-local P3 = makePanel()
-local LootSF, LootInner = makeScrollInner(P3)
-local LootStatus = makeStatusBar(P3)
-
-local lastLootCat = ""
-for idx,info in ipairs(LOOT) do
-    local dname,iname,col,cat,folder = info[1],info[2],info[3],info[4],info[5]
-    if cat ~= lastLootCat then
-        lastLootCat = cat
-        makeSectionLabel(cat, col, LootInner, idx*10-1)
-    end
-    local btn = makeItemBtn(dname, col, LootInner, idx*10)
-    local cn,cfl,cc,cb,cd = iname,folder,col,btn,dname
-    btn.MouseButton1Click:Connect(function()
-        cb.Text = "Giving…"
-        local ok,msg = giveLoot(cn, cfl)
-        setStatus(LootStatus, msg, ok)
-        cb.Text = cd
-        if ok then flash(cb,cc) end
-    end)
-end
-
--- ════════════════════════════════════════════════════════════
---  PANEL 4 — PLAYER
--- ════════════════════════════════════════════════════════════
-local P4 = makePanel()
-local PlrSF, PlrInner = makeScrollInner(P4)
-local PlrStatus = makeStatusBar(P4)
-
-local function setPlr(msg,ok) setStatus(PlrStatus,msg,ok) end
-local function getHuman()
-    local ch = LP.Character
-    return ch and ch:FindFirstChildWhichIsA("Humanoid")
-end
-
--- Walk Speed
-makeSectionLabel("Walk Speed", C_P1, PlrInner, 10)
-local speedRow = Instance.new("Frame",PlrInner)
-speedRow.Size=UDim2.new(1,0,0,28); speedRow.BackgroundTransparency=1; speedRow.LayoutOrder=11
-local spLL=Instance.new("UIListLayout",speedRow)
-spLL.FillDirection=Enum.FillDirection.Horizontal
-spLL.SortOrder=Enum.SortOrder.LayoutOrder; spLL.Padding=UDim.new(0,4)
-for si,sv in ipairs({{" Normal",16},{" Fast",35},{" Turbo",70},{" MAX",130}}) do
-    local sb=Instance.new("TextButton",speedRow)
-    sb.Text=sv[1]; sb.Font=Enum.Font.GothamBold; sb.TextSize=10
-    sb.TextColor3=WHITE; sb.BackgroundColor3=C_P1; sb.BorderSizePixel=0
-    sb.Size=UDim2.new(0.25,-3,1,0); sb.LayoutOrder=si; sb.AutoButtonColor=false
-    Instance.new("UICorner",sb).CornerRadius=UDim.new(0,6)
-    sb.MouseEnter:Connect(function() TweenService:Create(sb,TweenInfo.new(0.1),{BackgroundColor3=C_P1:lerp(Color3.new(1,1,1),0.15)}):Play() end)
-    sb.MouseLeave:Connect(function() TweenService:Create(sb,TweenInfo.new(0.1),{BackgroundColor3=C_P1}):Play() end)
-    local spd=sv[2]
-    sb.MouseButton1Click:Connect(function()
-        local h=getHuman()
-        if h then
-            h.WalkSpeed=spd
-            -- also kill the game's WalkSpeedClient anti-cheat adjustment
-            local wsc=LP.Character and LP.Character:FindFirstChild("WalkSpeedClient")
-            if wsc then pcall(function() wsc.Disabled=true end) end
-            setPlr("WalkSpeed → "..spd,true)
-        else setPlr("No character",false) end
-    end)
-end
-
--- Jump Power
-makeSectionLabel("Jump Power", C_P2, PlrInner, 20)
-local jumpRow = Instance.new("Frame",PlrInner)
-jumpRow.Size=UDim2.new(1,0,0,28); jumpRow.BackgroundTransparency=1; jumpRow.LayoutOrder=21
-local jpLL=Instance.new("UIListLayout",jumpRow)
-jpLL.FillDirection=Enum.FillDirection.Horizontal
-jpLL.SortOrder=Enum.SortOrder.LayoutOrder; jpLL.Padding=UDim.new(0,4)
-for ji,jv in ipairs({{" Normal",50},{" High",85},{" Super",135},{" MAX",210}}) do
-    local jb=Instance.new("TextButton",jumpRow)
-    jb.Text=jv[1]; jb.Font=Enum.Font.GothamBold; jb.TextSize=10
-    jb.TextColor3=WHITE; jb.BackgroundColor3=C_P2; jb.BorderSizePixel=0
-    jb.Size=UDim2.new(0.25,-3,1,0); jb.LayoutOrder=ji; jb.AutoButtonColor=false
-    Instance.new("UICorner",jb).CornerRadius=UDim.new(0,6)
-    jb.MouseEnter:Connect(function() TweenService:Create(jb,TweenInfo.new(0.1),{BackgroundColor3=C_P2:lerp(Color3.new(1,1,1),0.15)}):Play() end)
-    jb.MouseLeave:Connect(function() TweenService:Create(jb,TweenInfo.new(0.1),{BackgroundColor3=C_P2}):Play() end)
-    local jpow=jv[2]
-    jb.MouseButton1Click:Connect(function()
-        local h=getHuman()
-        if h then h.JumpPower=jpow; setPlr("JumpPower → "..jpow,true)
-        else setPlr("No character",false) end
-    end)
-end
-
--- Fly
-makeSectionLabel("Fly  (WASD + Space = up / Shift = down)", C_P2, PlrInner, 30)
-local flyOn,flyConn,flyBV,flyBG = false,nil,nil,nil
-local FlyBtn = makeBigBtn("Fly: OFF", C_P1, PlrInner, 31)
-
-local function stopFly()
-    flyOn=false; FlyBtn.Text="Fly: OFF"; FlyBtn.BackgroundColor3=C_P1
-    if flyConn then flyConn:Disconnect(); flyConn=nil end
-    if flyBV   then flyBV:Destroy();     flyBV=nil   end
-    if flyBG   then flyBG:Destroy();     flyBG=nil   end
-    local h=getHuman(); if h then h.PlatformStand=false end
-end
-
-FlyBtn.MouseButton1Click:Connect(function()
-    flyOn=not flyOn
-    if not flyOn then stopFly(); setPlr("Fly OFF",false); return end
-    local char=LP.Character
-    local root=char and char:FindFirstChild("HumanoidRootPart")
-    if not root then flyOn=false; return end
-    FlyBtn.Text="Fly: ON"; FlyBtn.BackgroundColor3=C_P2
-    flyBV=Instance.new("BodyVelocity",root)
-    flyBV.MaxForce=Vector3.new(1e6,1e6,1e6); flyBV.Velocity=Vector3.zero
-    flyBG=Instance.new("BodyGyro",root)
-    flyBG.MaxTorque=Vector3.new(1e6,1e6,1e6); flyBG.P=1e4
-    local SPD=40
-    flyConn=RunService.RenderStepped:Connect(function()
-        local r2=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        if not r2 or not flyBV or not flyBV.Parent then stopFly(); return end
-        local cam=workspace.CurrentCamera; local vel=Vector3.zero
-        if UIS:IsKeyDown(Enum.KeyCode.W) then vel=vel+cam.CFrame.LookVector*SPD  end
-        if UIS:IsKeyDown(Enum.KeyCode.S) then vel=vel-cam.CFrame.LookVector*SPD  end
-        if UIS:IsKeyDown(Enum.KeyCode.A) then vel=vel-cam.CFrame.RightVector*SPD end
-        if UIS:IsKeyDown(Enum.KeyCode.D) then vel=vel+cam.CFrame.RightVector*SPD end
-        if UIS:IsKeyDown(Enum.KeyCode.Space)     then vel=vel+Vector3.new(0,SPD,0) end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then vel=vel-Vector3.new(0,SPD,0) end
-        flyBV.Velocity=vel; flyBG.CFrame=cam.CFrame
-        local h2=LP.Character:FindFirstChildWhichIsA("Humanoid")
-        if h2 then h2.PlatformStand=(vel.Magnitude>0.5) end
-    end)
-    setPlr("Fly ON — WASD + Space/Shift",true)
-end)
-
--- Noclip
-makeSectionLabel("Noclip", C_P1, PlrInner, 40)
-local noclipOn,noclipConn=false,nil
-local NoclipBtn=makeBigBtn("Noclip: OFF",C_P1,PlrInner,41)
-NoclipBtn.MouseButton1Click:Connect(function()
-    noclipOn=not noclipOn
-    if noclipOn then
-        NoclipBtn.Text="Noclip: ON"; NoclipBtn.BackgroundColor3=C_P2
-        noclipConn=RunService.Stepped:Connect(function()
-            local char=LP.Character; if not char then return end
-            for _,p in ipairs(char:GetDescendants()) do
-                if p:IsA("BasePart") then p.CanCollide=false end
+-- ============================================================
+-- CORE GOD LOGIC
+-- ============================================================
+local function disconnectAll()
+    for _, c in ipairs(Connections) do
+        pcall(function()
+            if typeof(c) == "RBXScriptConnection" and c.Connected then
+                c:Disconnect()
+            elseif type(c) == "table" and c.Disconnect then
+                c:Disconnect()
             end
         end)
-        setPlr("Noclip ON",true)
-    else
-        NoclipBtn.Text="Noclip: OFF"; NoclipBtn.BackgroundColor3=C_P1
-        if noclipConn then noclipConn:Disconnect(); noclipConn=nil end
-        setPlr("Noclip OFF",false)
     end
-end)
-
--- Infinite Hunger (disable hunger drain)
-makeSectionLabel("Survival Cheats", C_P2, PlrInner, 50)
-local hungerOn=false
-local HungerBtn=makeBigBtn("Infinite Hunger: OFF",C_P2,PlrInner,51)
-HungerBtn.MouseButton1Click:Connect(function()
-    hungerOn=not hungerOn
-    local hungerScript=workspace:FindFirstChild("Hunger",true)
-    if hungerScript then
-        pcall(function() hungerScript.Disabled=hungerOn end)
-    end
-    HungerBtn.Text=hungerOn and "Infinite Hunger: ON" or "Infinite Hunger: OFF"
-    HungerBtn.BackgroundColor3=hungerOn and Color3.fromRGB(38,145,65) or C_P2
-    setPlr(hungerOn and "Hunger script disabled ✓" or "Hunger restored",hungerOn)
-end)
-
--- Revive self (fire HideRagdoll)
-local ReviveBtn=makeBigBtn("Force Revive / Hide Ragdoll",C_P1,PlrInner,52)
-ReviveBtn.MouseButton1Click:Connect(function()
-    local re=getRemote("HideRagdoll")
-    if not re then setPlr("HideRagdoll remote not found",false); return end
-    local ok,err=pcall(function() re:FireServer() end)
-    setPlr(ok and "Revive fired ✓" or tostring(err),ok)
-    if ok then flash(ReviveBtn,C_P1) end
-end)
-
--- Anti-Cheat Bypass (game has SpeedAntiCheatAdjuster + KnightmareAntiCheatDebug)
-makeSectionLabel("Anti-Cheat Bypass", C_P3, PlrInner, 60)
-
-local AC_PAT={
-    "anticheat","anti_cheat","anti-cheat","speedanticheat","knightmareanticheat",
-    "kicksystem","banhandler","exploitdetect","detection","sanitycheck",
-    "speedcheck","flycheck","noclipcheck","fairplay","safeguard","guardian",
-    "cheatdetect","hackdetect","securitycheck","antiexploit","exploitban",
-    "cheatdetector","speedadjust"
-}
-local AC_EXACT={
-    "SpeedAntiCheatAdjuster","KnightmareAntiCheatDebug","Downed","Ragdoll"
-}
-local acOn,acKilled=false,0
-local AcBtn=makeBigBtn("Anti-Cheat Bypass: OFF",C_P3,PlrInner,61)
-
-local function nameIsAC(nm)
-    local lo=nm:lower()
-    for _,p in ipairs(AC_PAT) do if lo:find(p,1,true) then return true end end
-    for _,e in ipairs(AC_EXACT) do if nm==e then return true end end
-    return false
+    Connections = {}
 end
-local function deepAC(root,found,d)
-    if d>8 then return end
-    local ok,kids=pcall(function() return root:GetChildren() end)
-    if not ok then return end
-    for _,c in ipairs(kids) do
-        local a,nm=pcall(function() return c.Name end)
-        local b,cn=pcall(function() return c.ClassName end)
-        if a and b then
-            if nameIsAC(nm) then table.insert(found,c) end
-            if cn=="Folder" or cn=="Model" or cn=="Configuration" then deepAC(c,found,d+1) end
+
+local function applyClientGod(character)
+    if not character then return end
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+
+    -- Instantly max health
+    humanoid.MaxHealth = math.huge
+    humanoid.Health    = math.huge
+
+    -- Block every incoming health reduction
+    Connections[#Connections + 1] = humanoid.HealthChanged:Connect(function(hp)
+        if GodEnabled and hp < math.huge then
+            humanoid.Health = math.huge
+        end
+    end)
+
+    -- HeartBeat failsafe — catches anything HealthChanged misses
+    Connections[#Connections + 1] = RunService.Heartbeat:Connect(function()
+        if not GodEnabled then return end
+        if not humanoid or not humanoid.Parent then return end
+
+        if humanoid.Health < math.huge then
+            humanoid.Health = math.huge
+        end
+        if humanoid.MaxHealth < math.huge then
+            humanoid.MaxHealth = math.huge
+        end
+
+        -- Prevent dead state
+        local st = humanoid:GetState()
+        if st == Enum.HumanoidStateType.Dead then
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+    end)
+
+    -- Try to also hook every BasePart's Touched to nerf NPC/mob damage
+    -- by ensuring health stays pinned before any damage script fires
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            Connections[#Connections + 1] = part.Touched:Connect(function(_)
+                if GodEnabled and humanoid and humanoid.Parent then
+                    humanoid.Health    = math.huge
+                    humanoid.MaxHealth = math.huge
+                end
+            end)
         end
     end
-end
-local function runAC()
-    local found={}
-    for _,n in ipairs({"Workspace","ReplicatedStorage","StarterGui","ReplicatedFirst","StarterPack","StarterPlayer"}) do
-        local s=safeGet(n); if s then deepAC(s,found,0) end
-    end
-    -- also target by exact name in workspace
-    local ws=safeGet("Workspace")
-    if ws then
-        for _,nm in ipairs(AC_EXACT) do
-            local sc=ws:FindFirstChild(nm,true)
-            if sc and not table.find(found,sc) then table.insert(found,sc) end
-        end
-    end
-    local k=0
-    for _,inst in ipairs(found) do
-        pcall(function()
-            if inst:IsA("BaseScript") then inst.Disabled=true end
-            inst:Destroy(); k=k+1; acKilled=acKilled+1
-        end)
-    end
-    if k>0 then setPlr("AC: removed "..k.." this pass ("..acKilled.." total)",true) end
-end
-local function setAC(on)
-    acOn=on
-    if on then
-        AcBtn.Text="Anti-Cheat Bypass: ON"; AcBtn.BackgroundColor3=C_P2
-        setPlr("AC Bypass ON — scanning every 2s",true)
-        task.spawn(runAC)
-        task.spawn(function() while acOn do task.wait(2); if acOn then runAC() end end end)
-    else
-        AcBtn.Text="Anti-Cheat Bypass: OFF"; AcBtn.BackgroundColor3=C_P3
-        setPlr("AC Bypass OFF — "..acKilled.." removed total",false)
-    end
-end
-AcBtn.MouseButton1Click:Connect(function() setAC(not acOn) end)
 
-Gui.AncestryChanged:Connect(function()
-    if not Gui.Parent then
-        acOn=false; stopFly()
-        if noclipConn then noclipConn:Disconnect() end
+    createShield(character)
+
+    -- Server validation call (best-effort — silent if game blocks it)
+    pcall(function()
+        GodRemote:InvokeServer(true)
+    end)
+end
+
+local function enableGod()
+    GodEnabled = true
+
+    StatusLabel.Text       = "Status: ON  ✓"
+    StatusLabel.TextColor3 = Color3.fromRGB(60, 230, 110)
+    Btn.Text               = "Disable"
+
+    TweenService:Create(Btn,    TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(35, 185, 75) }):Play()
+    TweenService:Create(Stroke, TweenInfo.new(0.25), { Color = Color3.fromRGB(60, 230, 110) }):Play()
+
+    -- Apply to current character
+    local char = LocalPlayer.Character
+    if char then applyClientGod(char) end
+
+    -- Re-apply on every respawn
+    Connections[#Connections + 1] = LocalPlayer.CharacterAdded:Connect(function(newChar)
+        if GodEnabled then
+            task.wait(0.6)
+            applyClientGod(newChar)
+        end
+    end)
+end
+
+local function disableGod()
+    GodEnabled = false
+    disconnectAll()
+    removeShield()
+
+    StatusLabel.Text       = "Status: OFF"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+    Btn.Text               = "Enable"
+
+    TweenService:Create(Btn,    TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(220, 55, 55) }):Play()
+    TweenService:Create(Stroke, TweenInfo.new(0.25), { Color = Color3.fromRGB(70, 70, 210) }):Play()
+
+    -- Restore character to normal
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.MaxHealth = 100
+            humanoid.Health    = 100
+        end
+        local ff = char:FindFirstChildOfClass("ForceField")
+        if ff then ff:Destroy() end
+    end
+
+    -- Server: disable server-side lock
+    pcall(function()
+        GodRemote:InvokeServer(false)
+    end)
+end
+
+-- ============================================================
+-- TOGGLE BUTTON
+-- ============================================================
+Btn.MouseButton1Click:Connect(function()
+    if GodEnabled then
+        disableGod()
+    else
+        enableGod()
     end
 end)
 
--- ── TAB SWITCHING ─────────────────────────────────────────────
-local ALL_TABS={Tab1,Tab2,Tab3,Tab4}
-local ALL_PANS={P1,  P2,  P3,  P4}
-local TAB_COLS={C_RIF, C_MEL, C_ARM, C_P1}
-local curTab=0
-
-local function switchTab(idx)
-    if curTab==idx then return end; curTab=idx
-    for i=1,4 do
-        ALL_PANS[i].Visible          =(i==idx)
-        ALL_TABS[i].TextColor3       =(i==idx) and TEXT or DIM
-        ALL_TABS[i].BackgroundColor3 =(i==idx) and BTN  or PANEL
-        ALL_TABS[i].Font             =(i==idx) and Enum.Font.GothamBold or Enum.Font.GothamSemibold
-    end
-    TweenService:Create(Ind,TweenInfo.new(0.15),{
-        Position=UDim2.new(TW*(idx-1),0,1,-2),
-        BackgroundColor3=TAB_COLS[idx],
-    }):Play()
-end
-
-Tab1.MouseButton1Click:Connect(function() switchTab(1) end)
-Tab2.MouseButton1Click:Connect(function() switchTab(2) end)
-Tab3.MouseButton1Click:Connect(function() switchTab(3) end)
-Tab4.MouseButton1Click:Connect(function() switchTab(4) end)
-switchTab(1)
-
--- ── OPEN ANIMATION ────────────────────────────────────────────
-Main.BackgroundTransparency=1
-Main.Position=UDim2.new(0.5,-W/2,0.5,-H/2+16)
-TweenService:Create(Main,TweenInfo.new(0.22,Enum.EasingStyle.Quint),{
-    BackgroundTransparency=0,
-    Position=UDim2.new(0.5,-W/2,0.5,-H/2),
-}):Play()
-
-print("[STA Exploit] Guns | Gear | Loot | Player — ready")
+print("[GodMode] Loaded — use the GUI to toggle.")
