@@ -1,5 +1,5 @@
--- Personal Exploit Menu v4
--- Mobile-optimized | Structure | Items | Scripts
+-- Personal Exploit Menu v5
+-- Mobile-optimized | Structure | Items
 
 local Players          = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -22,9 +22,9 @@ local C = {
     TEXT    = Color3.fromRGB(218, 218, 228),
     DIM     = Color3.fromRGB(110, 110, 132),
     WHITE   = Color3.fromRGB(255, 255, 255),
-    BTN     = Color3.fromRGB(40, 40, 54),
-    OUTPUT  = Color3.fromRGB(12, 12, 18),
-    BADGE   = Color3.fromRGB(50, 50, 68),
+    BTN     = Color3.fromRGB(40,  40,  54),
+    OUTPUT  = Color3.fromRGB(12,  12,  18),
+    BADGE   = Color3.fromRGB(50,  50,  68),
     CLIP    = Color3.fromRGB(52,  96, 158),
     COPY    = Color3.fromRGB(46, 106,  80),
     RESET   = Color3.fromRGB(116, 46,  54),
@@ -50,6 +50,16 @@ local ITEM_CLASSES = {
 
 local ITEM_SOURCES = {
     "Workspace","ReplicatedStorage","StarterPack","ReplicatedFirst",
+}
+
+local SCRIPT_SCAN_SVCS = {
+    "Workspace","ReplicatedStorage","ReplicatedFirst",
+    "StarterGui","StarterPack","StarterPlayer",
+    "Lighting","SoundService","Chat","Teams",
+}
+
+local SCRIPT_CLASSES = {
+    Script=true, LocalScript=true, ModuleScript=true,
 }
 
 local ITEM_KEYWORDS = {
@@ -133,16 +143,6 @@ local AC_PATTERNS = {
     "securitycheck","antiexploit","anti_exploit","exploitban",
 }
 
-local SCRIPT_SCAN_SVCS = {
-    "Workspace","ReplicatedStorage","ReplicatedFirst",
-    "StarterGui","StarterPack","StarterPlayer",
-    "Lighting","SoundService","Chat","Teams","ServerScriptService",
-}
-
-local SCRIPT_CLASSES = {
-    Script=true, LocalScript=true, ModuleScript=true,
-}
-
 ----------------------------------------------------------------
 -- HELPERS
 ----------------------------------------------------------------
@@ -153,7 +153,7 @@ local function new(cls, props, parent)
     return o
 end
 
-local function corner(p, r)
+local function corner(p,r)
     new("UICorner",{CornerRadius=UDim.new(0,r or 6)},p)
 end
 
@@ -165,7 +165,7 @@ local function pad(p,l,r,t,b)
 end
 
 local function vlist(p,gap)
-    return new("UIListLayout",{
+    new("UIListLayout",{
         FillDirection=Enum.FillDirection.Vertical,
         SortOrder=Enum.SortOrder.LayoutOrder,
         Padding=UDim.new(0,gap or 6),
@@ -173,7 +173,7 @@ local function vlist(p,gap)
 end
 
 local function hlist(p,gap)
-    return new("UIListLayout",{
+    new("UIListLayout",{
         FillDirection=Enum.FillDirection.Horizontal,
         SortOrder=Enum.SortOrder.LayoutOrder,
         Padding=UDim.new(0,gap or 0),
@@ -183,7 +183,7 @@ end
 local function mkBtn(text, color, parent, sz, order)
     local b = new("TextButton",{
         Text=text, Font=Enum.Font.GothamBold, TextSize=12,
-        TextColor3=C.WHITE, Size=sz or UDim2.new(1,0,0,34),
+        TextColor3=C.WHITE, Size=sz or UDim2.new(1,0,0,30),
         BackgroundColor3=color, BorderSizePixel=0,
         AutoButtonColor=false, LayoutOrder=order or 1,
     },parent)
@@ -225,6 +225,15 @@ local function mkOutput(parent, h, order)
     return outer, scroll, lbl
 end
 
+local function hRow(parent, h, order)
+    local r = new("Frame",{
+        Size=UDim2.new(1,0,0,h), BackgroundTransparency=1,
+        LayoutOrder=order,
+    },parent)
+    hlist(r,6)
+    return r
+end
+
 local function sectionLbl(text, parent, order)
     return new("TextLabel",{
         Text=text, Font=Enum.Font.GothamSemibold, TextSize=10,
@@ -250,7 +259,7 @@ end
 ----------------------------------------------------------------
 -- ROOT GUI
 ----------------------------------------------------------------
-local W, H = 310, 480
+local W, H = 310, 490
 
 local Gui = new("ScreenGui",{
     Name="_ExploitMenu", ResetOnSpawn=false,
@@ -285,7 +294,7 @@ new("TextLabel",{
     TextXAlignment=Enum.TextXAlignment.Left, ZIndex=3,
 },Header)
 new("TextLabel",{
-    Text="v4.0", Font=Enum.Font.Gotham, TextSize=10,
+    Text="v5.0", Font=Enum.Font.Gotham, TextSize=10,
     TextColor3=C.DIM, BackgroundTransparency=1,
     Size=UDim2.new(0,28,1,0), Position=UDim2.new(0,98,0,0),
     TextXAlignment=Enum.TextXAlignment.Left, ZIndex=3,
@@ -341,7 +350,7 @@ do
 end
 
 ----------------------------------------------------------------
--- TAB BAR  (3 tabs: Structure | Items | Scripts)
+-- TAB BAR  (2 tabs: Structure | Items)
 ----------------------------------------------------------------
 local TabBar = new("Frame",{
     Size=UDim2.new(1,0,0,28),
@@ -350,14 +359,14 @@ local TabBar = new("Frame",{
 },Main)
 hlist(TabBar,0)
 
-local TabBtns     = {}
-local TAB_LABELS  = {"Structure","Items","Scripts"}
-local TAB_COLORS  = {C.CLIP, C.ITEM, C.SCRIPT}
+local TabBtns    = {}
+local TAB_LABELS = {"Structure","Items"}
+local TAB_COLORS = {C.CLIP, C.ITEM}
 
 for i,lbl in ipairs(TAB_LABELS) do
     local t = new("TextButton",{
-        Text=lbl, Font=Enum.Font.GothamSemibold, TextSize=11,
-        TextColor3=C.DIM, Size=UDim2.new(1/3,0,1,0),
+        Text=lbl, Font=Enum.Font.GothamSemibold, TextSize=12,
+        TextColor3=C.DIM, Size=UDim2.new(0.5,0,1,0),
         BackgroundColor3=C.PANEL, BorderSizePixel=0,
         AutoButtonColor=false, LayoutOrder=i,
     },TabBar)
@@ -365,7 +374,7 @@ for i,lbl in ipairs(TAB_LABELS) do
 end
 
 local Indicator = new("Frame",{
-    Size=UDim2.new(1/3,0,0,2),
+    Size=UDim2.new(0.5,0,0,2),
     Position=UDim2.new(0,0,1,-2),
     BackgroundColor3=C.CLIP, BorderSizePixel=0, ZIndex=5,
 },TabBar)
@@ -388,8 +397,7 @@ local Content = new("Frame",{
 local function mkPanel(startVisible)
     local p = new("Frame",{
         Size=UDim2.new(1,0,1,0),
-        BackgroundTransparency=1,
-        Visible=startVisible,
+        BackgroundTransparency=1, Visible=startVisible,
     },Content)
     pad(p,8,8,8,8)
     vlist(p,6)
@@ -398,31 +406,21 @@ end
 
 ----------------------------------------------------------------
 -- PANEL 1 — STRUCTURE
--- Buttons: [Clip] [Copy] [Reset]  +  [Anti] on a second row
+-- Rows: [Clip | Copy | Reset]  then  [Anti-Cheat Remover]
 ----------------------------------------------------------------
 local PStruct = mkPanel(true)
 sectionLbl("Structure Scanner", PStruct, 1)
 
-local _,ScrollStruct,OutStruct = mkOutput(PStruct, 196, 2)
+local _,ScrollStruct,OutStruct = mkOutput(PStruct, 200, 2)
 OutStruct.Text = "Press [Clip] to scan the game tree."
 
--- Row 1: Clip / Copy / Reset
-local RowStruct = new("Frame",{
-    Size=UDim2.new(1,0,0,34), BackgroundTransparency=1, LayoutOrder=3,
-},PStruct)
-hlist(RowStruct,6)
-local BtnClip   = mkBtn("Clip",  C.CLIP,  RowStruct, UDim2.new(0.34,0,1,0), 1)
-local BtnSCopy  = mkBtn("Copy",  C.COPY,  RowStruct, UDim2.new(0.33,-3,1,0), 2)
-local BtnSReset = mkBtn("Reset", C.RESET, RowStruct, UDim2.new(0.33,-3,1,0), 3)
+local Row1S = hRow(PStruct, 30, 3)
+local BtnClip   = mkBtn("Clip",  C.CLIP,  Row1S, UDim2.new(0.34,0,1,0), 1)
+local BtnSCopy  = mkBtn("Copy",  C.COPY,  Row1S, UDim2.new(0.33,-3,1,0), 2)
+local BtnSReset = mkBtn("Reset", C.RESET, Row1S, UDim2.new(0.33,-3,1,0), 3)
 
--- Row 2: Anti (full width)
-local RowAnti = new("Frame",{
-    Size=UDim2.new(1,0,0,34), BackgroundTransparency=1, LayoutOrder=4,
-},PStruct)
-hlist(RowAnti,0)
-local AntiBtn = mkBtn("  Anti-Cheat Remover: OFF", C.AC_OFF, RowAnti, UDim2.new(1,0,1,0), 1)
+local AntiBtn = mkBtn("  Anti-Cheat Remover: OFF", C.AC_OFF, PStruct, UDim2.new(1,0,0,34), 4)
 
--- Node count label
 local NodeCount = new("TextLabel",{
     Text="", Font=Enum.Font.Gotham, TextSize=10,
     TextColor3=C.DIM, BackgroundTransparency=1,
@@ -430,33 +428,36 @@ local NodeCount = new("TextLabel",{
     TextXAlignment=Enum.TextXAlignment.Left,
 },PStruct)
 
--- AC status label
 local ACStatus = new("TextLabel",{
     Text="", Font=Enum.Font.Gotham, TextSize=10,
     TextColor3=C.DIM, BackgroundTransparency=1,
     Size=UDim2.new(1,0,0,14), LayoutOrder=6,
     TextXAlignment=Enum.TextXAlignment.Left,
+    TextWrapped=true,
 },PStruct)
 
 ----------------------------------------------------------------
 -- PANEL 2 — ITEMS
+-- Buttons: [Item Clip | Copy | Reset]  then  [Clip Scripts]
 ----------------------------------------------------------------
 local PItems = mkPanel(false)
-sectionLbl("Item Scanner  (Tools · Produce · Accessories · More)", PItems, 1)
+sectionLbl("Item & Script Scanner", PItems, 1)
 
-local _,ScrollItems,OutItems = mkOutput(PItems, 186, 2)
-OutItems.Text = "Press [Item Clip] to find items, fruits, crops, and tools."
+local _,ScrollItems,OutItems = mkOutput(PItems, 164, 2)
+OutItems.Text = "Press [Item Clip] or [Clip Scripts] to scan."
 
-local RowItems  = new("Frame",{Size=UDim2.new(1,0,0,34),BackgroundTransparency=1,LayoutOrder=3},PItems)
-hlist(RowItems,6)
-local BtnIClip  = mkBtn("Item Clip", C.ITEM,  RowItems, UDim2.new(0.44,0,1,0), 1)
-local BtnICopy  = mkBtn("Copy",      C.COPY,  RowItems, UDim2.new(0.28,-3,1,0), 2)
-local BtnIReset = mkBtn("Reset",     C.RESET, RowItems, UDim2.new(0.28,-3,1,0), 3)
+-- Row: Item Clip | Copy | Reset
+local Row1I = hRow(PItems, 30, 3)
+local BtnIClip  = mkBtn("Item Clip", C.ITEM,   Row1I, UDim2.new(0.44,0,1,0), 1)
+local BtnICopy  = mkBtn("Copy",      C.COPY,   Row1I, UDim2.new(0.28,-3,1,0), 2)
+local BtnIReset = mkBtn("Reset",     C.RESET,  Row1I, UDim2.new(0.28,-3,1,0), 3)
 
-local BR1 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=4},PItems)
-hlist(BR1,4)
-local BR2 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=5},PItems)
-hlist(BR2,4)
+-- Row: Clip Scripts (full width)
+local BtnSclip = mkBtn("  Clip Scripts  (Script · LocalScript · ModuleScript)", C.SCRIPT, PItems, UDim2.new(1,0,0,34), 4)
+
+-- Item badges
+local IBR1 = hRow(PItems, 20, 5)
+local IBR2 = hRow(PItems, 20, 6)
 
 local function mkBadge(txt, parent)
     local f = new("Frame",{Size=UDim2.new(0.5,-2,1,0),BackgroundColor3=C.BADGE,BorderSizePixel=0},parent)
@@ -468,74 +469,55 @@ local function mkBadge(txt, parent)
     },f)
 end
 
-local BadgeTools   = mkBadge("Tools: 0",   BR1)
-local BadgeProduce = mkBadge("Produce: 0", BR1)
-local BadgeAcc     = mkBadge("Acc: 0",     BR2)
-local BadgeOther   = mkBadge("Other: 0",   BR2)
+local BadgeTools   = mkBadge("Tools: 0",   IBR1)
+local BadgeProduce = mkBadge("Produce: 0", IBR1)
+local BadgeAcc     = mkBadge("Acc: 0",     IBR2)
+local BadgeOther   = mkBadge("Other: 0",   IBR2)
 
-----------------------------------------------------------------
--- PANEL 3 — SCRIPTS
-----------------------------------------------------------------
-local PScripts = mkPanel(false)
-sectionLbl("Script Scanner  (Script · LocalScript · ModuleScript)", PScripts, 1)
+-- Script badges
+local SBR1 = hRow(PItems, 20, 7)
+local SBR2 = hRow(PItems, 20, 8)
 
-local _,ScrollScripts,OutScripts = mkOutput(PScripts, 196, 2)
-OutScripts.Text = "Press [Clip Scripts] to scan all scripts in the game."
+local BadgeSc = mkBadge("Script: 0",      SBR1)
+local BadgeLs = mkBadge("LocalScript: 0", SBR1)
+local BadgeMs = mkBadge("Module: 0",      SBR2)
+local BadgeSs = mkBadge("Total: 0",       SBR2)
 
-local RowScripts = new("Frame",{
-    Size=UDim2.new(1,0,0,34), BackgroundTransparency=1, LayoutOrder=3,
-},PScripts)
-hlist(RowScripts,6)
-local BtnSclip  = mkBtn("Clip Scripts", C.SCRIPT, RowScripts, UDim2.new(0.44,0,1,0), 1)
-local BtnSsCopy = mkBtn("Copy",         C.COPY,   RowScripts, UDim2.new(0.28,-3,1,0), 2)
-local BtnSsReset= mkBtn("Reset",        C.RESET,  RowScripts, UDim2.new(0.28,-3,1,0), 3)
-
--- Script count badges
-local SBR1 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=4},PScripts)
-hlist(SBR1,4)
-local SBR2 = new("Frame",{Size=UDim2.new(1,0,0,22),BackgroundTransparency=1,LayoutOrder=5},PScripts)
-hlist(SBR2,4)
-
-local BadgeSc   = mkBadge("Script: 0",       SBR1)
-local BadgeLs   = mkBadge("LocalScript: 0",  SBR1)
-local BadgeMs   = mkBadge("ModuleScript: 0", SBR2)
-local BadgeSs   = mkBadge("Total: 0",        SBR2)
-
-local ScriptCount = new("TextLabel",{
+local ScanInfo = new("TextLabel",{
     Text="", Font=Enum.Font.Gotham, TextSize=10,
     TextColor3=C.DIM, BackgroundTransparency=1,
-    Size=UDim2.new(1,0,0,14), LayoutOrder=6,
+    Size=UDim2.new(1,0,0,14), LayoutOrder=9,
     TextXAlignment=Enum.TextXAlignment.Left,
-},PScripts)
+},PItems)
 
 ----------------------------------------------------------------
 -- TAB SWITCHING
 ----------------------------------------------------------------
-local TAB_PANELS = {PStruct, PItems, PScripts}
+local TAB_PANELS = {PStruct, PItems}
 local activeTab  = 1
 
 local function switchTab(idx)
     activeTab = idx
-    for i=1,3 do
+    for i=1,2 do
         TAB_PANELS[i].Visible       = (i==idx)
         TabBtns[i].TextColor3       = i==idx and C.TEXT or C.DIM
         TabBtns[i].BackgroundColor3 = i==idx and C.BTN  or C.PANEL
         TabBtns[i].Font             = i==idx and Enum.Font.GothamBold or Enum.Font.GothamSemibold
     end
     TweenService:Create(Indicator,TweenInfo.new(0.18),{
-        Position=UDim2.new((idx-1)/3,0,1,-2),
+        Position=UDim2.new((idx-1)*0.5,0,1,-2),
         BackgroundColor3=TAB_COLORS[idx],
     }):Play()
 end
 
-for i=1,3 do
+for i=1,2 do
     local idx=i
     TabBtns[i].MouseButton1Click:Connect(function() switchTab(idx) end)
 end
 switchTab(1)
 
 ----------------------------------------------------------------
--- STRUCTURE SCANNER LOGIC
+-- STRUCTURE SCANNER
 ----------------------------------------------------------------
 local lastStructOut = ""
 
@@ -550,19 +532,16 @@ local function buildTree(inst, depth, lines, count)
     if depth >= 8 then return end
     local ok3,kids = pcall(function() return inst:GetChildren() end)
     if ok3 then
-        for _,child in ipairs(kids) do
-            buildTree(child, depth+1, lines, count)
-        end
+        for _,child in ipairs(kids) do buildTree(child, depth+1, lines, count) end
     end
 end
 
 BtnClip.MouseButton1Click:Connect(function()
-    OutStruct.Text = "Scanning..." ; NodeCount.Text=""
+    OutStruct.Text="Scanning…"; NodeCount.Text=""
     task.wait(0.05)
     local ok,err = pcall(function()
-        local lines = {}
-        local count = {0}
-        table.insert(lines, string.format("[ %s  |  PlaceId: %d ]\n", os.date("%H:%M:%S"), game.PlaceId))
+        local lines,count = {},{0}
+        table.insert(lines, string.format("[ %s  |  PlaceId: %d ]\n",os.date("%H:%M:%S"),game.PlaceId))
         for _,name in ipairs(STRUCT_SERVICES) do
             local svc = safeGet(name)
             if svc then
@@ -570,9 +549,7 @@ BtnClip.MouseButton1Click:Connect(function()
                 local ok2,kids = pcall(function() return svc:GetChildren() end)
                 if ok2 then
                     for _,child in ipairs(kids) do buildTree(child,1,lines,count) end
-                else
-                    table.insert(lines,"  [Access Denied]")
-                end
+                else table.insert(lines,"  [Access Denied]") end
                 table.insert(lines,"")
             else
                 table.insert(lines,">> "..name.."  [Not Found]\n")
@@ -588,8 +565,8 @@ end)
 
 BtnSCopy.MouseButton1Click:Connect(function()
     if lastStructOut=="" then OutStruct.Text="Run Clip first."; return end
-    local copied = copyToClipboard(lastStructOut)
-    local prev = OutStruct.Text
+    local copied=copyToClipboard(lastStructOut)
+    local prev=OutStruct.Text
     OutStruct.Text = copied and ("Copied "..#lastStructOut.." chars!") or "setclipboard unavailable."
     task.delay(2.5,function() if OutStruct and OutStruct.Parent then OutStruct.Text=prev end end)
 end)
@@ -600,7 +577,7 @@ BtnSReset.MouseButton1Click:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- ANTI-CHEAT TOGGLE  (on Structure panel)
+-- ANTI-CHEAT TOGGLE  (Structure panel)
 ----------------------------------------------------------------
 local acEnabled     = false
 local acTotalKilled = 0
@@ -613,6 +590,11 @@ local function nameIsAC(name)
     return false
 end
 
+local AC_SVCS = {
+    "Workspace","ReplicatedStorage","StarterGui",
+    "ReplicatedFirst","StarterPack","StarterPlayer",
+}
+
 local function deepScanAC(root, found, depth)
     if depth > 8 then return end
     local ok,kids = pcall(function() return root:GetChildren() end)
@@ -621,18 +603,13 @@ local function deepScanAC(root, found, depth)
         local okN,nm  = pcall(function() return child.Name      end)
         local okC,cls = pcall(function() return child.ClassName end)
         if okN and okC then
-            if nameIsAC(nm) then table.insert(found, child) end
+            if nameIsAC(nm) then table.insert(found,child) end
             if cls=="Folder" or cls=="Model" or cls=="Configuration" then
                 deepScanAC(child, found, depth+1)
             end
         end
     end
 end
-
-local AC_SVCS = {
-    "Workspace","ReplicatedStorage","StarterGui",
-    "ReplicatedFirst","StarterPack","StarterPlayer",
-}
 
 local function runACPass()
     local found = {}
@@ -649,7 +626,7 @@ local function runACPass()
         if ok then killed=killed+1; acTotalKilled=acTotalKilled+1 end
     end
     if killed > 0 then
-        ACStatus.Text = string.format("AC: removed %d scripts this pass  |  total: %d", killed, acTotalKilled)
+        ACStatus.Text = string.format("Removed %d this pass  |  session total: %d", killed, acTotalKilled)
     end
 end
 
@@ -669,18 +646,17 @@ local function setACToggle(on)
     else
         AntiBtn.Text             = "  Anti-Cheat Remover: OFF"
         AntiBtn.BackgroundColor3 = C.AC_OFF
-        ACStatus.Text            = string.format("Stopped.  Total removed this session: %d", acTotalKilled)
+        ACStatus.Text            = string.format("Stopped.  Total removed: %d", acTotalKilled)
     end
 end
 
 AntiBtn.MouseButton1Click:Connect(function() setACToggle(not acEnabled) end)
-
 Gui.AncestryChanged:Connect(function()
     if not Gui.Parent then acEnabled=false end
 end)
 
 ----------------------------------------------------------------
--- ITEM SCANNER LOGIC
+-- ITEM SCANNER
 ----------------------------------------------------------------
 local lastItemOut = ""
 
@@ -694,11 +670,11 @@ local function itemMatchKeyword(nm)
     return false
 end
 
-local function itemCategory(cn, nm)
+local function itemCategory(cn,nm)
     local low = nm:lower()
     if cn=="Tool" or cn=="HopperBin" or cn=="Gear" then return "tool" end
     if cn=="Accessory" or cn=="Hat" or cn=="Shirt" or cn=="Pants" or cn=="ShirtGraphic" then return "acc" end
-    local produceKw = {
+    local produceKw={
         "fruit","seed","crop","berry","plant","mushroom","flower","egg","fish",
         "harvest","produce","apple","orange","banana","mango","melon","grape",
         "carrot","potato","corn","tomato","pumpkin","sprout","sapling","cherry",
@@ -720,8 +696,8 @@ local function deepScanItems(root, results, seen, depth)
         if okC and okN then
             local ptr = tostring(child)
             if not seen[ptr] then
-                local byClass = itemMatchClass(cn)
-                local byKw    = itemMatchKeyword(nm)
+                local byClass=itemMatchClass(cn)
+                local byKw=itemMatchKeyword(nm)
                 if byClass or byKw then
                     seen[ptr]=true
                     table.insert(results,{
@@ -739,18 +715,27 @@ local function deepScanItems(root, results, seen, depth)
     end
 end
 
+local function resetItemBadges(label)
+    BadgeTools.Text=label ; BadgeProduce.Text=label
+    BadgeAcc.Text=label   ; BadgeOther.Text=label
+end
+
+local function resetScriptBadges(label)
+    BadgeSc.Text=label ; BadgeLs.Text=label
+    BadgeMs.Text=label ; BadgeSs.Text=label
+end
+
 BtnIClip.MouseButton1Click:Connect(function()
-    OutItems.Text="Deep scanning…"
-    BadgeTools.Text="Tools:?" ; BadgeProduce.Text="Produce:?"
-    BadgeAcc.Text="Acc:?"     ; BadgeOther.Text="Other:?"
+    OutItems.Text="Scanning items…"
+    resetItemBadges("…") ; ScanInfo.Text=""
     task.wait(0.05)
     local ok,err = pcall(function()
         local results,seen,lines = {},{},{}
         local tC,pC,aC,oC = 0,0,0,0
         local function addSec(label, root)
-            local before = #results
-            deepScanItems(root, results, seen, 0)
-            if #results > before then
+            local before=#results
+            deepScanItems(root,results,seen,0)
+            if #results>before then
                 table.insert(lines,">> "..label)
                 for i=before+1,#results do
                     local e=results[i]
@@ -759,9 +744,9 @@ BtnIClip.MouseButton1Click:Connect(function()
                 table.insert(lines,"")
             end
         end
-        local bp = LocalPlayer:FindFirstChild("Backpack")
+        local bp=LocalPlayer:FindFirstChild("Backpack")
         if bp then addSec("LocalPlayer.Backpack",bp) end
-        local char = LocalPlayer.Character
+        local char=LocalPlayer.Character
         if char then addSec("Character (Equipped)",char) end
         for _,svcName in ipairs(ITEM_SOURCES) do
             local svc=safeGet(svcName)
@@ -773,13 +758,16 @@ BtnIClip.MouseButton1Click:Connect(function()
             elseif e.cat=="acc"     then aC=aC+1
             else                         oC=oC+1 end
         end
-        if #results==0 then table.insert(lines,"No items found.") else
+        if #results==0 then
+            table.insert(lines,"No items found.")
+        else
             table.insert(lines,string.format(
                 "-- Total: %d  (Tools:%d  Produce:%d  Acc:%d  Other:%d)",
                 #results,tC,pC,aC,oC))
         end
         lastItemOut       = table.concat(lines,"\n")
         OutItems.Text     = lastItemOut
+        ScanInfo.Text     = #results.." items found"
         BadgeTools.Text   = "Tools: "..tC
         BadgeProduce.Text = "Produce: "..pC
         BadgeAcc.Text     = "Acc: "..aC
@@ -792,20 +780,22 @@ BtnICopy.MouseButton1Click:Connect(function()
     if lastItemOut=="" then OutItems.Text="Run Item Clip first."; return end
     local copied=copyToClipboard(lastItemOut)
     local prev=OutItems.Text
-    OutItems.Text = copied and ("Copied "..#lastItemOut.." chars!") or "setclipboard unavailable."
+    OutItems.Text=copied and ("Copied "..#lastItemOut.." chars!") or "setclipboard unavailable."
     task.delay(2.5,function() if OutItems and OutItems.Parent then OutItems.Text=prev end end)
 end)
 
 BtnIReset.MouseButton1Click:Connect(function()
     lastItemOut=""
-    OutItems.Text="Press [Item Clip] to find items, fruits, crops, and tools."
-    BadgeTools.Text="Tools: 0" ; BadgeProduce.Text="Produce: 0"
-    BadgeAcc.Text="Acc: 0"     ; BadgeOther.Text="Other: 0"
-    ScrollItems.CanvasPosition=Vector2.zero
+    OutItems.Text="Press [Item Clip] or [Clip Scripts] to scan."
+    resetItemBadges("Tools: 0") ; BadgeProduce.Text="Produce: 0"
+    BadgeAcc.Text="Acc: 0" ; BadgeOther.Text="Other: 0"
+    resetScriptBadges("Script: 0") ; BadgeLs.Text="LocalScript: 0"
+    BadgeMs.Text="Module: 0" ; BadgeSs.Text="Total: 0"
+    ScanInfo.Text="" ; ScrollItems.CanvasPosition=Vector2.zero
 end)
 
 ----------------------------------------------------------------
--- SCRIPT SCANNER LOGIC
+-- SCRIPT SCANNER  (inside Items panel)
 ----------------------------------------------------------------
 local lastScriptOut = ""
 
@@ -820,13 +810,11 @@ local function deepScanScripts(root, results, seen, depth)
             local ptr = tostring(child)
             if SCRIPT_CLASSES[cn] and not seen[ptr] then
                 seen[ptr]=true
-                local disabled=""
+                local dis=""
                 pcall(function()
-                    if child:IsA("BaseScript") and child.Disabled then
-                        disabled=" [DISABLED]"
-                    end
+                    if child:IsA("BaseScript") and child.Disabled then dis=" [DISABLED]" end
                 end)
-                table.insert(results,{cn=cn, nm=nm, disabled=disabled})
+                table.insert(results,{cn=cn, nm=nm, dis=dis})
             end
             deepScanScripts(child, results, seen, depth+1)
         end
@@ -834,55 +822,52 @@ local function deepScanScripts(root, results, seen, depth)
 end
 
 BtnSclip.MouseButton1Click:Connect(function()
-    OutScripts.Text="Scanning for scripts…"
-    BadgeSc.Text="Script:?"
-    BadgeLs.Text="LocalScript:?"
-    BadgeMs.Text="ModuleScript:?"
-    BadgeSs.Text="Total:?"
-    ScriptCount.Text=""
+    OutItems.Text="Scanning for scripts…"
+    resetScriptBadges("…") ; ScanInfo.Text=""
     task.wait(0.05)
     local ok,err = pcall(function()
         local results,seen,lines = {},{},{}
         local scC,lsC,msC = 0,0,0
-        table.insert(lines, string.format("[ %s  |  PlaceId: %d ]\n", os.date("%H:%M:%S"), game.PlaceId))
+        table.insert(lines, string.format("[ %s  |  PlaceId: %d ]\n",os.date("%H:%M:%S"),game.PlaceId))
         for _,svcName in ipairs(SCRIPT_SCAN_SVCS) do
             local svc=safeGet(svcName)
             if svc then
-                local before = #results
-                deepScanScripts(svc, results, seen, 0)
-                if #results > before then
+                local before=#results
+                deepScanScripts(svc,results,seen,0)
+                if #results>before then
                     table.insert(lines,">> "..svcName)
                     for i=before+1,#results do
                         local e=results[i]
-                        table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.disabled)
+                        table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.dis)
                     end
                     table.insert(lines,"")
                 end
             end
         end
-        -- also check Character and PlayerScripts
-        local char = LocalPlayer.Character
+        -- Character scripts
+        local char=LocalPlayer.Character
         if char then
-            local before = #results
-            deepScanScripts(char, results, seen, 0)
-            if #results > before then
+            local before=#results
+            deepScanScripts(char,results,seen,0)
+            if #results>before then
                 table.insert(lines,">> Character")
                 for i=before+1,#results do
                     local e=results[i]
-                    table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.disabled)
+                    table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.dis)
                 end
                 table.insert(lines,"")
             end
         end
-        local ps = LocalPlayer:FindFirstChild("PlayerScripts")
+        -- PlayerScripts
+        local ps=LocalPlayer:FindFirstChild("PlayerScripts")
         if ps then
-            local before = #results
-            deepScanScripts(ps, results, seen, 0)
-            if #results > before then
+            local before=#results
+            deepScanScripts(ps,results,seen,0)
+            if #results>before then
                 table.insert(lines,">> PlayerScripts")
                 for i=before+1,#results do
                     local e=results[i]
-                    table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.disabled)
+                    table.insert(lines,"  ["..e.cn.."]  "..e.nm..e.dis)
                 end
                 table.insert(lines,"")
             end
@@ -892,49 +877,33 @@ BtnSclip.MouseButton1Click:Connect(function()
             elseif e.cn=="LocalScript"  then lsC=lsC+1
             elseif e.cn=="ModuleScript" then msC=msC+1 end
         end
-        local total = #results
+        local total=#results
         if total==0 then
             table.insert(lines,"No accessible scripts found.")
         else
             table.insert(lines,string.format(
-                "-- Total: %d  (Script:%d  LocalScript:%d  ModuleScript:%d)",
+                "-- Total: %d  (Script:%d  LocalScript:%d  Module:%d)",
                 total,scC,lsC,msC))
         end
-        lastScriptOut     = table.concat(lines,"\n")
-        OutScripts.Text   = lastScriptOut
-        ScriptCount.Text  = total.." scripts found"
-        BadgeSc.Text  = "Script: "..scC
-        BadgeLs.Text  = "LocalScript: "..lsC
-        BadgeMs.Text  = "Module: "..msC
-        BadgeSs.Text  = "Total: "..total
+        lastScriptOut   = table.concat(lines,"\n")
+        OutItems.Text   = lastScriptOut
+        ScanInfo.Text   = total.." scripts found"
+        BadgeSc.Text    = "Script: "..scC
+        BadgeLs.Text    = "LocalScript: "..lsC
+        BadgeMs.Text    = "Module: "..msC
+        BadgeSs.Text    = "Total: "..total
     end)
-    if not ok then OutScripts.Text="Script scan error:\n"..tostring(err) end
-end)
-
-BtnSsCopy.MouseButton1Click:Connect(function()
-    if lastScriptOut=="" then OutScripts.Text="Run Clip Scripts first."; return end
-    local copied=copyToClipboard(lastScriptOut)
-    local prev=OutScripts.Text
-    OutScripts.Text = copied and ("Copied "..#lastScriptOut.." chars!") or "setclipboard unavailable."
-    task.delay(2.5,function() if OutScripts and OutScripts.Parent then OutScripts.Text=prev end end)
-end)
-
-BtnSsReset.MouseButton1Click:Connect(function()
-    lastScriptOut=""
-    OutScripts.Text="Press [Clip Scripts] to scan all scripts in the game."
-    BadgeSc.Text="Script: 0" ; BadgeLs.Text="LocalScript: 0"
-    BadgeMs.Text="Module: 0" ; BadgeSs.Text="Total: 0"
-    ScriptCount.Text="" ; ScrollScripts.CanvasPosition=Vector2.zero
+    if not ok then OutItems.Text="Script scan error:\n"..tostring(err) end
 end)
 
 ----------------------------------------------------------------
 -- OPEN ANIMATION
 ----------------------------------------------------------------
 Main.BackgroundTransparency = 1
-Main.Position = UDim2.new(0.5,-W/2, 0.5,-H/2+14)
+Main.Position = UDim2.new(0.5,-W/2,0.5,-H/2+14)
 TweenService:Create(Main,TweenInfo.new(0.22,Enum.EasingStyle.Quint),{
     BackgroundTransparency=0,
     Position=UDim2.new(0.5,-W/2,0.5,-H/2),
 }):Play()
 
-print("[ExploitMenu v4] Loaded — Structure | Items | Scripts")
+print("[ExploitMenu v5] Loaded — Structure | Items (+Scripts)")
