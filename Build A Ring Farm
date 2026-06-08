@@ -1,0 +1,877 @@
+-- ╔══════════════════════════════════════════════════════════╗
+-- ║   Grow a Garden — Exploit Menu                          ║
+-- ║   Seeds · Tools · Remotes · Player                     ║
+-- ╚══════════════════════════════════════════════════════════╝
+
+local Players          = game:GetService("Players")
+local UIS              = game:GetService("UserInputService")
+local TweenService     = game:GetService("TweenService")
+local RunService       = game:GetService("RunService")
+local LP               = Players.LocalPlayer
+local PGui             = LP:WaitForChild("PlayerGui")
+
+if PGui:FindFirstChild("_GAG") then PGui._GAG:Destroy() end
+
+-- ── COLORS ───────────────────────────────────────────────────
+local BG     = Color3.fromRGB(13,13,18)
+local PANEL  = Color3.fromRGB(20,20,28)
+local HDR    = Color3.fromRGB(25,25,35)
+local LINE   = Color3.fromRGB(42,42,56)
+local TEXT   = Color3.fromRGB(220,220,230)
+local DIM    = Color3.fromRGB(95,95,115)
+local WHITE  = Color3.fromRGB(255,255,255)
+local BTN    = Color3.fromRGB(36,36,50)
+local DARK   = Color3.fromRGB(8,8,13)
+local CRST   = Color3.fromRGB(115,38,48)
+
+-- Tier / category accent colors
+local C_COM  = Color3.fromRGB(42,98,52)    -- common seeds
+local C_RAR  = Color3.fromRGB(118,84,16)   -- rare seeds
+local C_EXO  = Color3.fromRGB(82,22,102)   -- exotic seeds
+local C_SPR  = Color3.fromRGB(38,76,138)   -- sprays
+local C_FRT  = Color3.fromRGB(38,108,52)   -- fertilizers
+local C_TRT  = Color3.fromRGB(108,48,118)  -- pet treats
+local C_PCK  = Color3.fromRGB(118,88,22)   -- packs & crates
+local C_SPC  = Color3.fromRGB(108,32,42)   -- special items
+local C_R1   = Color3.fromRGB(62,42,118)   -- remotes group 1
+local C_R2   = Color3.fromRGB(38,88,108)   -- remotes group 2
+local C_R3   = Color3.fromRGB(108,52,38)   -- remotes danger
+local C_P1   = Color3.fromRGB(45,85,128)   -- player speed
+local C_P2   = Color3.fromRGB(38,108,72)   -- player jump / fly on
+local C_P3   = Color3.fromRGB(108,40,42)   -- anti-cheat
+
+-- ── SEED LIST ────────────────────────────────────────────────
+-- { display, internal name in RS, tier }  tier: 1=common 2=rare 3=exotic
+local SEEDS = {
+    -- Common (RS > Seeds folder)
+    {"Apple",             "Apple Seed",            1},
+    {"Banana",            "Banana Seed",           1},
+    {"Beetroot",          "Beetroot Seed",         1},
+    {"Blueberry",         "Blueberry Seed",        1},
+    {"Cabbage",           "Cabbage Seed",          1},
+    {"Carrot",            "Carrot Seed",           1},
+    {"Cauliflower",       "Cauliflower Seed",      1},
+    {"Cherry Blossom",    "Cherry Blossom Seed",   1},
+    {"Corn",              "Corn Seed",             1},
+    {"Dragonfruit",       "Dragonfruit Seed",      1},
+    {"Garlic",            "Garlic Seed",           1},
+    {"Grape",             "Grape Seed",            1},
+    {"Kiwi",              "Kiwi Seed",             1},
+    {"Mango",             "Mango Seed",            1},
+    {"Melon",             "Melon Seed",            1},
+    {"Mushroom",          "Mushroom Seed",         1},
+    {"Onion",             "Onion Seed",            1},
+    {"Papaya",            "Papaya Seed",           1},
+    {"Passionfruit",      "Passionfruit Seed",     1},
+    {"Peach",             "Peach Seed",            1},
+    {"Pepper",            "Pepper Seed",           1},
+    {"Pineapple",         "Pineapple Seed",        1},
+    {"Plum",              "Plum Seed",             1},
+    {"Pomegranate",       "Pomegranate Seed",      1},
+    {"Potato",            "Potato Seed",           1},
+    {"Pumpkin",           "Pumpkin Seed",          1},
+    {"Spring Onion",      "Spring Onion Seed",     1},
+    {"Starfruit",         "Starfruit Seed",        1},
+    {"Strawberry",        "Strawberry Seed",       1},
+    {"Sunflower",         "Sunflower Seed",        1},
+    {"Watermelon",        "Watermelon Seed",       1},
+    {"Wheat",             "Wheat Seed",            1},
+    -- Rare (RS > Seeds folder)
+    {"Beanstalk",         "Beanstalk Seed",        2},
+    {"Blood Orange",      "Blood Orange Seed",     2},
+    {"Cannon Fruit",      "Cannon Fruit Seed",     2},
+    {"Crowned Pear",      "Crowned Pear Seed",     2},
+    {"Crystalberry",      "Crystalberry Seed",     2},
+    {"Durian",            "Durian Seed",           2},
+    {"Ember Fruit",       "Ember Fruit Seed",      2},
+    {"Ghost Pepper",      "Ghost Pepper Seed",     2},
+    {"Gilded Nectarine",  "Gilded Nectarine Seed", 2},
+    {"Golden Apple",      "Golden Apple Seed",     2},
+    {"Honeysuckle",       "Honeysuckle Seed",      2},
+    {"Horned Melon",      "Horned Melon Seed",     2},
+    {"Jackpot Jackfruit", "Jackpot Jackfruit Seed",2},
+    {"Martian Melon",     "Martian Melon Seed",    2},
+    {"Moonflower",        "Moonflower Seed",       2},
+    {"Nectarine",         "Nectarine Seed",        2},
+    {"Popcorn Poppy",     "Popcorn Poppy Seed",    2},
+    {"Spiked Rambutan",   "Spiked Rambutan Seed",  2},
+    {"Striped Starfruit", "Striped Starfruit Seed",2},
+    -- Exotic (RS > SpecialFruits or RS directly — plain names, no Seed suffix)
+    {"Admin Crownflower", "Admin Crownflower",     3},
+    {"Admin Rose",        "Admin Rose",            3},
+    {"Admin Sunflower",   "Admin Sunflower",       3},
+    {"Carnival Rose",     "Carnival Rose",         3},
+    {"Carousel Crownflower","Carousel Crownflower",3},
+    {"Diamond Blossom",   "Diamond Blossom",       3},
+    {"Golden Quillflower","Golden Quillflower",    3},
+    {"Hex Sprout",        "Hex Sprout",            3},
+    {"Iron Fern",         "Iron Fern",             3},
+    {"Jellyvine Seed",    "Jellyvine Seed",        3},
+    {"Silver Artichoke",  "Silver Artichoke",      3},
+    {"Twinflame Tulip",   "Twinflame Tulip",       3},
+    {"Void Fruit",        "Void Fruit",            3},
+}
+
+-- ── TOOL LIST ────────────────────────────────────────────────
+-- { display, exact name in RS, color, category }
+local TOOLS = {
+    {"Acid Spray",          "Acid Spray",          C_SPR, "Sprays"},
+    {"Autumn Spray",        "Autumn Spray",        C_SPR, "Sprays"},
+    {"Bubblegum Spray",     "Bubblegum Spray",     C_SPR, "Sprays"},
+    {"Carnival Spray",      "Carnival Spray",      C_SPR, "Sprays"},
+    {"Cosmic Spray",        "Cosmic Spray",        C_SPR, "Sprays"},
+    {"Fire Spray",          "Fire Spray",          C_SPR, "Sprays"},
+    {"Frozen Spray",        "Frozen Spray",        C_SPR, "Sprays"},
+    {"Large Carnival Spray","LargeCarnivalSpray",  C_SPR, "Sprays"},
+    {"Rainbow Spray",       "Rainbow Spray",       C_SPR, "Sprays"},
+    {"Radioactive Spray",   "Radioactive Spray",   C_SPR, "Sprays"},
+    {"Trucker Spray",       "Trucker Spray",       C_SPR, "Sprays"},
+    {"Void Spray",          "Void Spray",          C_SPR, "Sprays"},
+    {"Wet Spray",           "Wet Spray",           C_SPR, "Sprays"},
+    {"Bee Fertilizer",      "Bee Fertilizer",      C_FRT, "Fertilizers"},
+    {"Carnival Fertilizer", "Carnival Fertilizer", C_FRT, "Fertilizers"},
+    {"Normal Fertilizer",   "Normal Fertilizer",   C_FRT, "Fertilizers"},
+    {"Prismatic Fertilizer","Prismatic Fertilizer",C_FRT, "Fertilizers"},
+    {"Scrappy Fertilizer",  "Scrappy Fertilizer",  C_FRT, "Fertilizers"},
+    {"Strong Fertilizer",   "Strong Fertilizer",   C_FRT, "Fertilizers"},
+    {"Super Fertilizer",    "Super Fertilizer",    C_FRT, "Fertilizers"},
+    {"Normal Pet Treat",    "Normal Pet Treat",    C_TRT, "Pet Treats"},
+    {"Strong Pet Treat",    "Strong Pet Treat",    C_TRT, "Pet Treats"},
+    {"Super Pet Treat",     "Super Pet Treat",     C_TRT, "Pet Treats"},
+    {"Carnival Seed Pack",  "Carnival Seed Pack",  C_PCK, "Packs & Crates"},
+    {"Corrupted Seed Pack", "Corrupted Seed Pack", C_PCK, "Packs & Crates"},
+    {"Fertilizer Crate",    "Fertilizer Crate",    C_PCK, "Packs & Crates"},
+    {"Spray Crate",         "Spray Crate",         C_PCK, "Packs & Crates"},
+    {"Tropical Seed Pack",  "Tropical Seed Pack",  C_PCK, "Packs & Crates"},
+    {"Dinosaur Egg",        "Dinosaur Egg",        C_SPC, "Special"},
+    {"Plant Rush Boss Box", "Plant Rush Boss Box", C_SPC, "Special"},
+    {"TomatoShooter",       "TomatoShooter",       C_SPC, "Special"},
+    {"ToyHammer",           "ToyHammer",           C_SPC, "Special"},
+}
+
+-- ── UTIL ─────────────────────────────────────────────────────
+local function safeGet(n)
+    local ok,r = pcall(game.GetService,game,n)
+    if ok and r then return r end
+    ok,r = pcall(function() return game[n] end)
+    return ok and r or nil
+end
+
+local function getRemote(name)
+    local RS = safeGet("ReplicatedStorage")
+    return RS and RS:FindFirstChild(name,true) or nil
+end
+
+local function cloneToPlayer(item)
+    local clone = item:Clone()
+    if clone:IsA("Tool") then
+        clone.Parent = LP.Backpack
+        return
+    end
+    local char = LP.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if root then
+        clone.Parent = workspace
+        local cf = root.CFrame * CFrame.new(0,3,-5)
+        if clone:IsA("Model") then
+            if clone.PrimaryPart then
+                clone:SetPrimaryPartCFrame(cf)
+            else
+                for _,p in ipairs(clone:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CFrame=cf; break end
+                end
+            end
+        elseif clone:IsA("BasePart") then
+            clone.CFrame = cf
+        end
+    else
+        clone.Parent = LP.Backpack
+    end
+end
+
+-- ── ROOT GUI ──────────────────────────────────────────────────
+local W,H = 312,440
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "_GAG"; Gui.ResetOnSpawn = false
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Gui.IgnoreGuiInset = true; Gui.Parent = PGui
+
+local Main = Instance.new("Frame",Gui)
+Main.Size = UDim2.fromOffset(W,H)
+Main.Position = UDim2.new(0.5,-W/2,0.5,-H/2)
+Main.BackgroundColor3 = BG; Main.ClipsDescendants = true; Main.BorderSizePixel = 0
+Instance.new("UICorner",Main).CornerRadius = UDim.new(0,10)
+local ms = Instance.new("UIStroke",Main); ms.Color = LINE; ms.Thickness = 1
+
+-- ── HEADER ────────────────────────────────────────────────────
+local Hdr = Instance.new("Frame",Main)
+Hdr.Size = UDim2.new(1,0,0,36); Hdr.BackgroundColor3 = HDR
+Hdr.BorderSizePixel = 0; Hdr.ZIndex = 2
+Instance.new("UICorner",Hdr).CornerRadius = UDim.new(0,10)
+local hfix = Instance.new("Frame",Hdr)
+hfix.Size = UDim2.new(1,0,0.5,0); hfix.Position = UDim2.new(0,0,0.5,0)
+hfix.BackgroundColor3 = HDR; hfix.BorderSizePixel = 0
+
+local TitleLbl = Instance.new("TextLabel",Hdr)
+TitleLbl.Text = "🌱 Grow a Garden  Exploit"
+TitleLbl.Font = Enum.Font.GothamBold; TitleLbl.TextSize = 12
+TitleLbl.TextColor3 = Color3.fromRGB(72,178,72)
+TitleLbl.BackgroundTransparency = 1
+TitleLbl.Size = UDim2.new(1,-60,1,0); TitleLbl.Position = UDim2.new(0,10,0,0)
+TitleLbl.TextXAlignment = Enum.TextXAlignment.Left; TitleLbl.ZIndex = 3
+
+local MinB = Instance.new("TextButton",Hdr)
+MinB.Text = "—"; MinB.Font = Enum.Font.GothamBold; MinB.TextSize = 12
+MinB.TextColor3 = DIM; MinB.BackgroundColor3 = BTN; MinB.BorderSizePixel = 0
+MinB.Size = UDim2.fromOffset(24,24); MinB.Position = UDim2.new(1,-54,0.5,-12)
+MinB.ZIndex = 4; MinB.AutoButtonColor = false
+Instance.new("UICorner",MinB).CornerRadius = UDim.new(0,6)
+
+local XBtn = Instance.new("TextButton",Hdr)
+XBtn.Text = "✕"; XBtn.Font = Enum.Font.GothamBold; XBtn.TextSize = 11
+XBtn.TextColor3 = WHITE; XBtn.BackgroundColor3 = CRST; XBtn.BorderSizePixel = 0
+XBtn.Size = UDim2.fromOffset(24,24); XBtn.Position = UDim2.new(1,-26,0.5,-12)
+XBtn.ZIndex = 4; XBtn.AutoButtonColor = false
+Instance.new("UICorner",XBtn).CornerRadius = UDim.new(0,6)
+
+XBtn.MouseButton1Click:Connect(function() Gui:Destroy() end)
+local mini = false
+MinB.MouseButton1Click:Connect(function()
+    mini = not mini
+    TweenService:Create(Main, TweenInfo.new(0.18,Enum.EasingStyle.Quint), {
+        Size = mini and UDim2.fromOffset(W,36) or UDim2.fromOffset(W,H)
+    }):Play()
+    MinB.Text = mini and "▲" or "—"
+end)
+
+-- Drag
+do local drag,ds,sp
+    Hdr.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            drag=true; ds=i.Position; sp=Main.Position end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if drag and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+            local d=i.Position-ds
+            Main.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y) end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end
+    end)
+end
+
+-- ── TAB BAR ───────────────────────────────────────────────────
+local TBar = Instance.new("Frame",Main)
+TBar.Size = UDim2.new(1,0,0,28); TBar.Position = UDim2.new(0,0,0,36)
+TBar.BackgroundColor3 = PANEL; TBar.BorderSizePixel = 0
+
+local TW = 0.25
+
+local function makeTab(label,xi)
+    local t = Instance.new("TextButton",TBar)
+    t.Text = label; t.Font = Enum.Font.GothamSemibold; t.TextSize = 10
+    t.TextColor3 = DIM; t.BackgroundColor3 = PANEL; t.BorderSizePixel = 0
+    t.AutoButtonColor = false
+    t.Size = UDim2.new(TW,0,1,0); t.Position = UDim2.new(TW*xi,0,0,0)
+    return t
+end
+
+local Tab1 = makeTab("Seeds",   0)
+local Tab2 = makeTab("Tools",   1)
+local Tab3 = makeTab("Remotes", 2)
+local Tab4 = makeTab("Player",  3)
+
+local Ind = Instance.new("Frame",TBar)
+Ind.Size = UDim2.new(TW,0,0,2); Ind.Position = UDim2.new(0,0,1,-2)
+Ind.BackgroundColor3 = C_COM; Ind.BorderSizePixel = 0; Ind.ZIndex = 5
+
+local divLine = Instance.new("Frame",Main)
+divLine.Size = UDim2.new(1,0,0,1); divLine.Position = UDim2.new(0,0,0,64)
+divLine.BackgroundColor3 = LINE; divLine.BorderSizePixel = 0
+
+-- ── CONTENT AREA ─────────────────────────────────────────────
+local Con = Instance.new("Frame",Main)
+Con.Size = UDim2.new(1,0,1,-65)
+Con.Position = UDim2.new(0,0,0,65)
+Con.BackgroundTransparency = 1; Con.ClipsDescendants = true
+
+-- ── SHARED BUILDERS ───────────────────────────────────────────
+local function makePanel()
+    local p = Instance.new("Frame",Con)
+    p.Size = UDim2.new(1,0,1,0)
+    p.BackgroundTransparency = 1; p.Visible = false
+    return p
+end
+
+local function makeScrollInner(parent, topPad)
+    topPad = topPad or 4
+    local sf = Instance.new("ScrollingFrame",parent)
+    sf.Size = UDim2.new(1,-8,1,-20); sf.Position = UDim2.new(0,4,0,topPad)
+    sf.BackgroundTransparency = 1; sf.BorderSizePixel = 0
+    sf.ScrollBarThickness = 3; sf.ScrollBarImageColor3 = LINE
+    sf.CanvasSize = UDim2.new(0,0,0,0)
+    sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    sf.ScrollingDirection = Enum.ScrollingDirection.Y
+
+    local inner = Instance.new("Frame",sf)
+    inner.Size = UDim2.new(1,0,0,0)
+    inner.BackgroundTransparency = 1
+    inner.AutomaticSize = Enum.AutomaticSize.Y
+
+    local pad = Instance.new("UIPadding",inner)
+    pad.PaddingLeft  = UDim.new(0,2); pad.PaddingRight = UDim.new(0,4)
+    pad.PaddingTop   = UDim.new(0,4); pad.PaddingBottom = UDim.new(0,6)
+
+    local ll = Instance.new("UIListLayout",inner)
+    ll.FillDirection = Enum.FillDirection.Vertical
+    ll.SortOrder     = Enum.SortOrder.LayoutOrder
+    ll.Padding       = UDim.new(0,4)
+
+    return sf, inner
+end
+
+local function makeStatusBar(parent)
+    local l = Instance.new("TextLabel",parent)
+    l.Text = ""; l.Font = Enum.Font.Gotham; l.TextSize = 10
+    l.TextColor3 = DIM; l.BackgroundTransparency = 1
+    l.Size = UDim2.new(1,-10,0,16)
+    l.Position = UDim2.new(0,5,1,-18); l.ZIndex = 6
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.TextTruncate   = Enum.TextTruncate.AtEnd
+    return l
+end
+
+local function makeSectionLabel(txt,col,parent,ord)
+    local l = Instance.new("TextLabel",parent)
+    l.Text = txt; l.Font = Enum.Font.GothamBold; l.TextSize = 9
+    l.TextColor3 = col; l.BackgroundTransparency = 1
+    l.Size = UDim2.new(1,0,0,12); l.LayoutOrder = ord
+    l.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+local function makeItemBtn(label,col,parent,ord)
+    local b = Instance.new("TextButton",parent)
+    b.Text = label; b.Font = Enum.Font.GothamSemibold; b.TextSize = 11
+    b.TextColor3 = WHITE; b.BackgroundColor3 = col; b.BorderSizePixel = 0
+    b.Size = UDim2.new(1,0,0,26); b.LayoutOrder = ord; b.AutoButtonColor = false
+    Instance.new("UICorner",b).CornerRadius = UDim.new(0,6)
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col:lerp(Color3.new(1,1,1),0.14)}):Play() end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col}):Play() end)
+    return b
+end
+
+local function makeBigBtn(label,col,parent,ord)
+    local b = Instance.new("TextButton",parent)
+    b.Text = label; b.Font = Enum.Font.GothamBold; b.TextSize = 11
+    b.TextColor3 = WHITE; b.BackgroundColor3 = col; b.BorderSizePixel = 0
+    b.Size = UDim2.new(1,0,0,30); b.LayoutOrder = ord; b.AutoButtonColor = false
+    Instance.new("UICorner",b).CornerRadius = UDim.new(0,6)
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col:lerp(Color3.new(1,1,1),0.12)}):Play() end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col}):Play() end)
+    return b
+end
+
+local function flash(btn,col)
+    TweenService:Create(btn,TweenInfo.new(0.1),{BackgroundColor3=Color3.fromRGB(48,188,78)}):Play()
+    task.delay(0.7,function()
+        TweenService:Create(btn,TweenInfo.new(0.3),{BackgroundColor3=col}):Play()
+    end)
+end
+
+local function setStatus(lbl,msg,good)
+    lbl.Text = msg
+    lbl.TextColor3 = good and Color3.fromRGB(90,210,90) or Color3.fromRGB(210,80,80)
+end
+
+-- ════════════════════════════════════════════════════════════
+--  PANEL 1 — SEEDS
+-- ════════════════════════════════════════════════════════════
+local P1 = makePanel()
+local SeedSF, SeedInner = makeScrollInner(P1, 22)
+local SeedStatus = makeStatusBar(P1)
+
+-- Legend row
+local legRow = Instance.new("Frame",P1)
+legRow.Size = UDim2.new(1,-10,0,16); legRow.Position = UDim2.new(0,5,0,3)
+legRow.BackgroundTransparency = 1
+local legLL = Instance.new("UIListLayout",legRow)
+legLL.FillDirection = Enum.FillDirection.Horizontal
+legLL.SortOrder = Enum.SortOrder.LayoutOrder
+legLL.Padding = UDim.new(0,0)
+for i,d in ipairs({{C_COM,"● Common"},{C_RAR,"● Rare"},{C_EXO,"● Exotic"}}) do
+    local l = Instance.new("TextLabel",legRow)
+    l.Text = d[2]; l.Font = Enum.Font.Gotham; l.TextSize = 9
+    l.TextColor3 = d[1]; l.BackgroundTransparency = 1
+    l.Size = UDim2.new(1/3,0,1,0); l.LayoutOrder = i
+    l.TextXAlignment = Enum.TextXAlignment.Center
+end
+
+local TIER_COLS  = {C_COM, C_RAR, C_EXO}
+local TIER_NAMES = {"Common Seeds", "Rare Seeds", "Exotic"}
+local lastSeedTier = 0
+
+local function giveSeed(iname, tier)
+    local RS = safeGet("ReplicatedStorage")
+    if not RS then return false, "No ReplicatedStorage" end
+    local locs
+    if tier == 3 then
+        locs = {RS:FindFirstChild("SpecialFruits"), RS}
+    else
+        locs = {RS:FindFirstChild("Seeds"), RS:FindFirstChild("Crops"), RS}
+    end
+    for _,loc in ipairs(locs) do
+        if loc then
+            local item = loc:FindFirstChild(iname)
+            if item then
+                local ok,err = pcall(cloneToPlayer, item)
+                return ok, ok and ("Gave: "..iname.." ✓") or tostring(err)
+            end
+        end
+    end
+    return false, iname.." not found in game"
+end
+
+for idx,info in ipairs(SEEDS) do
+    local dname, iname, tier = info[1], info[2], info[3]
+    local col = TIER_COLS[tier]
+    if tier ~= lastSeedTier then
+        lastSeedTier = tier
+        makeSectionLabel(TIER_NAMES[tier], col, SeedInner, idx*10-1)
+    end
+    local btn = makeItemBtn(dname, col, SeedInner, idx*10)
+    local cn,ct,cb,cd = iname,tier,btn,dname
+    btn.MouseButton1Click:Connect(function()
+        cb.Text = "Giving…"
+        local ok,msg = giveSeed(cn,ct)
+        setStatus(SeedStatus, msg, ok)
+        cb.Text = cd
+        if ok then flash(cb,TIER_COLS[ct]) end
+    end)
+end
+
+-- ════════════════════════════════════════════════════════════
+--  PANEL 2 — TOOLS
+-- ════════════════════════════════════════════════════════════
+local P2 = makePanel()
+local ToolSF, ToolInner = makeScrollInner(P2)
+local ToolStatus = makeStatusBar(P2)
+
+local function giveTool(iname)
+    local RS = safeGet("ReplicatedStorage")
+    if not RS then return false, "No ReplicatedStorage" end
+    local item = RS:FindFirstChild(iname)
+    if not item then return false, iname.." not found in RS" end
+    local ok,err = pcall(function()
+        local clone = item:Clone(); clone.Parent = LP.Backpack
+    end)
+    return ok, ok and ("Got: "..iname.." ✓") or tostring(err)
+end
+
+local seenCat = {}
+for tidx,tinfo in ipairs(TOOLS) do
+    local tdname,tiname,tcol,tcat = tinfo[1],tinfo[2],tinfo[3],tinfo[4]
+    if not seenCat[tcat] then
+        seenCat[tcat] = true
+        makeSectionLabel(tcat, tcol, ToolInner, tidx*10-1)
+    end
+    local tb = makeItemBtn(tdname, tcol, ToolInner, tidx*10)
+    local cn,cc,cb,cd = tiname,tcol,tb,tdname
+    tb.MouseButton1Click:Connect(function()
+        cb.Text = "Giving…"
+        local ok,msg = giveTool(cn)
+        setStatus(ToolStatus, msg, ok)
+        cb.Text = cd
+        if ok then flash(cb,cc) end
+    end)
+end
+
+-- ════════════════════════════════════════════════════════════
+--  PANEL 3 — REMOTES
+-- ════════════════════════════════════════════════════════════
+local P3 = makePanel()
+local RemSF, RemInner = makeScrollInner(P3)
+local RemStatus = makeStatusBar(P3)
+
+local function setRem(msg,ok) setStatus(RemStatus,msg,ok) end
+
+-- Plant Actions
+makeSectionLabel("Plant Actions", C_R1, RemInner, 10)
+
+local HarvestBtn = makeBigBtn("Harvest All My Plants", C_R1, RemInner, 11)
+HarvestBtn.MouseButton1Click:Connect(function()
+    local remote = getRemote("HarvestPlant")
+    local WS = safeGet("Workspace")
+    if not remote then setRem("HarvestPlant remote not found",false); return end
+    local count = 0
+    local np = WS and WS:FindFirstChild("NewPlants")
+    if np then
+        for _,plant in ipairs(np:GetChildren()) do
+            pcall(function() remote:FireServer(plant); count=count+1 end)
+        end
+    end
+    setRem(count>0 and "Harvested "..count.." plants ✓" or "No plants in NewPlants", count>0)
+    if count>0 then flash(HarvestBtn,C_R1) end
+end)
+
+local RemovePlantsBtn = makeBigBtn("Remove All My Plants", C_R3, RemInner, 12)
+RemovePlantsBtn.MouseButton1Click:Connect(function()
+    local remote = getRemote("RemovePlant")
+    local WS = safeGet("Workspace")
+    if not remote then setRem("RemovePlant remote not found",false); return end
+    local count = 0
+    local np = WS and WS:FindFirstChild("NewPlants")
+    if np then
+        for _,plant in ipairs(np:GetChildren()) do
+            pcall(function() remote:FireServer(plant); count=count+1 end)
+        end
+    end
+    setRem(count>0 and "Removed "..count.." plants" or "No plants found", count>0)
+end)
+
+-- Rewards
+makeSectionLabel("Rewards", C_R2, RemInner, 20)
+
+local DailyBtn = makeBigBtn("Claim Daily Reward", C_R2, RemInner, 21)
+DailyBtn.MouseButton1Click:Connect(function()
+    local rf = getRemote("ClaimDailyReward")
+    if not rf then setRem("ClaimDailyReward not found",false); return end
+    local ok,res = pcall(function() return rf:InvokeServer() end)
+    setRem(ok and "Daily reward claimed ✓" or tostring(res), ok)
+    if ok then flash(DailyBtn,C_R2) end
+end)
+
+local PlaytimeBtn = makeBigBtn("Claim Playtime Reward", C_R2, RemInner, 22)
+PlaytimeBtn.MouseButton1Click:Connect(function()
+    local rf = getRemote("ClaimPlaytimeReward")
+    if not rf then setRem("ClaimPlaytimeReward not found",false); return end
+    local ok,res = pcall(function() return rf:InvokeServer() end)
+    setRem(ok and "Playtime reward claimed ✓" or tostring(res), ok)
+    if ok then flash(PlaytimeBtn,C_R2) end
+end)
+
+-- Drops & Honeycombs
+makeSectionLabel("Drops & Honeycombs", C_R1, RemInner, 30)
+
+local SkyDropBtn = makeBigBtn("Claim All Sky Drops", C_R1, RemInner, 31)
+SkyDropBtn.MouseButton1Click:Connect(function()
+    local remote = getRemote("DropClaim")
+    local WS = safeGet("Workspace")
+    if not remote then setRem("DropClaim remote not found",false); return end
+    local sky = WS and WS:FindFirstChild("SkyDrops")
+    local count = 0
+    if sky then
+        for _,drop in ipairs(sky:GetChildren()) do
+            pcall(function() remote:FireServer(drop); count=count+1 end)
+        end
+    end
+    setRem(count>0 and "Claimed "..count.." sky drops ✓" or "No drops in SkyDrops", count>0)
+    if count>0 then flash(SkyDropBtn,C_R1) end
+end)
+
+local HoneyBtn = makeBigBtn("Claim All Honeycombs", C_R1, RemInner, 32)
+HoneyBtn.MouseButton1Click:Connect(function()
+    local remote = getRemote("HoneycombClaimed")
+    local WS = safeGet("Workspace")
+    if not remote then setRem("HoneycombClaimed not found",false); return end
+    local rt = WS and WS:FindFirstChild("RuntimeHoneycombs")
+    local count = 0
+    if rt then
+        for _,hc in ipairs(rt:GetChildren()) do
+            pcall(function() remote:FireServer(hc); count=count+1 end)
+        end
+    end
+    setRem(count>0 and "Claimed "..count.." honeycombs ✓" or "No honeycombs spawned", count>0)
+    if count>0 then flash(HoneyBtn,C_R1) end
+end)
+
+-- Upgrades
+makeSectionLabel("Upgrades", C_R2, RemInner, 40)
+
+local LuckBtn = makeBigBtn("Upgrade Seed Luck", C_R2, RemInner, 41)
+LuckBtn.MouseButton1Click:Connect(function()
+    local rf = getRemote("UpgradeSeedLuck")
+    if not rf then setRem("UpgradeSeedLuck not found",false); return end
+    local ok,res = pcall(function() return rf:InvokeServer() end)
+    setRem(ok and "Seed Luck upgraded ✓" or tostring(res), ok)
+    if ok then flash(LuckBtn,C_R2) end
+end)
+
+local RollsBtn = makeBigBtn("Upgrade Seed Rolls", C_R2, RemInner, 42)
+RollsBtn.MouseButton1Click:Connect(function()
+    local rf = getRemote("UpgradeSeedRolls")
+    if not rf then setRem("UpgradeSeedRolls not found",false); return end
+    local ok,res = pcall(function() return rf:InvokeServer() end)
+    setRem(ok and "Seed Rolls upgraded ✓" or tostring(res), ok)
+    if ok then flash(RollsBtn,C_R2) end
+end)
+
+-- Open Seed Pack (if one is in backpack)
+local OpenPackBtn = makeBigBtn("Open Seed Pack (from backpack)", C_R2, RemInner, 43)
+OpenPackBtn.MouseButton1Click:Connect(function()
+    local remote = getRemote("OpenSeedPack")
+    if not remote then setRem("OpenSeedPack not found",false); return end
+    local bp = LP:FindFirstChild("Backpack")
+    local pack = bp and (
+        bp:FindFirstChild("Tropical Seed Pack") or
+        bp:FindFirstChild("Corrupted Seed Pack") or
+        bp:FindFirstChild("Carnival Seed Pack")
+    )
+    if not pack then setRem("No seed pack in backpack",false); return end
+    local ok,err = pcall(function() remote:FireServer(pack) end)
+    setRem(ok and "Opened: "..pack.Name.." ✓" or tostring(err), ok)
+    if ok then flash(OpenPackBtn,C_R2) end
+end)
+
+-- ════════════════════════════════════════════════════════════
+--  PANEL 4 — PLAYER
+-- ════════════════════════════════════════════════════════════
+local P4 = makePanel()
+local PlrSF, PlrInner = makeScrollInner(P4)
+local PlrStatus = makeStatusBar(P4)
+
+local function setPlr(msg,ok) setStatus(PlrStatus,msg,ok) end
+local function getHuman()
+    local ch = LP.Character
+    return ch and ch:FindFirstChildWhichIsA("Humanoid")
+end
+
+-- Walk Speed
+makeSectionLabel("Walk Speed", C_P1, PlrInner, 10)
+
+local speedRow = Instance.new("Frame",PlrInner)
+speedRow.Size = UDim2.new(1,0,0,28); speedRow.BackgroundTransparency = 1; speedRow.LayoutOrder = 11
+local spLL = Instance.new("UIListLayout",speedRow)
+spLL.FillDirection = Enum.FillDirection.Horizontal
+spLL.SortOrder = Enum.SortOrder.LayoutOrder
+spLL.Padding = UDim.new(0,4)
+
+for si,sv in ipairs({{" Normal",16},{" Fast",40},{" Turbo",80},{" MAX",150}}) do
+    local sb = Instance.new("TextButton",speedRow)
+    sb.Text = sv[1]; sb.Font = Enum.Font.GothamBold; sb.TextSize = 10
+    sb.TextColor3 = WHITE; sb.BackgroundColor3 = C_P1; sb.BorderSizePixel = 0
+    sb.Size = UDim2.new(0.25,-3,1,0); sb.LayoutOrder = si; sb.AutoButtonColor = false
+    Instance.new("UICorner",sb).CornerRadius = UDim.new(0,6)
+    sb.MouseEnter:Connect(function()
+        TweenService:Create(sb,TweenInfo.new(0.1),{BackgroundColor3=C_P1:lerp(Color3.new(1,1,1),0.15)}):Play() end)
+    sb.MouseLeave:Connect(function()
+        TweenService:Create(sb,TweenInfo.new(0.1),{BackgroundColor3=C_P1}):Play() end)
+    local spd = sv[2]
+    sb.MouseButton1Click:Connect(function()
+        local h = getHuman()
+        if h then h.WalkSpeed=spd; setPlr("WalkSpeed → "..spd,true)
+        else setPlr("No character",false) end
+    end)
+end
+
+-- Jump Power
+makeSectionLabel("Jump Power", C_P2, PlrInner, 20)
+
+local jumpRow = Instance.new("Frame",PlrInner)
+jumpRow.Size = UDim2.new(1,0,0,28); jumpRow.BackgroundTransparency = 1; jumpRow.LayoutOrder = 21
+local jpLL = Instance.new("UIListLayout",jumpRow)
+jpLL.FillDirection = Enum.FillDirection.Horizontal
+jpLL.SortOrder = Enum.SortOrder.LayoutOrder
+jpLL.Padding = UDim.new(0,4)
+
+for ji,jv in ipairs({{" Normal",50},{" High",90},{" Super",140},{" MAX",220}}) do
+    local jb = Instance.new("TextButton",jumpRow)
+    jb.Text = jv[1]; jb.Font = Enum.Font.GothamBold; jb.TextSize = 10
+    jb.TextColor3 = WHITE; jb.BackgroundColor3 = C_P2; jb.BorderSizePixel = 0
+    jb.Size = UDim2.new(0.25,-3,1,0); jb.LayoutOrder = ji; jb.AutoButtonColor = false
+    Instance.new("UICorner",jb).CornerRadius = UDim.new(0,6)
+    jb.MouseEnter:Connect(function()
+        TweenService:Create(jb,TweenInfo.new(0.1),{BackgroundColor3=C_P2:lerp(Color3.new(1,1,1),0.15)}):Play() end)
+    jb.MouseLeave:Connect(function()
+        TweenService:Create(jb,TweenInfo.new(0.1),{BackgroundColor3=C_P2}):Play() end)
+    local jpow = jv[2]
+    jb.MouseButton1Click:Connect(function()
+        local h = getHuman()
+        if h then h.JumpPower=jpow; setPlr("JumpPower → "..jpow,true)
+        else setPlr("No character",false) end
+    end)
+end
+
+-- Fly
+makeSectionLabel("Fly (WASD + Space / Shift)", C_P2, PlrInner, 30)
+
+local flyOn,flyConn,flyBV,flyBG = false,nil,nil,nil
+local FlyBtn = makeBigBtn("Fly: OFF", C_P1, PlrInner, 31)
+
+local function stopFly()
+    flyOn = false; FlyBtn.Text = "Fly: OFF"; FlyBtn.BackgroundColor3 = C_P1
+    if flyConn  then flyConn:Disconnect();  flyConn  = nil end
+    if flyBV    then flyBV:Destroy();       flyBV    = nil end
+    if flyBG    then flyBG:Destroy();       flyBG    = nil end
+    local h = getHuman(); if h then h.PlatformStand = false end
+end
+
+FlyBtn.MouseButton1Click:Connect(function()
+    flyOn = not flyOn
+    if not flyOn then stopFly(); setPlr("Fly OFF",false); return end
+
+    local char = LP.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then flyOn=false; return end
+
+    FlyBtn.Text = "Fly: ON"; FlyBtn.BackgroundColor3 = C_P2
+
+    flyBV = Instance.new("BodyVelocity",root)
+    flyBV.MaxForce = Vector3.new(1e6,1e6,1e6); flyBV.Velocity = Vector3.zero
+
+    flyBG = Instance.new("BodyGyro",root)
+    flyBG.MaxTorque = Vector3.new(1e6,1e6,1e6); flyBG.P = 1e4
+
+    local FLY_SPEED = 42
+
+    flyConn = RunService.RenderStepped:Connect(function()
+        local r2 = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if not r2 or not flyBV or not flyBV.Parent then stopFly(); return end
+        local cam = workspace.CurrentCamera
+        local vel = Vector3.zero
+        if UIS:IsKeyDown(Enum.KeyCode.W) then vel = vel + cam.CFrame.LookVector  * FLY_SPEED end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then vel = vel - cam.CFrame.LookVector  * FLY_SPEED end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then vel = vel - cam.CFrame.RightVector * FLY_SPEED end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then vel = vel + cam.CFrame.RightVector * FLY_SPEED end
+        if UIS:IsKeyDown(Enum.KeyCode.Space)     then vel = vel + Vector3.new(0,FLY_SPEED,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then vel = vel - Vector3.new(0,FLY_SPEED,0) end
+        flyBV.Velocity  = vel
+        flyBG.CFrame    = cam.CFrame
+        local h2 = LP.Character:FindFirstChildWhichIsA("Humanoid")
+        if h2 then h2.PlatformStand = (vel.Magnitude > 0.5) end
+    end)
+
+    setPlr("Fly ON — WASD + Space/Shift",true)
+end)
+
+-- Noclip
+makeSectionLabel("Noclip", C_P1, PlrInner, 40)
+local noclipOn = false
+local noclipConn
+local NoclipBtn = makeBigBtn("Noclip: OFF", C_P1, PlrInner, 41)
+
+NoclipBtn.MouseButton1Click:Connect(function()
+    noclipOn = not noclipOn
+    if noclipOn then
+        NoclipBtn.Text = "Noclip: ON"; NoclipBtn.BackgroundColor3 = C_P2
+        noclipConn = RunService.Stepped:Connect(function()
+            local char = LP.Character
+            if not char then return end
+            for _,p in ipairs(char:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
+        end)
+        setPlr("Noclip ON — walk through walls",true)
+    else
+        NoclipBtn.Text = "Noclip: OFF"; NoclipBtn.BackgroundColor3 = C_P1
+        if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
+        setPlr("Noclip OFF",false)
+    end
+end)
+
+-- Anti-Cheat Bypass
+makeSectionLabel("Anti-Cheat Bypass", C_P3, PlrInner, 50)
+
+local AC_PAT = {
+    "anticheat","anti_cheat","anti-cheat","kicksystem","banhandler",
+    "exploitdetect","detection","sanitycheck","speedcheck","flycheck",
+    "noclipcheck","fairplay","safeguard","guardian","remotechecker",
+    "cheatdetect","hackdetect","securitycheck","antiexploit","exploitban"
+}
+local acOn,acKilled = false,0
+local AcBtn = makeBigBtn("Anti-Cheat Bypass: OFF", C_P3, PlrInner, 51)
+
+local function nameIsAC(nm)
+    local lo = nm:lower()
+    for _,p in ipairs(AC_PAT) do if lo:find(p,1,true) then return true end end
+    return false
+end
+local function deepAC(root,found,d)
+    if d>8 then return end
+    local ok,kids = pcall(function() return root:GetChildren() end)
+    if not ok then return end
+    for _,c in ipairs(kids) do
+        local a,nm = pcall(function() return c.Name end)
+        local b,cn = pcall(function() return c.ClassName end)
+        if a and b then
+            if nameIsAC(nm) then table.insert(found,c) end
+            if cn=="Folder" or cn=="Model" or cn=="Configuration" then deepAC(c,found,d+1) end
+        end
+    end
+end
+local function runAC()
+    local found = {}
+    for _,n in ipairs({"Workspace","ReplicatedStorage","StarterGui","ReplicatedFirst","StarterPack","StarterPlayer"}) do
+        local s = safeGet(n); if s then deepAC(s,found,0) end
+    end
+    local k = 0
+    for _,inst in ipairs(found) do
+        pcall(function()
+            if inst:IsA("BaseScript") then inst.Disabled=true end
+            inst:Destroy(); k=k+1; acKilled=acKilled+1
+        end)
+    end
+    if k>0 then setPlr("AC: removed "..k.." this pass ("..acKilled.." total)",true) end
+end
+local function setAC(on)
+    acOn = on
+    if on then
+        AcBtn.Text = "Anti-Cheat Bypass: ON"; AcBtn.BackgroundColor3 = C_P2
+        setPlr("AC Bypass ON — scanning every 2s",true)
+        task.spawn(runAC)
+        task.spawn(function() while acOn do task.wait(2); if acOn then runAC() end end end)
+    else
+        AcBtn.Text = "Anti-Cheat Bypass: OFF"; AcBtn.BackgroundColor3 = C_P3
+        setPlr("AC Bypass OFF — "..acKilled.." removed total",false)
+    end
+end
+AcBtn.MouseButton1Click:Connect(function() setAC(not acOn) end)
+
+-- Cleanup on GUI destroy
+Gui.AncestryChanged:Connect(function()
+    if not Gui.Parent then
+        acOn = false
+        stopFly()
+        if noclipConn then noclipConn:Disconnect() end
+    end
+end)
+
+-- ── TAB SWITCHING ─────────────────────────────────────────────
+local ALL_TABS = {Tab1, Tab2, Tab3, Tab4}
+local ALL_PANS = {P1,   P2,   P3,   P4}
+local TAB_COLS = {C_COM, C_SPR, C_R1, C_P1}
+local curTab   = 0
+
+local function switchTab(idx)
+    if curTab==idx then return end; curTab=idx
+    for i=1,4 do
+        ALL_PANS[i].Visible          = (i==idx)
+        ALL_TABS[i].TextColor3       = (i==idx) and TEXT or DIM
+        ALL_TABS[i].BackgroundColor3 = (i==idx) and BTN  or PANEL
+        ALL_TABS[i].Font             = (i==idx) and Enum.Font.GothamBold or Enum.Font.GothamSemibold
+    end
+    TweenService:Create(Ind, TweenInfo.new(0.15), {
+        Position         = UDim2.new(TW*(idx-1),0,1,-2),
+        BackgroundColor3 = TAB_COLS[idx],
+    }):Play()
+end
+
+Tab1.MouseButton1Click:Connect(function() switchTab(1) end)
+Tab2.MouseButton1Click:Connect(function() switchTab(2) end)
+Tab3.MouseButton1Click:Connect(function() switchTab(3) end)
+Tab4.MouseButton1Click:Connect(function() switchTab(4) end)
+switchTab(1)
+
+-- ── OPEN ANIMATION ────────────────────────────────────────────
+Main.BackgroundTransparency = 1
+Main.Position = UDim2.new(0.5,-W/2,0.5,-H/2+16)
+TweenService:Create(Main, TweenInfo.new(0.22,Enum.EasingStyle.Quint), {
+    BackgroundTransparency = 0,
+    Position = UDim2.new(0.5,-W/2,0.5,-H/2),
+}):Play()
+
+print("[GAG Exploit] Seeds | Tools | Remotes | Player — ready")
