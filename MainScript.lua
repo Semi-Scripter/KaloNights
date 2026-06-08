@@ -884,4 +884,3 @@ task.delay(0.06,function()
 end)
 
 print("[ExploitMenu v3] Loaded.")
-p
