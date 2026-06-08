@@ -49,7 +49,35 @@ local ITEM_CLASSES = {
     BackpackItem=true, Gear=true,
 }
 local ITEM_SOURCES = {
-    "Workspace","ReplicatedStorage","StarterPack","ServerStorage",
+    "Workspace","ReplicatedStorage","StarterPack",
+    "StarterPlayerScripts","ReplicatedFirst",
+}
+
+-- Name keywords — matches ANY class that contains these words
+-- Covers fruits, crops, produce, resources, weapons, consumables
+local ITEM_KEYWORDS = {
+    -- Fruits
+    "apple","orange","banana","grape","strawberry","watermelon","cherry",
+    "mango","pineapple","peach","blueberry","raspberry","lemon","lime",
+    "coconut","dragonfruit","papaya","melon","kiwi","pear","plum",
+    "pomegranate","jackfruit","durian","starfruit","lychee","guava",
+    "passionfruit","fig","date","apricot","avocado","tomato","pepper",
+    -- Crops / Vegetables / Farming
+    "carrot","potato","corn","wheat","rice","cabbage","onion","garlic",
+    "broccoli","spinach","pumpkin","cucumber","zucchini","eggplant",
+    "lettuce","celery","pea","bean","beet","radish","turnip","leek",
+    "crop","harvest","produce","plant","sapling","sprout","bulb",
+    "seed","berry","mushroom","flower","herb","cactus","sugarcane",
+    -- Resources / goods
+    "fruit","gem","ore","wood","stone","fish","egg","milk","honey",
+    "coal","iron","gold","diamond","emerald","ruby","sapphire",
+    "crystal","shard","material","resource","ingredient","food",
+    "item","goods","loot","drop","reward","prize","chest","crate",
+    -- Game-specific generics
+    "fertilizer","spray","treat","pack","potion","elixir","scroll",
+    "sword","gun","knife","bow","shield","armor","helmet","boots",
+    "wand","staff","axe","hammer","pickaxe","shovel","scythe",
+    "currency","coin","token","ticket","key","badge","trophy",
 }
 
 local AC_PATTERNS = {
@@ -347,25 +375,30 @@ local NodeCount = new("TextLabel",{
 ----------------------------------------------------------------
 local PItems = mkPanel(false)
 
-sectionLabel("Item Scanner  (Tools · Accessories · Gear)",PItems,1)
+sectionLabel("Item Scanner  (Tools · Produce · Accessories · More)",PItems,1)
 
-local _,ScrollItems,OutItems = mkOutput(PItems,200,2)
-OutItems.Text = "Press [Item Clip] to find all items in the game."
+local _,ScrollItems,OutItems = mkOutput(PItems,188,2)
+OutItems.Text = "Press [Item Clip] to find all items, fruits, crops and tools."
 
 local RowItems  = mkBtnRow(PItems,3)
 local BtnIClip  = mkBtn("Item Clip", C.ITEM,  RowItems, UDim2.new(0.44,0,1,0), 1)
 local BtnICopy  = mkBtn("Copy",      C.COPY,  RowItems, UDim2.new(0.28,-3,1,0),2)
 local BtnIReset = mkBtn("Reset",     C.RESET, RowItems, UDim2.new(0.28,-3,1,0),3)
 
--- Item summary badges
-local BadgeRow = new("Frame",{
-    Size=UDim2.new(1,0,0,26), BackgroundTransparency=1, LayoutOrder=4,
+-- Item summary badges (2 rows of 2)
+local BadgeRow1 = new("Frame",{
+    Size=UDim2.new(1,0,0,22), BackgroundTransparency=1, LayoutOrder=4,
 },PItems)
-listLayout(BadgeRow,Enum.FillDirection.Horizontal,5)
+listLayout(BadgeRow1,Enum.FillDirection.Horizontal,4)
+
+local BadgeRow2 = new("Frame",{
+    Size=UDim2.new(1,0,0,22), BackgroundTransparency=1, LayoutOrder=5,
+},PItems)
+listLayout(BadgeRow2,Enum.FillDirection.Horizontal,4)
 
 local function mkBadge(label,parent)
     local f = new("Frame",{
-        Size=UDim2.new(0,90,1,0), BackgroundColor3=C.BADGE,
+        Size=UDim2.new(0.5,-2,1,0), BackgroundColor3=C.BADGE,
         BorderSizePixel=0,
     },parent)
     corner(f,5)
@@ -378,9 +411,10 @@ local function mkBadge(label,parent)
     return f,t
 end
 
-local _,BadgeTools = mkBadge("Tools: 0",BadgeRow)
-local _,BadgeAcc   = mkBadge("Accessories: 0",BadgeRow)
-local _,BadgeOther = mkBadge("Other: 0",BadgeRow)
+local _,BadgeTools   = mkBadge("Tools: 0",    BadgeRow1)
+local _,BadgeProduce = mkBadge("Produce: 0",  BadgeRow1)
+local _,BadgeAcc     = mkBadge("Accessories: 0", BadgeRow2)
+local _,BadgeOther   = mkBadge("Other: 0",    BadgeRow2)
 
 ----------------------------------------------------------------
 -- PANEL 3 — ANTI-CHEAT
@@ -529,107 +563,166 @@ end)
 ----------------------------------------------------------------
 local lastItemOutput = ""
 
--- Class whitelist for items
-local function isItem(inst)
-    local ok,cn = pcall(function() return inst.ClassName end)
-    return ok and ITEM_CLASSES[cn]
+-- Returns true if instance matches by Roblox class
+local function matchByClass(cn)
+    return ITEM_CLASSES[cn] == true
 end
 
-local function scanItems(root, items, depth)
-    if depth > 6 then return end
-    local ok,kids = pcall(function() return root:GetChildren() end)
+-- Returns true if the name contains any item keyword
+local function matchByKeyword(nm)
+    local low = nm:lower()
+    for _,kw in ipairs(ITEM_KEYWORDS) do
+        if low:find(kw, 1, true) then return true end
+    end
+    return false
+end
+
+-- Categorise a found entry
+local function categorise(cn, nm)
+    local low = nm:lower()
+    if cn=="Tool" or cn=="HopperBin" or cn=="Gear" then
+        return "tool"
+    elseif cn=="Accessory" or cn=="Hat" or cn=="Shirt" or cn=="Pants" or cn=="ShirtGraphic" then
+        return "acc"
+    elseif low:find("fruit",1,true) or low:find("crop",1,true) or low:find("seed",1,true)
+        or low:find("berry",1,true) or low:find("harvest",1,true) or low:find("produce",1,true)
+        or low:find("vegeta",1,true) or low:find("plant",1,true) or low:find("mushroom",1,true)
+        or low:find("flower",1,true) or low:find("egg",1,true) or low:find("fish",1,true)
+        or low:find("apple",1,true) or low:find("orange",1,true) or low:find("banana",1,true)
+        or low:find("grape",1,true) or low:find("mango",1,true) or low:find("melon",1,true)
+        or low:find("carrot",1,true) or low:find("potato",1,true) or low:find("corn",1,true)
+        or low:find("tomato",1,true) or low:find("pumpkin",1,true) or low:find("wheat",1,true)
+        or low:find("sprout",1,true) or low:find("sapling",1,true) or low:find("cactus",1,true)
+        or low:find("cherry",1,true) or low:find("lemon",1,true) or low:find("lime",1,true)
+        or low:find("peach",1,true) or low:find("pear",1,true) or low:find("kiwi",1,true) then
+        return "produce"
+    else
+        return "other"
+    end
+end
+
+-- Deep dual scanner: class match OR name keyword match
+local function scanItems(root, results, seen, depth)
+    if depth > 12 then return end
+    local ok, kids = pcall(function() return root:GetChildren() end)
     if not ok then return end
-    for _,child in ipairs(kids) do
-        if isItem(child) then
-            table.insert(items,child)
+    for _, child in ipairs(kids) do
+        local okC,cn = pcall(function() return child.ClassName end)
+        local okN,nm = pcall(function() return child.Name      end)
+        if okC and okN then
+            local ptr = tostring(child)
+            if not seen[ptr] then
+                local byClass   = matchByClass(cn)
+                local byKeyword = matchByKeyword(nm)
+                if byClass or byKeyword then
+                    seen[ptr] = true
+                    table.insert(results, {
+                        inst=child, cn=cn, nm=nm,
+                        cat=categorise(cn,nm),
+                        how=(byClass and byKeyword) and "class+name"
+                            or byClass and "class" or "keyword",
+                    })
+                end
+            end
+            -- Always recurse into containers
+            if cn=="Folder" or cn=="Model" or cn=="Tool"
+            or cn=="Configuration" or cn=="Frame" then
+                scanItems(child, results, seen, depth+1)
+            elseif not (cn:find("Part") or cn:find("Mesh") or cn:find("Decal")
+                     or cn:find("Sound") or cn:find("Weld") or cn:find("Motor")) then
+                scanItems(child, results, seen, depth+1)
+            end
         end
-        scanItems(child, items, depth+1)
     end
 end
 
 BtnIClip.MouseButton1Click:Connect(function()
-    OutItems.Text = "Scanning for items..."
-    BadgeTools.Text="Tools: ?"
-    BadgeAcc.Text="Accessories: ?"
-    BadgeOther.Text="Other: ?"
+    OutItems.Text = "Deep scanning for items, fruits, crops..."
+    BadgeTools.Text   = "Tools: ?"
+    BadgeProduce.Text = "Produce: ?"
+    BadgeAcc.Text     = "Acc: ?"
+    BadgeOther.Text   = "Other: ?"
     task.wait(0.05)
 
-    local ok,err = pcall(function()
-        local found   = {}
+    local ok, err = pcall(function()
+        local results = {}
+        local seen    = {}
         local lines   = {}
-        local tCount,aCount,oCount = 0,0,0
+        local tC,pC,aC,oC = 0,0,0,0
 
-        -- Check Backpack & equipped character items
+        -- 1. LocalPlayer Backpack
         local bp = LocalPlayer:FindFirstChild("Backpack")
         if bp then
-            table.insert(lines,">> LocalPlayer.Backpack")
-            for _,v in ipairs(bp:GetChildren()) do
-                if isItem(v) then
-                    table.insert(found,v)
-                    table.insert(lines,"  ["..v.ClassName.."]  "..v.Name)
+            local before = #results
+            scanItems(bp, results, seen, 0)
+            local added = {}
+            for i=before+1,#results do table.insert(added,results[i]) end
+            if #added > 0 then
+                table.insert(lines,">> LocalPlayer.Backpack")
+                for _,e in ipairs(added) do
+                    table.insert(lines,"  ["..e.cn.."]  "..e.nm.."  ("..e.how..")")
                 end
+                table.insert(lines,"")
             end
-            table.insert(lines,"")
         end
 
+        -- 2. Equipped character
         local char = LocalPlayer.Character
         if char then
-            table.insert(lines,">> Character (Equipped)")
-            for _,v in ipairs(char:GetChildren()) do
-                if isItem(v) then
-                    table.insert(found,v)
-                    table.insert(lines,"  ["..v.ClassName.."]  "..v.Name)
+            local before = #results
+            scanItems(char, results, seen, 0)
+            local added = {}
+            for i=before+1,#results do table.insert(added,results[i]) end
+            if #added > 0 then
+                table.insert(lines,">> Character (Equipped)")
+                for _,e in ipairs(added) do
+                    table.insert(lines,"  ["..e.cn.."]  "..e.nm.."  ("..e.how..")")
                 end
+                table.insert(lines,"")
             end
-            table.insert(lines,"")
         end
 
-        -- Scan other services
+        -- 3. Game services
         for _,svcName in ipairs(ITEM_SOURCES) do
             local svc = safeGet(svcName)
             if svc then
-                local before = #found
-                scanItems(svc, found, 0)
+                local before = #results
+                scanItems(svc, results, seen, 0)
                 local added = {}
-                for i=before+1,#found do
-                    table.insert(added,found[i])
-                end
+                for i=before+1,#results do table.insert(added,results[i]) end
                 if #added > 0 then
                     table.insert(lines,">> "..svcName)
-                    for _,v in ipairs(added) do
-                        table.insert(lines,"  ["..v.ClassName.."]  "..v.Name)
+                    for _,e in ipairs(added) do
+                        table.insert(lines,"  ["..e.cn.."]  "..e.nm.."  ("..e.how..")")
                     end
                     table.insert(lines,"")
                 end
             end
         end
 
-        -- Count categories
-        for _,v in ipairs(found) do
-            local cn = v.ClassName
-            if cn=="Tool" or cn=="HopperBin" or cn=="Gear" then
-                tCount=tCount+1
-            elseif cn=="Accessory" or cn=="Hat" then
-                aCount=aCount+1
-            else
-                oCount=oCount+1
-            end
+        -- 4. Count categories
+        for _,e in ipairs(results) do
+            if     e.cat=="tool"    then tC=tC+1
+            elseif e.cat=="produce" then pC=pC+1
+            elseif e.cat=="acc"     then aC=aC+1
+            else                         oC=oC+1 end
         end
 
-        if #found==0 then
-            table.insert(lines,"No items found in scanned locations.")
+        if #results == 0 then
+            table.insert(lines,"No items found.")
         else
-            table.insert(lines,string.format(
-                "-- Total: %d items  (Tools:%d  Acc:%d  Other:%d)",
-                #found, tCount, aCount, oCount
+            table.insert(lines, string.format(
+                "-- Total: %d  (Tools:%d  Produce:%d  Acc:%d  Other:%d)",
+                #results, tC, pC, aC, oC
             ))
         end
 
-        lastItemOutput = table.concat(lines,"\n")
-        OutItems.Text  = lastItemOutput
-        BadgeTools.Text  = "Tools: "..tCount
-        BadgeAcc.Text    = "Acc: "..aCount
-        BadgeOther.Text  = "Other: "..oCount
+        lastItemOutput    = table.concat(lines,"\n")
+        OutItems.Text     = lastItemOutput
+        BadgeTools.Text   = "Tools: "..tC
+        BadgeProduce.Text = "Produce: "..pC
+        BadgeAcc.Text     = "Acc: "..aC
+        BadgeOther.Text   = "Other: "..oC
     end)
 
     if not ok then OutItems.Text = "Item scan error:\n"..tostring(err) end
@@ -647,9 +740,10 @@ end)
 
 BtnIReset.MouseButton1Click:Connect(function()
     lastItemOutput=""
-    OutItems.Text="Press [Item Clip] to find all items in the game."
+    OutItems.Text="Press [Item Clip] to find all items, fruits, crops and tools."
     BadgeTools.Text="Tools: 0"
-    BadgeAcc.Text="Accessories: 0"
+    BadgeProduce.Text="Produce: 0"
+    BadgeAcc.Text="Acc: 0"
     BadgeOther.Text="Other: 0"
     ScrollItems.CanvasPosition=Vector2.zero
 end)
@@ -790,3 +884,4 @@ task.delay(0.06,function()
 end)
 
 print("[ExploitMenu v3] Loaded.")
+p
