@@ -1,483 +1,361 @@
--- // GOD MODE SCRIPT — Loadstring Compatible
--- // Executor-grade: hookmetamethod + namecall intercept + 10-layer protection
--- // Run via loadstring() or paste into a LocalScript
+
+================================================================
+  ROBLOX TURRET + DISABLE ZOMBIE DAMAGE SCRIPTS
+  Two scripts total — place exactly as shown below.
+================================================================
+
+----------------------------------------------------------------
+  SCRIPT 1 OF 2
+  Type   : Script (server)
+  Location: ServerScriptService
+  Name   : TurretServer
+----------------------------------------------------------------
 
 local Players           = game:GetService("Players")
 local RunService        = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- ── Remote setup ─────────────────────────────────────────────
+local folder = ReplicatedStorage:FindFirstChild("_TurretSystem")
+if not folder then
+    folder        = Instance.new("Folder")
+    folder.Name   = "_TurretSystem"
+    folder.Parent = ReplicatedStorage
+end
+
+local function getOrCreate(class, name, parent)
+    return parent:FindFirstChild(name) or (function()
+        local r       = Instance.new(class)
+        r.Name        = name
+        r.Parent      = parent
+        return r
+    end)()
+end
+
+local ToggleEvent  = getOrCreate("RemoteEvent",    "TurretToggle",   folder)
+local DisableEvent = getOrCreate("RemoteEvent",    "DisableAttack",  folder)
+
+-- ── Config ───────────────────────────────────────────────────
+local PART_COUNT   = 10
+local ORBIT_RADIUS = 3
+local ORBIT_HEIGHT = 5
+local SCAN_RANGE   = 60
+local FIRE_RATE    = 0.4
+local DAMAGE_MIN   = 20
+local DAMAGE_MAX   = 30
+
+-- Scripts to destroy when the player clicks "Disable Zombie Damage"
+-- Add or remove names to match your game exactly
+local DAMAGE_SCRIPT_NAMES = {
+    "AttackScript",
+    "MobAI",
+    "WalkAnimator",
+    "RagdollHandler",
+    "HealthbarScript",
+}
+
+local activeTurrets = {}
+
+-- ── Find nearest enemy ────────────────────────────────────────
+local function findNearestEnemy(rootPos, playerChar)
+    local nearest, nearestDist = nil, SCAN_RANGE
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Humanoid") and obj.Health > 0 then
+            local char = obj.Parent
+            if char ~= playerChar then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                    or char:FindFirstChild("Torso")
+                    or char:FindFirstChildOfClass("BasePart")
+                if root then
+                    local dist = (root.Position - rootPos).Magnitude
+                    if dist < nearestDist then
+                        nearest     = obj
+                        nearestDist = dist
+                    end
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+-- ── Fire one bullet ──────────────────────────────────────────
+local function fireProjectile(fromPart, targetHum)
+    local targetChar = targetHum.Parent
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        or targetChar:FindFirstChild("Torso")
+        or targetChar:FindFirstChildOfClass("BasePart")
+    if not targetRoot then return end
+
+    local bullet          = Instance.new("Part")
+    bullet.Size           = Vector3.new(0.2, 0.2, 0.2)
+    bullet.Shape          = Enum.PartType.Ball
+    bullet.BrickColor     = BrickColor.new("Bright yellow")
+    bullet.Material       = Enum.Material.Neon
+    bullet.CastShadow     = false
+    bullet.CanCollide     = false
+    bullet.Anchored       = true
+    bullet.Position       = fromPart.Position
+    bullet.Parent         = workspace
+
+    local startPos   = fromPart.Position
+    local endPos     = targetRoot.Position
+    local travelTime = (endPos - startPos).Magnitude / 120
+    local steps      = math.max(1, math.floor(travelTime / 0.01))
+
+    task.spawn(function()
+        for i = 1, steps do
+            if not bullet.Parent then break end
+            bullet.Position = startPos:Lerp(endPos, i / steps)
+            task.wait(0.01)
+        end
+        bullet:Destroy()
+        if targetHum and targetHum.Parent and targetHum.Health > 0 then
+            targetHum:TakeDamage(math.random(DAMAGE_MIN, DAMAGE_MAX))
+        end
+    end)
+end
+
+-- ── Activate turret ──────────────────────────────────────────
+local function activateTurret(player)
+    if activeTurrets[player] then return end
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local parts, connections = {}, {}
+
+    for i = 1, PART_COUNT do
+        local p           = Instance.new("Part")
+        p.Size            = Vector3.new(0.5, 0.5, 0.5)
+        p.Shape           = Enum.PartType.Ball
+        p.BrickColor      = BrickColor.new("Cyan")
+        p.Material        = Enum.Material.Neon
+        p.CastShadow      = false
+        p.CanCollide      = false
+        p.Anchored        = true
+        p.Parent          = workspace
+        parts[i]          = p
+    end
+
+    activeTurrets[player] = { parts = parts, connections = connections }
+
+    local angle = 0
+    connections[#connections+1] = RunService.Heartbeat:Connect(function(dt)
+        local c = player.Character
+        local r = c and c:FindFirstChild("HumanoidRootPart")
+        if not r then return end
+        angle = angle + dt * 1.8
+        for i, p in ipairs(parts) do
+            local a = angle + (i - 1) * (2 * math.pi / PART_COUNT)
+            p.Position = Vector3.new(
+                r.Position.X + math.cos(a) * ORBIT_RADIUS,
+                r.Position.Y + ORBIT_HEIGHT,
+                r.Position.Z + math.sin(a) * ORBIT_RADIUS
+            )
+        end
+    end)
+
+    task.spawn(function()
+        local idx = 1
+        while activeTurrets[player] do
+            local c = player.Character
+            local r = c and c:FindFirstChild("HumanoidRootPart")
+            if r then
+                local enemy = findNearestEnemy(r.Position, c)
+                if enemy then
+                    local p = parts[idx]
+                    if p and p.Parent then fireProjectile(p, enemy) end
+                    idx = (idx % PART_COUNT) + 1
+                end
+            end
+            task.wait(FIRE_RATE)
+        end
+    end)
+end
+
+-- ── Deactivate turret ─────────────────────────────────────────
+local function deactivateTurret(player)
+    local data = activeTurrets[player]
+    if not data then return end
+    for _, p in ipairs(data.parts) do pcall(function() p:Destroy() end) end
+    for _, c in ipairs(data.connections) do
+        pcall(function() if c.Connected then c:Disconnect() end end)
+    end
+    activeTurrets[player] = nil
+end
+
+-- ── Disable zombie damage scripts ────────────────────────────
+DisableEvent.OnServerEvent:Connect(function(player)
+    local destroyed = 0
+    -- Search Workspace and all descendants
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if (obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("ModuleScript")) then
+            for _, scriptName in ipairs(DAMAGE_SCRIPT_NAMES) do
+                if obj.Name == scriptName then
+                    pcall(function()
+                        obj.Disabled = true   -- disable first
+                        obj:Destroy()         -- then remove
+                        destroyed = destroyed + 1
+                    end)
+                    break
+                end
+            end
+        end
+    end
+    print("[TurretServer] Disabled " .. destroyed .. " damage script(s) for " .. player.Name)
+end)
+
+-- ── Remote listeners ─────────────────────────────────────────
+ToggleEvent.OnServerEvent:Connect(function(player, state)
+    if state then activateTurret(player) else deactivateTurret(player) end
+end)
+
+Players.PlayerRemoving:Connect(deactivateTurret)
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        if activeTurrets[player] then
+            deactivateTurret(player)
+            task.wait(1)
+            activateTurret(player)
+        end
+    end)
+end)
+
+
+----------------------------------------------------------------
+  SCRIPT 2 OF 2
+  Type   : LocalScript (client)
+  Location: StarterGui
+  Name   : TurretClient
+----------------------------------------------------------------
+
+local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
-local GodEnabled  = false
-local AntiEnabled = false
-local Connections = {}
-local AntiConns   = {}
-local ShieldBill  = nil
+local folder       = ReplicatedStorage:WaitForChild("_TurretSystem", 15)
+local ToggleEvent  = folder and folder:WaitForChild("TurretToggle",  10)
+local DisableEvent = folder and folder:WaitForChild("DisableAttack", 10)
 
--- ================================================================
--- GLOBAL METAMETHOD HOOKS (set once — survive respawns)
--- These intercept damage at the engine level before Lua even sees it.
--- hookmetamethod is a standard executor API (Synapse, KRNL, Fluxus, etc.)
--- Both hooks are wrapped in pcall so they silently skip if not supported.
--- ================================================================
-local function getHumanoid()
-    local char = LocalPlayer.Character
-    return char and char:FindFirstChildOfClass("Humanoid")
+local turretOn      = false
+local attackDisabled = false
+
+-- ── Helper: corner radius ─────────────────────────────────────
+local function addCorner(parent, radius)
+    local c         = Instance.new("UICorner")
+    c.CornerRadius  = UDim.new(0, radius or 10)
+    c.Parent        = parent
 end
 
--- ── Hook 1: __namecall — blocks humanoid:TakeDamage() calls ──────
-pcall(function()
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        if GodEnabled then
-            local method = getnamecallmethod()
-            if method == "TakeDamage" then
-                local hum = getHumanoid()
-                if hum and self == hum then
-                    return  -- swallow the damage call entirely
-                end
-            end
-        end
-        return oldNamecall(self, ...)
-    end))
-end)
+local function addStroke(parent, color, thickness)
+    local s       = Instance.new("UIStroke")
+    s.Color       = color
+    s.Thickness   = thickness or 1.5
+    s.Parent      = parent
+end
 
--- ── Hook 2: __newindex — blocks any write to humanoid.Health ─────
-pcall(function()
-    local oldNewindex
-    oldNewindex = hookmetamethod(game, "__newindex", newcclosure(function(self, key, value)
-        if GodEnabled then
-            local hum = getHumanoid()
-            if hum and self == hum then
-                if key == "Health" or key == "MaxHealth" then
-                    return oldNewindex(self, key, math.huge)
-                end
-            end
-        end
-        return oldNewindex(self, key, value)
-    end))
-end)
-
--- ================================================================
--- SERVER REMOTE SETUP
--- Registers a RemoteFunction so the server can apply a real
--- ForceField and health lock when executor access allows it.
--- ================================================================
-local GodRemote
-pcall(function()
-    local folder = ReplicatedStorage:FindFirstChild("_GodValidation")
-        or (function()
-            local f = Instance.new("Folder")
-            f.Name   = "_GodValidation"
-            f.Parent = ReplicatedStorage
-            return f
-        end)()
-
-    GodRemote = folder:FindFirstChild("GodToggle")
-    if not GodRemote then
-        GodRemote = Instance.new("RemoteFunction")
-        GodRemote.Name   = "GodToggle"
-        GodRemote.Parent = folder
-    end
-
-    GodRemote.OnServerInvoke = function(player, state)
-        local char = player.Character
-        if not char then return false end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum then return false end
-
-        if state then
-            if not char:FindFirstChildOfClass("ForceField") then
-                local ff = Instance.new("ForceField")
-                ff.Visible = false
-                ff.Parent  = char
-            end
-            hum.MaxHealth = math.huge
-            hum.Health    = math.huge
-
-            if not char:FindFirstChild("_GodTag") then
-                local tag      = Instance.new("BoolValue")
-                tag.Name       = "_GodTag"
-                tag.Parent     = char
-
-                task.spawn(function()
-                    while char:FindFirstChild("_GodTag") do
-                        if hum and hum.Parent then
-                            hum.MaxHealth = math.huge
-                            hum.Health    = math.huge
-                            pcall(function()
-                                hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-                            end)
-                        end
-                        task.wait(0.05)
-                    end
-                end)
-            end
-        else
-            local ff  = char:FindFirstChildOfClass("ForceField")
-            if ff then ff:Destroy() end
-            local tag = char:FindFirstChild("_GodTag")
-            if tag then tag:Destroy() end
-            hum.MaxHealth = 100
-            hum.Health    = 100
-        end
-        return true
-    end
-end)
-
--- ================================================================
--- GUI
--- ================================================================
-local old = PlayerGui:FindFirstChild("GodModeUI")
+-- ── Build GUI ─────────────────────────────────────────────────
+local old = PlayerGui:FindFirstChild("TurretUI")
 if old then old:Destroy() end
 
-local Gui = Instance.new("ScreenGui")
-Gui.Name           = "GodModeUI"
-Gui.ResetOnSpawn   = false
-Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Gui.IgnoreGuiInset = true
-Gui.Parent         = PlayerGui
+local Gui               = Instance.new("ScreenGui")
+Gui.Name                = "TurretUI"
+Gui.ResetOnSpawn        = false
+Gui.IgnoreGuiInset      = true
+Gui.ZIndexBehavior      = Enum.ZIndexBehavior.Sibling
+Gui.Parent              = PlayerGui
 
-local function corner(p, r)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, r or 8)
-    c.Parent = p
-end
+-- Panel frame
+local Panel                   = Instance.new("Frame")
+Panel.Size                    = UDim2.new(0, 200, 0, 110)
+Panel.Position                = UDim2.new(0.5, -100, 0, 10)
+Panel.BackgroundColor3        = Color3.fromRGB(14, 14, 22)
+Panel.BorderSizePixel         = 0
+Panel.Active                  = true
+Panel.Draggable               = true
+Panel.Parent                  = Gui
+addCorner(Panel, 12)
+addStroke(Panel, Color3.fromRGB(60, 60, 180), 1.5)
 
-local Frame = Instance.new("Frame")
-Frame.Size             = UDim2.new(0, 220, 0, 185)
-Frame.Position         = UDim2.new(0.5, -110, 0.04, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
-Frame.BorderSizePixel  = 0
-Frame.Active           = true
-Frame.Draggable        = true
-Frame.Parent           = Gui
-corner(Frame, 10)
+local Layout          = Instance.new("UIListLayout")
+Layout.Padding        = UDim.new(0, 8)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.VerticalAlignment   = Enum.VerticalAlignment.Center
+Layout.Parent         = Panel
 
-local Stroke = Instance.new("UIStroke")
-Stroke.Color     = Color3.fromRGB(70, 70, 210)
-Stroke.Thickness = 1.5
-Stroke.Parent    = Frame
+local Padding         = Instance.new("UIPadding")
+Padding.PaddingTop    = UDim.new(0, 10)
+Padding.PaddingBottom = UDim.new(0, 10)
+Padding.Parent        = Panel
 
-local TitleBar = Instance.new("Frame")
-TitleBar.Size             = UDim2.new(1, 0, 0, 36)
-TitleBar.BackgroundColor3 = Color3.fromRGB(22, 22, 36)
-TitleBar.BorderSizePixel  = 0
-TitleBar.Parent           = Frame
-corner(TitleBar, 10)
+-- ── Button factory ────────────────────────────────────────────
+local function makeButton(text, bgColor, strokeColor)
+    local b               = Instance.new("TextButton")
+    b.Size                = UDim2.new(0.82, 0, 0, 38)
+    b.BackgroundColor3    = bgColor
+    b.BorderSizePixel     = 0
+    b.Text                = text
+    b.TextColor3          = Color3.fromRGB(230, 230, 255)
+    b.TextSize            = 14
+    b.Font                = Enum.Font.GothamBold
+    b.AutoButtonColor     = false
+    b.Parent              = Panel
+    addCorner(b, 8)
+    addStroke(b, strokeColor, 1.5)
 
-local TitleFix = Instance.new("Frame")
-TitleFix.Size             = UDim2.new(1, 0, 0.5, 0)
-TitleFix.Position         = UDim2.new(0, 0, 0.5, 0)
-TitleFix.BackgroundColor3 = Color3.fromRGB(22, 22, 36)
-TitleFix.BorderSizePixel  = 0
-TitleFix.ZIndex           = TitleBar.ZIndex - 1
-TitleFix.Parent           = TitleBar
-
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size                   = UDim2.new(1, 0, 1, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text                   = "⚡  GOD MODE"
-TitleLabel.TextColor3             = Color3.fromRGB(180, 180, 255)
-TitleLabel.TextSize               = 14
-TitleLabel.Font                   = Enum.Font.GothamBold
-TitleLabel.Parent                 = TitleBar
-
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size                   = UDim2.new(1, 0, 0, 26)
-StatusLabel.Position               = UDim2.new(0, 0, 0, 40)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text                   = "Status: OFF"
-StatusLabel.TextColor3             = Color3.fromRGB(255, 80, 80)
-StatusLabel.TextSize               = 13
-StatusLabel.Font                   = Enum.Font.Gotham
-StatusLabel.Parent                 = Frame
-
-local function makeBtn(text, yPos, color)
-    local b = Instance.new("TextButton")
-    b.Size             = UDim2.new(0.68, 0, 0, 36)
-    b.Position         = UDim2.new(0.16, 0, 0, yPos)
-    b.BackgroundColor3 = color
-    b.BorderSizePixel  = 0
-    b.Text             = text
-    b.TextColor3       = Color3.fromRGB(255, 255, 255)
-    b.TextSize         = 14
-    b.Font             = Enum.Font.GothamBold
-    b.Parent           = Frame
-    corner(b, 7)
     b.MouseEnter:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.15), { Size = UDim2.new(0.70, 0, 0, 38) }):Play()
+        TweenService:Create(b, TweenInfo.new(0.12), { Size = UDim2.new(0.86, 0, 0, 40) }):Play()
     end)
     b.MouseLeave:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.15), { Size = UDim2.new(0.68, 0, 0, 36) }):Play()
+        TweenService:Create(b, TweenInfo.new(0.12), { Size = UDim2.new(0.82, 0, 0, 38) }):Play()
     end)
     return b
 end
 
-local GodBtn  = makeBtn("Enable God",  72,  Color3.fromRGB(220, 55, 55))
-local AntiBtn = makeBtn("Anti: OFF",   135, Color3.fromRGB(130, 80, 10))
+local TurretBtn  = makeButton("🔵  Turret: OFF",           Color3.fromRGB(25, 25, 45), Color3.fromRGB(60,  60, 180))
+local DisableBtn = makeButton("🗡  Disable Zombie Damage", Color3.fromRGB(55, 15, 15), Color3.fromRGB(180, 40,  40))
 
--- ================================================================
--- SHIELD BILLBOARD
--- ================================================================
-local function createShield(character)
-    if ShieldBill then ShieldBill:Destroy() end
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    ShieldBill          = Instance.new("BillboardGui")
-    ShieldBill.Size     = UDim2.new(0, 55, 0, 55)
-    ShieldBill.StudsOffset = Vector3.new(0, 3.5, 0)
-    ShieldBill.Adornee  = root
-    ShieldBill.Parent   = root
-    local lbl = Instance.new("TextLabel")
-    lbl.Size                   = UDim2.new(1, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text                   = "🛡"
-    lbl.TextScaled             = true
-    lbl.Parent                 = ShieldBill
-end
+-- ── Turret toggle ─────────────────────────────────────────────
+TurretBtn.MouseButton1Click:Connect(function()
+    if not ToggleEvent then return end
+    turretOn = not turretOn
+    ToggleEvent:FireServer(turretOn)
 
-local function removeShield()
-    if ShieldBill then ShieldBill:Destroy(); ShieldBill = nil end
-end
-
--- ================================================================
--- DISCONNECT HELPERS
--- ================================================================
-local function disconnectList(list)
-    for _, c in ipairs(list) do
-        pcall(function()
-            if c and c.Connected then c:Disconnect() end
-        end)
+    if turretOn then
+        TurretBtn.Text             = "🟡  Turret: ON"
+        TurretBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 20)
+        TweenService:Create(TurretBtn, TweenInfo.new(0.2),
+            { TextColor3 = Color3.fromRGB(120, 255, 120) }):Play()
+        -- update stroke green
+        local s = TurretBtn:FindFirstChildOfClass("UIStroke")
+        if s then s.Color = Color3.fromRGB(60, 200, 60) end
+    else
+        TurretBtn.Text             = "🔵  Turret: OFF"
+        TurretBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+        TweenService:Create(TurretBtn, TweenInfo.new(0.2),
+            { TextColor3 = Color3.fromRGB(230, 230, 255) }):Play()
+        local s = TurretBtn:FindFirstChildOfClass("UIStroke")
+        if s then s.Color = Color3.fromRGB(60, 60, 180) end
     end
-end
-
--- ================================================================
--- PER-CHARACTER GOD APPLICATION
--- ================================================================
-local function applyClientGod(character)
-    if not character then return end
-    local hum = character:WaitForChild("Humanoid", 5)
-    if not hum then return end
-
-    -- 1. Block Dead state — humanoid literally cannot die
-    pcall(function()
-        hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-        hum.BreakJointsOnDeath = false
-    end)
-
-    -- 2. Max health
-    hum.MaxHealth = math.huge
-    hum.Health    = math.huge
-
-    -- 3. GetPropertyChangedSignal — fires the instant Health changes,
-    --    faster than HealthChanged event in most executors
-    Connections[#Connections+1] = hum:GetPropertyChangedSignal("Health"):Connect(function()
-        if GodEnabled and hum and hum.Parent then
-            if hum.Health < math.huge then
-                hum.Health = math.huge
-            end
-        end
-    end)
-
-    -- 4. HealthChanged as backup
-    Connections[#Connections+1] = hum.HealthChanged:Connect(function(hp)
-        if GodEnabled and hp < math.huge and hum.Parent then
-            hum.Health = math.huge
-        end
-    end)
-
-    -- 5. Died — catch any death that slips through and immediately undo it
-    Connections[#Connections+1] = hum.Died:Connect(function()
-        if not GodEnabled then return end
-        task.defer(function()
-            if hum and hum.Parent then
-                pcall(function()
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-                    hum.MaxHealth = math.huge
-                    hum.Health    = math.huge
-                    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-                end)
-            end
-        end)
-    end)
-
-    -- 6. Tight spin loop — task.wait() = ~1 frame, much faster than Heartbeat
-    task.spawn(function()
-        while GodEnabled do
-            if hum and hum.Parent then
-                pcall(function()
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-                    if hum.MaxHealth < math.huge then hum.MaxHealth = math.huge end
-                    if hum.Health    < math.huge then hum.Health    = math.huge end
-                    if hum:GetState() == Enum.HumanoidStateType.Dead then
-                        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-                    end
-                end)
-            end
-            task.wait()
-        end
-    end)
-
-    -- 7. Heartbeat — one more safety net
-    Connections[#Connections+1] = RunService.Heartbeat:Connect(function()
-        if not GodEnabled or not hum or not hum.Parent then return end
-        pcall(function()
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-            hum.MaxHealth = math.huge
-            hum.Health    = math.huge
-        end)
-    end)
-
-    -- 8. Body-part Touched — pin health the moment anything touches us
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            Connections[#Connections+1] = part.Touched:Connect(function()
-                if GodEnabled and hum and hum.Parent then
-                    pcall(function()
-                        hum.MaxHealth = math.huge
-                        hum.Health    = math.huge
-                    end)
-                end
-            end)
-        end
-    end
-
-    -- 9. ForceField (server call)
-    pcall(function() GodRemote:InvokeServer(true) end)
-
-    createShield(character)
-end
-
--- ================================================================
--- ANTI-CHEAT BYPASS
--- ================================================================
-local ANTI_PREFIXES = { "anti", "exploit", "security" }
-local function isAnti(name)
-    local l = name:lower()
-    for _, p in ipairs(ANTI_PREFIXES) do
-        if l:sub(1, #p) == p then return true end
-    end
-    return false
-end
-
-local SCAN_SERVICES = {
-    "Workspace","ReplicatedStorage","ReplicatedFirst",
-    "StarterGui","StarterPack","StarterPlayer",
-    "Lighting","Teams","SoundService","Players"
-}
-
-local function nukeObj(obj)
-    pcall(function()
-        if obj:IsA("BaseScript") or obj:IsA("ModuleScript") then
-            obj.Disabled = true
-        end
-        obj:Destroy()
-    end)
-end
-
-local function scanService(svcName)
-    local ok, svc = pcall(function() return game:GetService(svcName) end)
-    if not ok then return end
-    pcall(function()
-        for _, obj in ipairs(svc:GetDescendants()) do
-            if isAnti(obj.Name) then nukeObj(obj) end
-        end
-    end)
-    local conn = svc.DescendantAdded:Connect(function(obj)
-        if AntiEnabled and isAnti(obj.Name) then task.defer(nukeObj, obj) end
-    end)
-    AntiConns[#AntiConns+1] = conn
-end
-
-local function enableAnti()
-    AntiEnabled = true
-    AntiBtn.Text = "Anti: ON ✓"
-    TweenService:Create(AntiBtn, TweenInfo.new(0.25), {
-        BackgroundColor3 = Color3.fromRGB(200, 130, 15)
-    }):Play()
-    pcall(function() scanService("Players"); scanService("Workspace") end)
-    for _, s in ipairs(SCAN_SERVICES) do scanService(s) end
-    pcall(function()
-        for _, obj in ipairs(LocalPlayer:GetDescendants()) do
-            if isAnti(obj.Name) then nukeObj(obj) end
-        end
-    end)
-    task.spawn(function()
-        while AntiEnabled do
-            task.wait(2)
-            if not AntiEnabled then break end
-            for _, s in ipairs(SCAN_SERVICES) do
-                pcall(function()
-                    local svc = game:GetService(s)
-                    for _, obj in ipairs(svc:GetDescendants()) do
-                        if isAnti(obj.Name) then nukeObj(obj) end
-                    end
-                end)
-            end
-        end
-    end)
-end
-
-local function disableAnti()
-    AntiEnabled = false
-    disconnectList(AntiConns); AntiConns = {}
-    AntiBtn.Text = "Anti: OFF"
-    TweenService:Create(AntiBtn, TweenInfo.new(0.25), {
-        BackgroundColor3 = Color3.fromRGB(130, 80, 10)
-    }):Play()
-end
-
--- ================================================================
--- ENABLE / DISABLE GOD
--- ================================================================
-local function enableGod()
-    GodEnabled = true
-    StatusLabel.Text       = "Status: ON  ✓"
-    StatusLabel.TextColor3 = Color3.fromRGB(60, 230, 110)
-    GodBtn.Text            = "Disable God"
-    TweenService:Create(GodBtn,  TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(35, 185, 75) }):Play()
-    TweenService:Create(Stroke,  TweenInfo.new(0.25), { Color = Color3.fromRGB(60, 230, 110) }):Play()
-
-    local char = LocalPlayer.Character
-    if char then applyClientGod(char) end
-
-    Connections[#Connections+1] = LocalPlayer.CharacterAdded:Connect(function(newChar)
-        if GodEnabled then task.wait(0.5); applyClientGod(newChar) end
-    end)
-end
-
-local function disableGod()
-    GodEnabled = false
-    disconnectList(Connections); Connections = {}
-    removeShield()
-    StatusLabel.Text       = "Status: OFF"
-    StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-    GodBtn.Text            = "Enable God"
-    TweenService:Create(GodBtn,  TweenInfo.new(0.25), { BackgroundColor3 = Color3.fromRGB(220, 55, 55) }):Play()
-    TweenService:Create(Stroke,  TweenInfo.new(0.25), { Color = Color3.fromRGB(70, 70, 210) }):Play()
-
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.MaxHealth = 100; hum.Health = 100 end
-        local ff = char:FindFirstChildOfClass("ForceField")
-        if ff then ff:Destroy() end
-    end
-    pcall(function() GodRemote:InvokeServer(false) end)
-end
-
--- ================================================================
--- BUTTON WIRING
--- ================================================================
-GodBtn.MouseButton1Click:Connect(function()
-    if GodEnabled then disableGod() else enableGod() end
 end)
 
-AntiBtn.MouseButton1Click:Connect(function()
-    if AntiEnabled then disableAnti() else enableAnti() end
-end)
+-- ── Disable zombie damage ─────────────────────────────────────
+DisableBtn.MouseButton1Click:Connect(function()
+    if not DisableEvent then return end
+    if attackDisabled then return end  -- only let them press once
+    attackDisabled = true
 
-print("[GodMode] Loaded — toggle God Mode and Anti bypass via GUI.")
+    DisableEvent:FireServer()
+
+    DisableBtn.Text             = "✅  Damage Disabled"
+    DisableBtn.BackgroundColor3 = Color3.fromRGB(15, 40, 15)
+    DisableBtn.TextColor3       = Color3.fromRGB(100, 230, 100)
+    local s = DisableBtn:FindFirstChildOfClass("UIStroke")
+    if s then s.Color = Color3.fromRGB(60, 200, 60) end
+end)
