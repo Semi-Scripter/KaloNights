@@ -11,12 +11,13 @@ local Workspace         = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
-local GodEnabled     = false
-local AntiEnabled    = false
-local EmeraldEnabled = false
-local Connections    = {}
-local AntiConns      = {}
-local ShieldBill     = nil
+local GodEnabled      = false
+local AntiEnabled     = false
+local EmeraldEnabled  = false
+local FreeEmEnabled   = false
+local Connections     = {}
+local AntiConns       = {}
+local ShieldBill      = nil
 
 -- ================================================================
 -- GLOBAL METAMETHOD HOOKS (set once — survive respawns)
@@ -142,7 +143,7 @@ local function corner(p, r)
 end
 
 local Frame = Instance.new("Frame")
-Frame.Size             = UDim2.new(0, 220, 0, 245) -- Increased height for new button
+Frame.Size             = UDim2.new(0, 220, 0, 295) -- Increased height for fourth button
 Frame.Position         = UDim2.new(0.5, -110, 0.04, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
 Frame.BorderSizePixel  = 0
@@ -214,6 +215,7 @@ end
 local GodBtn     = makeBtn("Enable God",    72,  Color3.fromRGB(220, 55, 55))
 local AntiBtn    = makeBtn("Anti: OFF",     125, Color3.fromRGB(130, 80, 10))
 local EmeraldBtn = makeBtn("Emerald: OFF",  178, Color3.fromRGB(10, 130, 80))
+local FreeEmBtn  = makeBtn("Free Em: OFF",  231, Color3.fromRGB(130, 10, 130))
 
 -- ================================================================
 -- SHIELD BILLBOARD
@@ -453,6 +455,40 @@ local function disableEmerald()
 end
 
 -- ================================================================
+-- FREE EMERALDS (GUI VISUAL SPOOF)
+-- ================================================================
+local function enableFreeEm()
+    FreeEmEnabled = true
+    FreeEmBtn.Text = "Free Em: ON ✓"
+    TweenService:Create(FreeEmBtn, TweenInfo.new(0.25), {
+        BackgroundColor3 = Color3.fromRGB(200, 25, 200)
+    }):Play()
+
+    task.spawn(function()
+        while FreeEmEnabled do
+            -- Searches for any TextLabel named 'Amount' or 'Count' within PlayerGui 
+            -- that might represent Emeralds, and sets it to 10,000.
+            pcall(function()
+                for _, obj in ipairs(PlayerGui:GetDescendants()) do
+                    if obj:IsA("TextLabel") and (obj.Name == "Amount" or obj.Name == "Count") then
+                        obj.Text = "10,000"
+                    end
+                end
+            end)
+            task.wait(0.1)
+        end
+    end)
+end
+
+local function disableFreeEm()
+    FreeEmEnabled = false
+    FreeEmBtn.Text = "Free Em: OFF"
+    TweenService:Create(FreeEmBtn, TweenInfo.new(0.25), {
+        BackgroundColor3 = Color3.fromRGB(130, 10, 130)
+    }):Play()
+end
+
+-- ================================================================
 -- ENABLE / DISABLE GOD
 -- ================================================================
 local function enableGod()
@@ -506,4 +542,8 @@ EmeraldBtn.MouseButton1Click:Connect(function()
     if EmeraldEnabled then disableEmerald() else enableEmerald() end
 end)
 
-print("[GodMode] Loaded — Modified with Emerald Auto-Picker.")
+FreeEmBtn.MouseButton1Click:Connect(function()
+    if FreeEmEnabled then disableFreeEm() else enableFreeEm() end
+end)
+
+print("[GodMode] Loaded — Added Free Emeralds (Visual).")
