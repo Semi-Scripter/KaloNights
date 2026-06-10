@@ -1,0 +1,109 @@
+-- // DEVELOPER ADMIN PANEL
+-- // Designed for: [PlaceId: 95082159892680]
+-- // Features: Speed Toggle, Stage Teleport, Currency Interaction
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- // REFERENCES FROM YOUR STRUCTURE
+local UpdateSpeedRemote = ReplicatedStorage:FindFirstChild("UpdateSpeed")
+local CurrencyRemote = ReplicatedStorage:FindFirstChild("CurrencyCollect")
+local StagesFolder = workspace:FindFirstChild("Structure")
+
+-- // GUI SETUP
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DevAdminPanel"
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 200, 0, 250)
+MainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "ADMIN TOOLS"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.Parent = MainFrame
+
+-- // UTILITY FUNCTIONS
+local function createButton(text, yPos, color, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.8, 0, 0, 35)
+    btn.Position = UDim2.new(0.1, 0, 0, yPos)
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    btn.Parent = MainFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+    
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- // FEATURE 1: SPEED TOGGLE
+local speedActive = false
+createButton("Toggle Speed (50)", 50, Color3.fromRGB(60, 120, 210), function()
+    speedActive = not speedActive
+    local newSpeed = speedActive and 50 or 16
+    
+    -- Option A: Direct Character Update
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = newSpeed
+    end
+    
+    -- Option B: Using your game's Remote (if the server handles speed updates)
+    if UpdateSpeedRemote then
+        UpdateSpeedRemote:FireServer(newSpeed)
+    end
+end)
+
+-- // FEATURE 2: TELEPORT TO STAGES
+createButton("TP to Stage 2", 100, Color3.fromRGB(80, 180, 100), function()
+    if StagesFolder and StagesFolder:FindFirstChild("Stage2") then
+        local target = StagesFolder.Stage2:FindFirstChildWhichIsA("BasePart", true)
+        if target and LocalPlayer.Character then
+            LocalPlayer.Character:MoveTo(target.Position)
+        end
+    end
+end)
+
+createButton("TP to Stage 4", 145, Color3.fromRGB(80, 180, 100), function()
+    if StagesFolder and StagesFolder:FindFirstChild("Stage4") then
+        local target = StagesFolder.Stage4:FindFirstChildWhichIsA("BasePart", true)
+        if target and LocalPlayer.Character then
+            LocalPlayer.Character:MoveTo(target.Position)
+        end
+    end
+end)
+
+-- // FEATURE 3: CURRENCY INTERACTION
+createButton("Collect Currency", 190, Color3.fromRGB(210, 160, 40), function()
+    if CurrencyRemote then
+        -- This simulates the remote call your game uses when a player collects an item
+        CurrencyRemote:FireServer() 
+        print("Admin: Fired CurrencyCollect remote.")
+    end
+end)
+
+print("[AdminPanel] Loaded successfully.")
