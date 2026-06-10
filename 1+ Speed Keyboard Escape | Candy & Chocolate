@@ -1,27 +1,38 @@
--- // DEVELOPER ADMIN PANEL
--- // Designed for: [PlaceId: 95082159892680]
--- // Features: Speed Toggle, Stage Teleport, Currency Interaction
+-- // ================================================================
+-- // DEVELOPER ADMIN UTILITY PANEL
+-- // Game: [PlaceId: 95082159892680]
+-- // Version: 3.0 (Full Release)
+-- // ================================================================
 
-local Players = game:GetService("Players")
+local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local RunService        = game:GetService("RunService")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
 
--- // REFERENCES FROM YOUR STRUCTURE
+local LocalPlayer       = Players.LocalPlayer
+local PlayerGui         = LocalPlayer:WaitForChild("PlayerGui")
+
+-- // --- GAME REFERENCES ---
+local Remotes           = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
 local UpdateSpeedRemote = ReplicatedStorage:FindFirstChild("UpdateSpeed")
-local CurrencyRemote = ReplicatedStorage:FindFirstChild("CurrencyCollect")
-local StagesFolder = workspace:FindFirstChild("Structure")
+local CurrencyRemote    = ReplicatedStorage:FindFirstChild("CurrencyCollect")
+local EggRainAdmin      = ReplicatedStorage:FindFirstChild("EggRainAdmin")
+local RainbowBodyRemote = ReplicatedStorage:FindFirstChild("AdminCmd_RainbowBody")
+local StagesFolder      = workspace:FindFirstChild("Structure")
+local KeycapsFolder     = workspace:FindFirstChild("KeycapsFolder", true)
 
--- // GUI SETUP
+-- // --- GUI CONSTRUCTION ---
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DevAdminPanel"
+ScreenGui.Name = "Manus_DevPanel"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 200, 0, 250)
-MainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+MainFrame.Size = UDim2.new(0, 240, 0, 400)
+MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -31,27 +42,44 @@ local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 10)
 UICorner.Parent = MainFrame
 
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60, 60, 80)
+UIStroke.Thickness = 2
+UIStroke.Parent = MainFrame
+
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "ADMIN TOOLS"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.Text = "🛠️ DEV ADMIN PANEL"
+Title.TextColor3 = Color3.new(1, 1, 1)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+Title.TextSize = 16
 Title.Parent = MainFrame
 
--- // UTILITY FUNCTIONS
-local function createButton(text, yPos, color, callback)
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1, -15, 1, -60)
+Scroll.Position = UDim2.new(0, 7, 0, 50)
+Scroll.BackgroundTransparency = 1
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 850)
+Scroll.ScrollBarThickness = 3
+Scroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
+Scroll.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout", Scroll)
+UIList.Padding = UDim.new(0, 6)
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- // --- BUTTON COMPONENT ---
+local function createBtn(text, color, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.8, 0, 0, 35)
-    btn.Position = UDim2.new(0.1, 0, 0, yPos)
+    btn.Size = UDim2.new(0.92, 0, 0, 38)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 12
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 13
     btn.BorderSizePixel = 0
-    btn.Parent = MainFrame
+    btn.Parent = Scroll
     
     local btnCorner = Instance.new("UICorner")
     btnCorner.CornerRadius = UDim.new(0, 6)
@@ -61,49 +89,114 @@ local function createButton(text, yPos, color, callback)
     return btn
 end
 
--- // FEATURE 1: SPEED TOGGLE
-local speedActive = false
-createButton("Toggle Speed (50)", 50, Color3.fromRGB(60, 120, 210), function()
-    speedActive = not speedActive
-    local newSpeed = speedActive and 50 or 16
-    
-    -- Option A: Direct Character Update
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = newSpeed
-    end
-    
-    -- Option B: Using your game's Remote (if the server handles speed updates)
-    if UpdateSpeedRemote then
-        UpdateSpeedRemote:FireServer(newSpeed)
+-- // --- FEATURE LOGIC ---
+
+-- 1. Security Debug (The "Anti" Toggle)
+local securityActive = true
+local secBtn = createBtn("Security: ACTIVE", Color3.fromRGB(46, 204, 113), function() end)
+secBtn.MouseButton1Click:Connect(function()
+    securityActive = not securityActive
+    if not securityActive then
+        secBtn.Text = "Security: DISABLED"
+        secBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+        local targets = {"AntiTrip", "KeySystem v7 by Sano", "StepDetectionSystem", "InteractionSystem"}
+        for _, name in ipairs(targets) do
+            local s = game:FindFirstChild(name, true)
+            if s and s:IsA("BaseScript") then s.Disabled = true end
+        end
+    else
+        secBtn.Text = "Security: ACTIVE"
+        secBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
     end
 end)
 
--- // FEATURE 2: TELEPORT TO STAGES
-createButton("TP to Stage 2", 100, Color3.fromRGB(80, 180, 100), function()
-    if StagesFolder and StagesFolder:FindFirstChild("Stage2") then
-        local target = StagesFolder.Stage2:FindFirstChildWhichIsA("BasePart", true)
-        if target and LocalPlayer.Character then
-            LocalPlayer.Character:MoveTo(target.Position)
+-- 2. Speed Control (Infinite/Normal)
+local isInfinite = false
+local speedBtn = createBtn("Speed: Normal", Color3.fromRGB(52, 152, 219), function() end)
+speedBtn.MouseButton1Click:Connect(function()
+    isInfinite = not isInfinite
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+    if isInfinite then
+        speedBtn.Text = "Speed: ∞ (Infinite)"
+        speedBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+        if hum then hum.WalkSpeed = 1000 end
+        if UpdateSpeedRemote then UpdateSpeedRemote:FireServer(1000) end
+    else
+        speedBtn.Text = "Speed: Normal"
+        speedBtn.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+        if hum then hum.WalkSpeed = 16 end
+        if UpdateSpeedRemote then UpdateSpeedRemote:FireServer(16) end
+    end
+end)
+
+-- 3. Noclip (Ghost Mode)
+local noclipActive = false
+local noclipBtn = createBtn("Noclip: OFF", Color3.fromRGB(127, 140, 141), function() end)
+noclipBtn.MouseButton1Click:Connect(function()
+    noclipActive = not noclipActive
+    noclipBtn.Text = noclipActive and "Noclip: ON" or "Noclip: OFF"
+    noclipBtn.BackgroundColor3 = noclipActive and Color3.fromRGB(241, 196, 15) or Color3.fromRGB(127, 140, 141)
+end)
+
+RunService.Stepped:Connect(function()
+    if noclipActive and LocalPlayer.Character then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
 end)
 
-createButton("TP to Stage 4", 145, Color3.fromRGB(80, 180, 100), function()
+-- 4. Infinite Jump
+local infJumpActive = false
+local jumpBtn = createBtn("Infinite Jump: OFF", Color3.fromRGB(52, 152, 219), function() end)
+jumpBtn.MouseButton1Click:Connect(function()
+    infJumpActive = not infJumpActive
+    jumpBtn.Text = infJumpActive and "Infinite Jump: ON" or "Infinite Jump: OFF"
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if infJumpActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- 5. Keycap ESP
+createBtn("Highlight Keycaps", Color3.fromRGB(155, 89, 182), function()
+    if KeycapsFolder then
+        for _, key in ipairs(KeycapsFolder:GetDescendants()) do
+            if key:IsA("BasePart") and not key:FindFirstChild("DevHighlight") then
+                local h = Instance.new("Highlight")
+                h.Name = "DevHighlight"
+                h.FillColor = Color3.new(1, 1, 0)
+                h.Parent = key
+            end
+        end
+    end
+end)
+
+-- 6. Teleports
+createBtn("TP: Stage 4", Color3.fromRGB(41, 128, 185), function()
     if StagesFolder and StagesFolder:FindFirstChild("Stage4") then
-        local target = StagesFolder.Stage4:FindFirstChildWhichIsA("BasePart", true)
-        if target and LocalPlayer.Character then
-            LocalPlayer.Character:MoveTo(target.Position)
-        end
+        LocalPlayer.Character:MoveTo(StagesFolder.Stage4:FindFirstChildWhichIsA("BasePart", true).Position)
     end
 end)
 
--- // FEATURE 3: CURRENCY INTERACTION
-createButton("Collect Currency", 190, Color3.fromRGB(210, 160, 40), function()
-    if CurrencyRemote then
-        -- This simulates the remote call your game uses when a player collects an item
-        CurrencyRemote:FireServer() 
-        print("Admin: Fired CurrencyCollect remote.")
-    end
+createBtn("TP: FoeCakes Boss", Color3.fromRGB(192, 57, 43), function()
+    local boss = workspace:FindFirstChild("FoeCakesBossRoom", true)
+    if boss then LocalPlayer.Character:MoveTo(boss.WorldPivot.Position) end
 end)
 
-print("[AdminPanel] Loaded successfully.")
+-- 7. Events
+createBtn("Collect Currency (Remote)", Color3.fromRGB(243, 156, 18), function()
+    if CurrencyRemote then CurrencyRemote:FireServer() end
+end)
+
+createBtn("Trigger Egg Rain", Color3.fromRGB(231, 76, 60), function()
+    if EggRainAdmin then EggRainAdmin:FireServer("Start") end
+end)
+
+createBtn("Rainbow Body", Color3.fromRGB(26, 188, 156), function()
+    if RainbowBodyRemote then RainbowBodyRemote:FireServer() end
+end)
+
+print("[DevPanel] System Online.")
