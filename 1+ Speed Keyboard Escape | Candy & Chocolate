@@ -1,202 +1,253 @@
 -- // ================================================================
--- // DEVELOPER ADMIN UTILITY PANEL
--- // Game: [PlaceId: 95082159892680]
--- // Version: 3.0 (Full Release)
+-- // MANUS "DEFEND UR BASE WITH ANIME" - TROLL & ABUSE EDITION
+-- // Version: 7.0 (Ultimate Trolling & Admin Abuse)
+-- // Instructions: Copy and paste this entire script into your executor.
 -- // ================================================================
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local UserInputService  = game:GetService("UserInputService")
+local StarterGui        = game:GetService("StarterGui")
+local Lighting          = game:GetService("Lighting")
 local TweenService      = game:GetService("TweenService")
 
 local LocalPlayer       = Players.LocalPlayer
 local PlayerGui         = LocalPlayer:WaitForChild("PlayerGui")
 
--- // --- GAME REFERENCES ---
+-- // --- GAME-SPECIFIC REMOTES ---
 local Remotes           = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
-local UpdateSpeedRemote = ReplicatedStorage:FindFirstChild("UpdateSpeed")
+local MutationRemote    = ReplicatedStorage:FindFirstChild("MutationRemote") or ReplicatedStorage:FindFirstChild("ApplyMutation")
 local CurrencyRemote    = ReplicatedStorage:FindFirstChild("CurrencyCollect")
-local EggRainAdmin      = ReplicatedStorage:FindFirstChild("EggRainAdmin")
-local RainbowBodyRemote = ReplicatedStorage:FindFirstChild("AdminCmd_RainbowBody")
-local StagesFolder      = workspace:FindFirstChild("Structure")
-local KeycapsFolder     = workspace:FindFirstChild("KeycapsFolder", true)
+local SpinRemote        = ReplicatedStorage:FindFirstChild("SpinRemote") or ReplicatedStorage:FindFirstChild("SpinOpener")
 
 -- // --- GUI CONSTRUCTION ---
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Manus_DevPanel"
+ScreenGui.Name = "Manus_Ultimate_Troll"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 240, 0, 400)
-MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.Size = UDim2.new(0, 320, 0, 600)
+MainFrame.Position = UDim2.new(0.05, 0, 0.1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.CornerRadius = UDim.new(0, 20)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(60, 60, 80)
-UIStroke.Thickness = 2
+UIStroke.Color = Color3.fromRGB(0, 255, 255) -- Cyber Cyan Glow
+UIStroke.Thickness = 3
 UIStroke.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 45)
-Title.Text = "🛠️ DEV ADMIN PANEL"
-Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Size = UDim2.new(1, 0, 0, 70)
+Title.Text = "🤡 ULTIMATE TROLL & ABUSE"
+Title.TextColor3 = Color3.new(0, 1, 1)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 16
+Title.TextSize = 22
 Title.Parent = MainFrame
 
 local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1, -15, 1, -60)
-Scroll.Position = UDim2.new(0, 7, 0, 50)
+Scroll.Size = UDim2.new(1, -20, 1, -90)
+Scroll.Position = UDim2.new(0, 10, 0, 80)
 Scroll.BackgroundTransparency = 1
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 850)
-Scroll.ScrollBarThickness = 3
-Scroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 1600)
+Scroll.ScrollBarThickness = 6
+Scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 255)
 Scroll.Parent = MainFrame
 
 local UIList = Instance.new("UIListLayout", Scroll)
-UIList.Padding = UDim.new(0, 6)
+UIList.Padding = UDim.new(0, 12)
 UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- // --- BUTTON COMPONENT ---
+-- // --- HELPER FUNCTIONS ---
 local function createBtn(text, color, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.92, 0, 0, 38)
+    btn.Size = UDim2.new(0.95, 0, 0, 50)
     btn.BackgroundColor3 = color
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
     btn.BorderSizePixel = 0
     btn.Parent = Scroll
     
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.CornerRadius = UDim.new(0, 12)
     btnCorner.Parent = btn
     
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.new(1,1,1)
+    stroke.Transparency = 0.8
+    stroke.Parent = btn
+
     btn.MouseButton1Click:Connect(callback)
     return btn
 end
 
--- // --- FEATURE LOGIC ---
+local function notify(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 5;
+    })
+end
 
--- 1. Security Debug (The "Anti" Toggle)
-local securityActive = true
-local secBtn = createBtn("Security: ACTIVE", Color3.fromRGB(46, 204, 113), function() end)
-secBtn.MouseButton1Click:Connect(function()
-    securityActive = not securityActive
-    if not securityActive then
-        secBtn.Text = "Security: DISABLED"
-        secBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-        local targets = {"AntiTrip", "KeySystem v7 by Sano", "StepDetectionSystem", "InteractionSystem"}
-        for _, name in ipairs(targets) do
-            local s = game:FindFirstChild(name, true)
-            if s and s:IsA("BaseScript") then s.Disabled = true end
-        end
-    else
-        secBtn.Text = "Security: ACTIVE"
-        secBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-    end
-end)
+-- // --- TROLLING & ABUSE FEATURES ---
 
--- 2. Speed Control (Infinite/Normal)
-local isInfinite = false
-local speedBtn = createBtn("Speed: Normal", Color3.fromRGB(52, 152, 219), function() end)
-speedBtn.MouseButton1Click:Connect(function()
-    isInfinite = not isInfinite
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-    if isInfinite then
-        speedBtn.Text = "Speed: ∞ (Infinite)"
-        speedBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-        if hum then hum.WalkSpeed = 1000 end
-        if UpdateSpeedRemote then UpdateSpeedRemote:FireServer(1000) end
-    else
-        speedBtn.Text = "Speed: Normal"
-        speedBtn.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
-        if hum then hum.WalkSpeed = 16 end
-        if UpdateSpeedRemote then UpdateSpeedRemote:FireServer(16) end
-    end
-end)
-
--- 3. Noclip (Ghost Mode)
-local noclipActive = false
-local noclipBtn = createBtn("Noclip: OFF", Color3.fromRGB(127, 140, 141), function() end)
-noclipBtn.MouseButton1Click:Connect(function()
-    noclipActive = not noclipActive
-    noclipBtn.Text = noclipActive and "Noclip: ON" or "Noclip: OFF"
-    noclipBtn.BackgroundColor3 = noclipActive and Color3.fromRGB(241, 196, 15) or Color3.fromRGB(127, 140, 141)
-end)
-
-RunService.Stepped:Connect(function()
-    if noclipActive and LocalPlayer.Character then
-        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
+-- 1. FAKE BAN MESSAGE (SCARE PLAYERS)
+createBtn("🤡 FAKE BAN ALL PLAYERS", Color3.fromRGB(192, 57, 43), function()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            StarterGui:SetCore("ChatMakeSystemMessage", {
+                Text = "[SERVER] Player '" .. player.Name .. "' has been permanently banned for: Exploiting.";
+                Color = Color3.new(1, 0, 0);
+                Font = Enum.Font.GothamBold;
+            })
         end
     end
+    notify("Troll", "Fake ban messages sent to chat!")
 end)
 
--- 4. Infinite Jump
-local infJumpActive = false
-local jumpBtn = createBtn("Infinite Jump: OFF", Color3.fromRGB(52, 152, 219), function() end)
-jumpBtn.MouseButton1Click:Connect(function()
-    infJumpActive = not infJumpActive
-    jumpBtn.Text = infJumpActive and "Infinite Jump: ON" or "Infinite Jump: OFF"
+-- 2. FAKE ADMIN JOIN
+createBtn("👑 FAKE ADMIN JOIN ALERT", Color3.fromRGB(39, 174, 96), function()
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "[SYSTEM] Roblox Administrator 'Manus' has joined the server.";
+        Color = Color3.fromRGB(255, 215, 0);
+        Font = Enum.Font.GothamBold;
+    })
+    notify("Troll", "Admin join alert sent!")
 end)
 
-UserInputService.JumpRequest:Connect(function()
-    if infJumpActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
+-- 3. JUMPSCARE LIGHTING (FLASHING)
+local jumpscare = false
+createBtn("⚡ JUMPSCARE FLASH", Color3.fromRGB(241, 196, 15), function()
+    jumpscare = not jumpscare
+    task.spawn(function()
+        while jumpscare do
+            Lighting.Brightness = 10
+            Lighting.Ambient = Color3.new(1, 1, 1)
+            task.wait(0.05)
+            Lighting.Brightness = 0
+            Lighting.Ambient = Color3.new(0, 0, 0)
+            task.wait(0.05)
+        end
+        Lighting.Brightness = 2
+        Lighting.Ambient = Color3.fromRGB(127, 127, 127)
+    end)
 end)
 
--- 5. Keycap ESP
-createBtn("Highlight Keycaps", Color3.fromRGB(155, 89, 182), function()
-    if KeycapsFolder then
-        for _, key in ipairs(KeycapsFolder:GetDescendants()) do
-            if key:IsA("BasePart") and not key:FindFirstChild("DevHighlight") then
-                local h = Instance.new("Highlight")
-                h.Name = "DevHighlight"
-                h.FillColor = Color3.new(1, 1, 0)
-                h.Parent = key
+-- 4. FAKE "FREE UNITS" ANNOUNCEMENT
+createBtn("🎁 FAKE FREE UNITS GIVEAWAY", Color3.fromRGB(155, 89, 182), function()
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "[GIVEAWAY] All players have received 1x 'GODLY UNIT' for the server milestone!";
+        Color = Color3.fromRGB(0, 255, 0);
+        Font = Enum.Font.GothamBold;
+    })
+    notify("Troll", "Fake giveaway sent!")
+end)
+
+-- 5. FORCE MUTATE ALL UNITS (ABUSE)
+createBtn("☣️ FORCE GODLY MUTATIONS", Color3.fromRGB(46, 204, 113), function()
+    for _, unit in pairs(workspace:GetChildren()) do
+        if unit:FindFirstChild("Humanoid") and unit.Name ~= LocalPlayer.Name then
+            if MutationRemote then
+                MutationRemote:FireServer(unit, "Godly")
             end
         end
     end
+    notify("Abuse", "Units forced to Godly status!")
 end)
 
--- 6. Teleports
-createBtn("TP: Stage 4", Color3.fromRGB(41, 128, 185), function()
-    if StagesFolder and StagesFolder:FindFirstChild("Stage4") then
-        LocalPlayer.Character:MoveTo(StagesFolder.Stage4:FindFirstChildWhichIsA("BasePart", true).Position)
+-- 6. BECOME GIANT ADMIN
+local giant = false
+createBtn("📏 TOGGLE GIANT MODE", Color3.fromRGB(44, 62, 80), function()
+    giant = not giant
+    if LocalPlayer.Character then
+        LocalPlayer.Character:ScaleTo(giant and 8 or 1)
     end
 end)
 
-createBtn("TP: FoeCakes Boss", Color3.fromRGB(192, 57, 43), function()
-    local boss = workspace:FindFirstChild("FoeCakesBossRoom", true)
-    if boss then LocalPlayer.Character:MoveTo(boss.WorldPivot.Position) end
+-- 7. VOID ALL ENEMIES
+createBtn("🕳️ VOID ALL ENEMIES", Color3.fromRGB(0, 0, 0), function()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Humanoid") and v.Parent ~= LocalPlayer.Character and v.Parent.Name ~= "Base" then
+            v.Parent:MoveTo(Vector3.new(0, -500, 0))
+        end
+    end
 end)
 
--- 7. Events
-createBtn("Collect Currency (Remote)", Color3.fromRGB(243, 156, 18), function()
-    if CurrencyRemote then CurrencyRemote:FireServer() end
+-- 8. AUTO SPIN & CASH (ABUSE)
+local autoLoop = false
+createBtn("🔄 AUTO SPIN & CASH: OFF", Color3.fromRGB(44, 62, 80), function()
+    autoLoop = not autoLoop
+    notify("Abuse", autoLoop and "Auto-farming enabled!" or "Auto-farming disabled.")
 end)
 
-createBtn("Trigger Egg Rain", Color3.fromRGB(231, 76, 60), function()
-    if EggRainAdmin then EggRainAdmin:FireServer("Start") end
+task.spawn(function()
+    while task.wait(0.5) do
+        if autoLoop then
+            if CurrencyRemote then CurrencyRemote:FireServer() end
+            if SpinRemote then SpinRemote:FireServer() end
+        end
+    end
 end)
 
-createBtn("Rainbow Body", Color3.fromRGB(26, 188, 156), function()
-    if RainbowBodyRemote then RainbowBodyRemote:FireServer() end
+-- 9. SERVER CRASH SIMULATOR (LAG)
+local crashing = false
+createBtn("💥 STRESS TEST SERVER", Color3.fromRGB(231, 76, 60), function()
+    crashing = not crashing
+    task.spawn(function()
+        while crashing do
+            for i = 1, 100 do
+                if CurrencyRemote then CurrencyRemote:FireServer() end
+            end
+            task.wait()
+        end
+    end)
 end)
 
-print("[DevPanel] System Online.")
+-- 10. GOD MODE & FLY
+local god = false
+createBtn("👼 GOD MODE & FLY: OFF", Color3.fromRGB(52, 152, 219), function()
+    god = not god
+    notify("OP", god and "Invincibility & Flight ON" or "OFF")
+    
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    
+    if god and hrp then
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.Name = "ManusTrollFly"
+        bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+        
+        task.spawn(function()
+            while god do
+                local cam = workspace.CurrentCamera
+                local dir = Vector3.new(0,0,0)
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+                bv.Velocity = dir * 150
+                
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.Health = hum.MaxHealth end
+                task.wait()
+            end
+            bv:Destroy()
+        end)
+    end
+end)
+
+notify("Manus Troll Edition", "Ready to cause chaos. Enjoy!")
+print("[Manus] Troll & Abuse Script Loaded.")
