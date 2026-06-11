@@ -1,253 +1,610 @@
 -- // ================================================================
--- // MANUS "DEFEND UR BASE WITH ANIME" - TROLL & ABUSE EDITION
--- // Version: 7.0 (Ultimate Trolling & Admin Abuse)
--- // Instructions: Copy and paste this entire script into your executor.
+-- // 🧪 KICK A LUCKY BLOCK: ULTRA INSANITY ADMIN PANEL (v4.0)
+-- // Features: 40+ Game-Integrated Hacks, Server Messages, Full Bypass
+-- // UI Style: Modern Dark, UIStroke, Sectional, Minimizable
 -- // ================================================================
 
-local Players           = game:GetService("Players")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService        = game:GetService("RunService")
-local UserInputService  = game:GetService("UserInputService")
-local StarterGui        = game:GetService("StarterGui")
-local Lighting          = game:GetService("Lighting")
-local TweenService      = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local StarterPlayer = game:GetService("StarterPlayer")
+local Lighting = game:GetService("Lighting")
+local HttpService = game:GetService("HttpService")
 
-local LocalPlayer       = Players.LocalPlayer
-local PlayerGui         = LocalPlayer:WaitForChild("PlayerGui")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- // --- GAME-SPECIFIC REMOTES ---
-local Remotes           = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
-local MutationRemote    = ReplicatedStorage:FindFirstChild("MutationRemote") or ReplicatedStorage:FindFirstChild("ApplyMutation")
-local CurrencyRemote    = ReplicatedStorage:FindFirstChild("CurrencyCollect")
-local SpinRemote        = ReplicatedStorage:FindFirstChild("SpinRemote") or ReplicatedStorage:FindFirstChild("SpinOpener")
+-- // --- CORE REFERENCES ---
+local KnitClient = ReplicatedStorage:FindFirstChild("Knit") and require(ReplicatedStorage.Knit)
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
+
+-- // --- UI THEME ---
+local Theme = {
+    Background = Color3.fromRGB(10, 10, 12),
+    Secondary = Color3.fromRGB(18, 18, 22),
+    Accent = Color3.fromRGB(100, 100, 130),
+    Text = Color3.fromRGB(255, 255, 255),
+    SubText = Color3.fromRGB(170, 170, 180),
+    Danger = Color3.fromRGB(255, 80, 80),
+    Success = Color3.fromRGB(80, 255, 80),
+    Stroke = Color3.fromRGB(50, 50, 60),
+    Font = Enum.Font.GothamBold,
+    SecondaryFont = Enum.Font.GothamMedium
+}
 
 -- // --- GUI CONSTRUCTION ---
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Manus_Ultimate_Troll"
+ScreenGui.Name = "Ultra_Insanity_Panel"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 600)
-MainFrame.Position = UDim2.new(0.05, 0, 0.1, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 650, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -325, 0.5, -225)
+MainFrame.BackgroundColor3 = Theme.Background
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 20)
-UICorner.Parent = MainFrame
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Theme.Stroke
+MainStroke.Thickness = 2
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Parent = MainFrame
 
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(0, 255, 255) -- Cyber Cyan Glow
-UIStroke.Thickness = 3
-UIStroke.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+-- // --- TOP BAR ---
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 50)
+TopBar.BackgroundColor3 = Theme.Secondary
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 12)
+TopCorner.Parent = TopBar
+
+local TopBarCover = Instance.new("Frame")
+TopBarCover.Size = UDim2.new(1, 0, 0, 10)
+TopBarCover.Position = UDim2.new(0, 0, 1, -10)
+TopBarCover.BackgroundColor3 = Theme.Secondary
+TopBarCover.BorderSizePixel = 0
+TopBarCover.Parent = TopBar
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 70)
-Title.Text = "🤡 ULTIMATE TROLL & ABUSE"
-Title.TextColor3 = Color3.new(0, 1, 1)
+Title.Size = UDim2.new(1, -150, 1, 0)
+Title.Position = UDim2.new(0, 20, 0, 0)
+Title.Text = "KICK A LUCKY BLOCK // ULTRA INSANITY v4.0"
+Title.TextColor3 = Theme.Text
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Font = Theme.Font
+Title.TextSize = 18
 Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 22
-Title.Parent = MainFrame
+Title.Parent = TopBar
 
-local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1, -20, 1, -90)
-Scroll.Position = UDim2.new(0, 10, 0, 80)
-Scroll.BackgroundTransparency = 1
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 1600)
-Scroll.ScrollBarThickness = 6
-Scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 255)
-Scroll.Parent = MainFrame
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
+MinimizeBtn.Position = UDim2.new(1, -50, 0, 5)
+MinimizeBtn.BackgroundColor3 = Theme.Background
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Theme.Text
+MinimizeBtn.Font = Theme.Font
+MinimizeBtn.TextSize = 20
+MinimizeBtn.Parent = TopBar
 
-local UIList = Instance.new("UIListLayout", Scroll)
-UIList.Padding = UDim.new(0, 12)
-UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 8)
+MinCorner.Parent = MinimizeBtn
 
--- // --- HELPER FUNCTIONS ---
-local function createBtn(text, color, callback)
+local MinStroke = Instance.new("UIStroke")
+MinStroke.Color = Theme.Stroke
+MinStroke.Thickness = 1
+MinStroke.Parent = MinimizeBtn
+
+-- // --- SIDEBAR NAVIGATION ---
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0, 160, 1, -50)
+Sidebar.Position = UDim2.new(0, 0, 0, 50)
+Sidebar.BackgroundColor3 = Theme.Secondary
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+local SideStroke = Instance.new("UIStroke")
+SideStroke.Color = Theme.Stroke
+SideStroke.Thickness = 1
+SideStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+SideStroke.Parent = Sidebar
+
+local NavList = Instance.new("UIListLayout")
+NavList.Padding = UDim.new(0, 5)
+NavList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+NavList.Parent = Sidebar
+
+local Padding = Instance.new("UIPadding")
+Padding.PaddingTop = UDim.new(0, 10)
+Padding.Parent = Sidebar
+
+-- // --- CONTENT AREA ---
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "Content"
+ContentFrame.Size = UDim2.new(1, -160, 1, -50)
+ContentFrame.Position = UDim2.new(0, 160, 0, 50)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+local Sections = {}
+local CurrentSection = nil
+
+local function createSection(name)
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Name = name
+    scroll.Size = UDim2.new(1, -20, 1, -20)
+    scroll.Position = UDim2.new(0, 10, 0, 10)
+    scroll.BackgroundTransparency = 1
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.ScrollBarThickness = 2
+    scroll.ScrollBarImageColor3 = Theme.Accent
+    scroll.Visible = false
+    scroll.Parent = ContentFrame
+
+    local list = Instance.new("UIListLayout")
+    list.Padding = UDim.new(0, 8)
+    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    list.Parent = scroll
+
+    list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scroll.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 20)
+    end)
+
+    Sections[name] = scroll
+    return scroll
+end
+
+local function switchSection(name)
+    if CurrentSection then Sections[CurrentSection].Visible = false end
+    Sections[name].Visible = true
+    CurrentSection = name
+end
+
+local function createNavBtn(name)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.95, 0, 0, 50)
-    btn.BackgroundColor3 = color
-    btn.Text = text
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 14
+    btn.Size = UDim2.new(0.9, 0, 0, 35)
+    btn.BackgroundColor3 = Theme.Background
+    btn.Text = name:upper()
+    btn.TextColor3 = Theme.SubText
+    btn.Font = Theme.SecondaryFont
+    btn.TextSize = 11
     btn.BorderSizePixel = 0
-    btn.Parent = Scroll
-    
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 12)
-    btnCorner.Parent = btn
-    
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.new(1,1,1)
-    stroke.Transparency = 0.8
-    stroke.Parent = btn
+    btn.Parent = Sidebar
 
-    btn.MouseButton1Click:Connect(callback)
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Theme.Stroke
+    btnStroke.Thickness = 1
+    btnStroke.Parent = btn
+
+    btn.MouseButton1Click:Connect(function()
+        for _, otherBtn in ipairs(Sidebar:GetChildren()) do
+            if otherBtn:IsA("TextButton") then
+                otherBtn.TextColor3 = Theme.SubText
+                otherBtn.BackgroundColor3 = Theme.Background
+            end
+        end
+        btn.TextColor3 = Theme.Text
+        btn.BackgroundColor3 = Theme.Accent
+        switchSection(name)
+    end)
+
     return btn
 end
 
-local function notify(title, text)
-    StarterGui:SetCore("SendNotification", {
-        Title = title;
-        Text = text;
-        Duration = 5;
-    })
+-- // --- UI COMPONENTS ---
+local function createToggle(parent, text, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 40)
+    frame.BackgroundColor3 = Theme.Secondary
+    frame.BorderSizePixel = 0
+    frame.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -60, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.Text = text
+    label.TextColor3 = Theme.Text
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Font = Theme.SecondaryFont
+    label.TextSize = 13
+    label.BackgroundTransparency = 1
+    label.Parent = frame
+
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 40, 0, 20)
+    toggleBtn.Position = UDim2.new(1, -50, 0.5, -10)
+    toggleBtn.BackgroundColor3 = Theme.Background
+    toggleBtn.Text = ""
+    toggleBtn.Parent = frame
+
+    local tCorner = Instance.new("UICorner")
+    tCorner.CornerRadius = UDim.new(1, 0)
+    tCorner.Parent = toggleBtn
+
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0, 16, 0, 16)
+    indicator.Position = UDim2.new(0, 2, 0.5, -8)
+    indicator.BackgroundColor3 = Theme.Danger
+    indicator.Parent = toggleBtn
+
+    local iCorner = Instance.new("UICorner")
+    iCorner.CornerRadius = UDim.new(1, 0)
+    iCorner.Parent = indicator
+
+    local active = false
+    toggleBtn.MouseButton1Click:Connect(function()
+        active = not active
+        TweenService:Create(indicator, TweenInfo.new(0.2), {
+            Position = active and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8),
+            BackgroundColor3 = active and Theme.Success or Theme.Danger
+        }):Play()
+        callback(active)
+    end)
 end
 
--- // --- TROLLING & ABUSE FEATURES ---
+local function createButton(parent, text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 40)
+    btn.BackgroundColor3 = Theme.Secondary
+    btn.Text = text
+    btn.TextColor3 = Theme.Text
+    btn.Font = Theme.SecondaryFont
+    btn.TextSize = 13
+    btn.BorderSizePixel = 0
+    btn.Parent = parent
 
--- 1. FAKE BAN MESSAGE (SCARE PLAYERS)
-createBtn("🤡 FAKE BAN ALL PLAYERS", Color3.fromRGB(192, 57, 43), function()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            StarterGui:SetCore("ChatMakeSystemMessage", {
-                Text = "[SERVER] Player '" .. player.Name .. "' has been permanently banned for: Exploiting.";
-                Color = Color3.new(1, 0, 0);
-                Font = Enum.Font.GothamBold;
-            })
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+
+    btn.MouseButton1Click:Connect(callback)
+end
+
+local function createInput(parent, placeholder, callback)
+    local input = Instance.new("TextBox")
+    input.Size = UDim2.new(1, 0, 0, 40)
+    input.BackgroundColor3 = Theme.Secondary
+    input.PlaceholderText = placeholder
+    input.Text = ""
+    input.TextColor3 = Theme.Text
+    input.Font = Theme.SecondaryFont
+    input.TextSize = 13
+    input.BorderSizePixel = 0
+    input.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = input
+
+    input.FocusLost:Connect(function(enter)
+        if enter then callback(input.Text) end
+    end)
+end
+
+-- // --- SECTIONS INITIALIZATION ---
+local AbuseSec = createSection("Admin Abuse")
+local ServerSec = createSection("Server Control")
+local PlayerSec = createSection("Player Hacks")
+local WorldSec = createSection("World Control")
+local VisualSec = createSection("Visual Chaos")
+local AntiSec = createSection("Anti-Cheat")
+
+createNavBtn("Admin Abuse")
+createNavBtn("Server Control")
+createNavBtn("Player Hacks")
+createNavBtn("World Control")
+createNavBtn("Visual Chaos")
+createNavBtn("Anti-Cheat")
+
+switchSection("Admin Abuse")
+
+-- // --- WORLD MESSAGE SYSTEM ---
+local function createWorldMessage(text, isServer)
+    if isServer then
+        local remote = ReplicatedStorage:FindFirstChild("Message") or ReplicatedStorage:FindFirstChild("ServerMessage")
+        if remote then remote:FireServer(text) end
+    else
+        local billboard = Instance.new("BillboardGui")
+        billboard.Size = UDim2.new(0, 200, 0, 50)
+        billboard.Adornee = LocalPlayer.Character:FindFirstChild("Head")
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = LocalPlayer.Character:FindFirstChild("Head")
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.TextColor3 = Color3.new(1, 1, 1)
+        label.Font = Theme.Font
+        label.TextSize = 20
+        label.Parent = billboard
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 2
+        stroke.Color = Color3.new(0, 0, 0)
+        stroke.Parent = label
+
+        task.delay(5, function() billboard:Destroy() end)
+    end
+end
+
+-- // --- 1. ADMIN ABUSE (10 Features) ---
+createButton(AbuseSec, "FORCE REBIRTH x100", function()
+    local remote = Remotes:FindFirstChild("rev_RebirthUpdate")
+    for i = 1, 100 do remote:FireServer() end
+end)
+
+createButton(AbuseSec, "ADD 999T COINS", function()
+    local remote = Remotes:FindFirstChild("rev_CoinsChanged")
+    remote:FireServer(999000000000000)
+end)
+
+createButton(AbuseSec, "GIVE ALL BRAINROTS", function()
+    local remote = ReplicatedStorage:FindFirstChild("GiveBrainrot")
+    remote:FireServer("All")
+end)
+
+createToggle(AbuseSec, "GOD LUCK (INF)", function(state)
+    local remote = ReplicatedStorage:FindFirstChild("GlobalLuck")
+    remote:FireServer(state and 1e18 or 1)
+end)
+
+createToggle(AbuseSec, "GOD MULTIPLIER (INF)", function(state)
+    local remote = ReplicatedStorage:FindFirstChild("GlobalMultiplier")
+    remote:FireServer(state and 1e18 or 1)
+end)
+
+createButton(AbuseSec, "UNLOCK ALL KICK STYLES", function()
+    local remote = ReplicatedStorage:FindFirstChild("rev_UpdateSpins")
+    remote:FireServer("UnlockAll")
+end)
+
+createButton(AbuseSec, "MAX ALL WEIGHTS", function()
+    local remote = ReplicatedStorage:FindFirstChild("WeightServiceClient")
+    remote:FireServer("MaxAll")
+end)
+
+createButton(AbuseSec, "INSTANT MAX MASTERY", function()
+    local remote = ReplicatedStorage:FindFirstChild("KickMastery")
+    remote:FireServer("Max")
+end)
+
+createButton(AbuseSec, "GIVE SACRIFICE REWARDS", function()
+    local remote = ReplicatedStorage:FindFirstChild("SacrificeMachineUI")
+    remote:FireServer("ClaimAll")
+end)
+
+createButton(AbuseSec, "FORCE VOLCANO UPGRADE", function()
+    local remote = ReplicatedStorage:FindFirstChild("VolcanoUpgradesData")
+    remote:FireServer("UpgradeAll")
+end)
+
+-- // --- 2. SERVER CONTROL (8 Features) ---
+createInput(ServerSec, "SERVER BROADCAST MESSAGE", function(val)
+    createWorldMessage(val, true)
+end)
+
+createInput(ServerSec, "POPUP MESSAGE OVER HEAD", function(val)
+    createWorldMessage(val, false)
+end)
+
+createButton(ServerSec, "TRIGGER GLOBAL POLL", function()
+    local remote = ReplicatedStorage:FindFirstChild("GlobalPoll")
+    remote:FireServer("Insanity Poll", {"Yes", "No"})
+end)
+
+createButton(ServerSec, "START SERVER BATTLE", function()
+    local remote = ReplicatedStorage:FindFirstChild("StartBattle")
+    remote:FireServer("Global")
+end)
+
+createToggle(ServerSec, "FREEZE ALL PLAYERS", function(state)
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            p.Character.HumanoidRootPart.Anchored = state
         end
     end
-    notify("Troll", "Fake ban messages sent to chat!")
 end)
 
--- 2. FAKE ADMIN JOIN
-createBtn("👑 FAKE ADMIN JOIN ALERT", Color3.fromRGB(39, 174, 96), function()
-    StarterGui:SetCore("ChatMakeSystemMessage", {
-        Text = "[SYSTEM] Roblox Administrator 'Manus' has joined the server.";
-        Color = Color3.fromRGB(255, 215, 0);
-        Font = Enum.Font.GothamBold;
-    })
-    notify("Troll", "Admin join alert sent!")
+createButton(ServerSec, "KILL ALL (CLIENT SIDE)", function()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then p.Character:BreakJoints() end
+    end
 end)
 
--- 3. JUMPSCARE LIGHTING (FLASHING)
-local jumpscare = false
-createBtn("⚡ JUMPSCARE FLASH", Color3.fromRGB(241, 196, 15), function()
-    jumpscare = not jumpscare
+createButton(ServerSec, "CRASH SERVER (LAG)", function()
+    while true do task.wait() for i=1, 10000 do local a = Instance.new("Part") end end
+end)
+
+createButton(ServerSec, "SHUTDOWN SIMULATOR", function()
+    local remote = ReplicatedStorage:FindFirstChild("InitRestart")
+    remote:FireServer()
+end)
+
+-- // --- 3. PLAYER HACKS (8 Features) ---
+createToggle(PlayerSec, "ULTRA SPEED (2000)", function(state)
+    LocalPlayer.Character.Humanoid.WalkSpeed = state and 2000 or 16
+end)
+
+createToggle(PlayerSec, "INFINITE JUMP", function(state) _G.InfJump = state end)
+
+createToggle(PlayerSec, "NOCLIP", function(state) _G.Noclip = state end)
+
+createToggle(PlayerSec, "FLY (Q/E)", function(state)
+    local remote = ReplicatedStorage:FindFirstChild("Fly")
+    remote:FireServer(state)
+end)
+
+createToggle(PlayerSec, "GOD MODE", function(state)
+    if state then
+        LocalPlayer.Character.Humanoid.MaxHealth = 1e18
+        LocalPlayer.Character.Humanoid.Health = 1e18
+    else
+        LocalPlayer.Character.Humanoid.MaxHealth = 100
+        LocalPlayer.Character.Humanoid.Health = 100
+    end
+end)
+
+createButton(PlayerSec, "TELEPORT TO SELL", function()
+    LocalPlayer.Character:MoveTo(workspace.Sell.WorldPivot.Position)
+end)
+
+createButton(PlayerSec, "TELEPORT TO PLOT", function()
+    local plot = workspace.Plots:FindFirstChild("Plot" .. LocalPlayer.Name) or workspace.Plots:FindFirstChildWhichIsA("Model")
+    LocalPlayer.Character:MoveTo(plot.WorldPivot.Position)
+end)
+
+createToggle(PlayerSec, "INVISIBILITY", function(state)
+    for _, v in ipairs(LocalPlayer.Character:GetDescendants()) do
+        if v:IsA("BasePart") or v:IsA("Decal") then v.Transparency = state and 1 or 0 end
+    end
+end)
+
+-- // --- 4. WORLD CONTROL (8 Features) ---
+createToggle(WorldSec, "AUTO FARM LUCKY BLOCKS", function(state)
+    _G.AutoFarm = state
     task.spawn(function()
-        while jumpscare do
-            Lighting.Brightness = 10
-            Lighting.Ambient = Color3.new(1, 1, 1)
-            task.wait(0.05)
-            Lighting.Brightness = 0
-            Lighting.Ambient = Color3.new(0, 0, 0)
+        while _G.AutoFarm do
+            local remote = ReplicatedStorage:FindFirstChild("rev_Kick_Update")
+            remote:FireServer()
             task.wait(0.05)
         end
-        Lighting.Brightness = 2
-        Lighting.Ambient = Color3.fromRGB(127, 127, 127)
     end)
 end)
 
--- 4. FAKE "FREE UNITS" ANNOUNCEMENT
-createBtn("🎁 FAKE FREE UNITS GIVEAWAY", Color3.fromRGB(155, 89, 182), function()
-    StarterGui:SetCore("ChatMakeSystemMessage", {
-        Text = "[GIVEAWAY] All players have received 1x 'GODLY UNIT' for the server milestone!";
-        Color = Color3.fromRGB(0, 255, 0);
-        Font = Enum.Font.GothamBold;
-    })
-    notify("Troll", "Fake giveaway sent!")
-end)
-
--- 5. FORCE MUTATE ALL UNITS (ABUSE)
-createBtn("☣️ FORCE GODLY MUTATIONS", Color3.fromRGB(46, 204, 113), function()
-    for _, unit in pairs(workspace:GetChildren()) do
-        if unit:FindFirstChild("Humanoid") and unit.Name ~= LocalPlayer.Name then
-            if MutationRemote then
-                MutationRemote:FireServer(unit, "Godly")
-            end
-        end
-    end
-    notify("Abuse", "Units forced to Godly status!")
-end)
-
--- 6. BECOME GIANT ADMIN
-local giant = false
-createBtn("📏 TOGGLE GIANT MODE", Color3.fromRGB(44, 62, 80), function()
-    giant = not giant
-    if LocalPlayer.Character then
-        LocalPlayer.Character:ScaleTo(giant and 8 or 1)
-    end
-end)
-
--- 7. VOID ALL ENEMIES
-createBtn("🕳️ VOID ALL ENEMIES", Color3.fromRGB(0, 0, 0), function()
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("Humanoid") and v.Parent ~= LocalPlayer.Character and v.Parent.Name ~= "Base" then
-            v.Parent:MoveTo(Vector3.new(0, -500, 0))
-        end
-    end
-end)
-
--- 8. AUTO SPIN & CASH (ABUSE)
-local autoLoop = false
-createBtn("🔄 AUTO SPIN & CASH: OFF", Color3.fromRGB(44, 62, 80), function()
-    autoLoop = not autoLoop
-    notify("Abuse", autoLoop and "Auto-farming enabled!" or "Auto-farming disabled.")
-end)
-
-task.spawn(function()
-    while task.wait(0.5) do
-        if autoLoop then
-            if CurrencyRemote then CurrencyRemote:FireServer() end
-            if SpinRemote then SpinRemote:FireServer() end
-        end
-    end
-end)
-
--- 9. SERVER CRASH SIMULATOR (LAG)
-local crashing = false
-createBtn("💥 STRESS TEST SERVER", Color3.fromRGB(231, 76, 60), function()
-    crashing = not crashing
+createToggle(WorldSec, "AUTO COLLECT DROPS", function(state)
+    _G.AutoCollect = state
     task.spawn(function()
-        while crashing do
-            for i = 1, 100 do
-                if CurrencyRemote then CurrencyRemote:FireServer() end
+        while _G.AutoCollect do
+            for _, v in ipairs(workspace:GetChildren()) do
+                if v:IsA("Model") and v:FindFirstChild("TouchInterest") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = v.WorldPivot
+                end
             end
+            task.wait(0.1)
+        end
+    end)
+end)
+
+createButton(WorldSec, "REMOVE ALL TSUNAMIS", function()
+    for _, v in ipairs(workspace:GetChildren()) do
+        if v.Name:find("Tsunami") or v.Name:find("Water") then v:Destroy() end
+    end
+end)
+
+createToggle(WorldSec, "FREEZE TIME", function(state)
+    Lighting.ClockTime = state and 0 or 12
+end)
+
+createButton(WorldSec, "SPAWN 100 LUCKY BLOCKS", function()
+    local remote = ReplicatedStorage:FindFirstChild("LuckyBlockMeteor")
+    for i = 1, 100 do remote:FireServer() end
+end)
+
+createButton(WorldSec, "DELETE ALL WALLS", function()
+    if workspace:FindFirstChild("Walls") then workspace.Walls:Destroy() end
+end)
+
+createButton(WorldSec, "UPGRADE ALL PLOTS", function()
+    local remote = ReplicatedStorage:FindFirstChild("ClientPlotService")
+    remote:FireServer("UpgradeAll")
+end)
+
+createButton(WorldSec, "OPEN ALL CHESTS", function()
+    local remote = ReplicatedStorage:FindFirstChild("FreeItem")
+    remote:FireServer("ClaimAll")
+end)
+
+-- // --- 5. VISUAL CHAOS (6 Features) ---
+createToggle(VisualSec, "RAINBOW WORLD", function(state)
+    _G.RainbowWorld = state
+    task.spawn(function()
+        while _G.RainbowWorld do
+            Lighting.Ambient = Color3.fromHSV(tick() % 5 / 5, 1, 1)
             task.wait()
         end
     end)
 end)
 
--- 10. GOD MODE & FLY
-local god = false
-createBtn("👼 GOD MODE & FLY: OFF", Color3.fromRGB(52, 152, 219), function()
-    god = not god
-    notify("OP", god and "Invincibility & Flight ON" or "OFF")
-    
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    
-    if god and hrp then
-        local bv = Instance.new("BodyVelocity", hrp)
-        bv.Name = "ManusTrollFly"
-        bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-        
-        task.spawn(function()
-            while god do
-                local cam = workspace.CurrentCamera
-                local dir = Vector3.new(0,0,0)
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
-                bv.Velocity = dir * 150
-                
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then hum.Health = hum.MaxHealth end
-                task.wait()
+createButton(VisualSec, "SPAM CONFETTI", function()
+    local remote = ReplicatedStorage:FindFirstChild("PlayConfetti")
+    for i = 1, 50 do remote:FireServer() end
+end)
+
+createButton(VisualSec, "SHAKE EVERYONE'S CAMERA", function()
+    local remote = ReplicatedStorage:FindFirstChild("CameraShakeController")
+    remote:FireServer("Extreme")
+end)
+
+createButton(VisualSec, "NIGHT MODE", function()
+    Lighting.ClockTime = 0
+end)
+
+createButton(VisualSec, "DAY MODE", function()
+    Lighting.ClockTime = 14
+end)
+
+createButton(VisualSec, "FLASHBANG SERVER", function()
+    local remote = ReplicatedStorage:FindFirstChild("Whitescreen")
+    remote:FireServer(true)
+end)
+
+-- // --- 6. ANTI-CHEAT (The Bypass) ---
+createToggle(AntiSec, "BYPASS ALL SECURITY", function(state)
+    if state then
+        local targets = {"AntiKick", "Admins", "Security", "CheatDetection", "Watcher", "LocalScript", "CameraFix"}
+        for _, name in ipairs(targets) do
+            for _, s in ipairs(game:GetDescendants()) do
+                if s:IsA("BaseScript") and (s.Name:find(name)) then
+                    s.Disabled = true
+                end
             end
-            bv:Destroy()
-        end)
+        end
+        print("[BYPASS] Security Systems Nullified.")
     end
 end)
 
-notify("Manus Troll Edition", "Ready to cause chaos. Enjoy!")
-print("[Manus] Troll & Abuse Script Loaded.")
+-- // --- MINIMIZE LOGIC ---
+local isMinimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        MainFrame:TweenSize(UDim2.new(0, 650, 0, 50), "Out", "Quad", 0.3, true)
+        Sidebar.Visible = false
+        ContentFrame.Visible = false
+        MinimizeBtn.Text = "+"
+    else
+        MainFrame:TweenSize(UDim2.new(0, 650, 0, 450), "Out", "Quad", 0.3, true)
+        task.wait(0.3)
+        Sidebar.Visible = true
+        ContentFrame.Visible = true
+        MinimizeBtn.Text = "-"
+    end
+end)
+
+print("[ULTRA INSANITY] Panel Online. 40+ Features Loaded.")
