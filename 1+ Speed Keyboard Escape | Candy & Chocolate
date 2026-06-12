@@ -1,610 +1,946 @@
--- // ================================================================
--- // 🧪 KICK A LUCKY BLOCK: ULTRA INSANITY ADMIN PANEL (v4.0)
--- // Features: 40+ Game-Integrated Hacks, Server Messages, Full Bypass
--- // UI Style: Modern Dark, UIStroke, Sectional, Minimizable
--- // ================================================================
+--[[
+    ╔══════════════════════════════════════════════════════════╗
+    ║         Be A Firework  —  Admin Panel  v1.0              ║
+    ║         Loadstring Compatible                            ║
+    ╠══════════════════════════════════════════════════════════╣
+    ║  HOW TO USE                                              ║
+    ║  ─────────────────────────────────────────────────────  ║
+    ║  STEP 1 — Put the SERVER SCRIPT (bottom of this file)   ║
+    ║           into ServerScriptService ONE TIME in Studio.  ║
+    ║                                                          ║
+    ║  STEP 2 — Load the GUI anywhere via:                     ║
+    ║                                                          ║
+    ║    loadstring(game:HttpGet(                              ║
+    ║      "https://YOUR_RAW_URL_HERE"                         ║
+    ║    ))()                                                  ║
+    ║                                                          ║
+    ║  Or paste this entire file into a LocalScript.           ║
+    ║                                                          ║
+    ║  STEP 3 — Add your UserId to the ADMINS table below.    ║
+    ║           Find it at: roblox.com/users/YOUR_NAME/profile ║
+    ╚══════════════════════════════════════════════════════════╝
+]]
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+-- ── SERVICES ────────────────────────────────────────────────
+local Players          = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local StarterPlayer = game:GetService("StarterPlayer")
-local Lighting = game:GetService("Lighting")
-local HttpService = game:GetService("HttpService")
+local TweenService     = game:GetService("TweenService")
+local RunService       = game:GetService("RunService")
+local Lighting         = game:GetService("Lighting")
+local RS               = game:GetService("ReplicatedStorage")
+local LP               = Players.LocalPlayer
+local PGui             = LP:WaitForChild("PlayerGui")
 
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
--- // --- CORE REFERENCES ---
-local KnitClient = ReplicatedStorage:FindFirstChild("Knit") and require(ReplicatedStorage.Knit)
-local Remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
-
--- // --- UI THEME ---
-local Theme = {
-    Background = Color3.fromRGB(10, 10, 12),
-    Secondary = Color3.fromRGB(18, 18, 22),
-    Accent = Color3.fromRGB(100, 100, 130),
-    Text = Color3.fromRGB(255, 255, 255),
-    SubText = Color3.fromRGB(170, 170, 180),
-    Danger = Color3.fromRGB(255, 80, 80),
-    Success = Color3.fromRGB(80, 255, 80),
-    Stroke = Color3.fromRGB(50, 50, 60),
-    Font = Enum.Font.GothamBold,
-    SecondaryFont = Enum.Font.GothamMedium
+-- ── ADMIN WHITELIST (add your UserId — never changes) ────────
+local ADMINS = {
+    [1] = true,   -- ← replace 1 with your actual Roblox UserId
+    -- [987654321] = true,  -- co-admin example
 }
 
--- // --- GUI CONSTRUCTION ---
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Ultra_Insanity_Panel"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent = PlayerGui
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 650, 0, 450)
-MainFrame.Position = UDim2.new(0.5, -325, 0.5, -225)
-MainFrame.BackgroundColor3 = Theme.Background
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Theme.Stroke
-MainStroke.Thickness = 2
-MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-MainStroke.Parent = MainFrame
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
-MainCorner.Parent = MainFrame
-
--- // --- TOP BAR ---
-local TopBar = Instance.new("Frame")
-TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 50)
-TopBar.BackgroundColor3 = Theme.Secondary
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
-
-local TopCorner = Instance.new("UICorner")
-TopCorner.CornerRadius = UDim.new(0, 12)
-TopCorner.Parent = TopBar
-
-local TopBarCover = Instance.new("Frame")
-TopBarCover.Size = UDim2.new(1, 0, 0, 10)
-TopBarCover.Position = UDim2.new(0, 0, 1, -10)
-TopBarCover.BackgroundColor3 = Theme.Secondary
-TopBarCover.BorderSizePixel = 0
-TopBarCover.Parent = TopBar
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -150, 1, 0)
-Title.Position = UDim2.new(0, 20, 0, 0)
-Title.Text = "KICK A LUCKY BLOCK // ULTRA INSANITY v4.0"
-Title.TextColor3 = Theme.Text
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Font = Theme.Font
-Title.TextSize = 18
-Title.BackgroundTransparency = 1
-Title.Parent = TopBar
-
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
-MinimizeBtn.Position = UDim2.new(1, -50, 0, 5)
-MinimizeBtn.BackgroundColor3 = Theme.Background
-MinimizeBtn.Text = "-"
-MinimizeBtn.TextColor3 = Theme.Text
-MinimizeBtn.Font = Theme.Font
-MinimizeBtn.TextSize = 20
-MinimizeBtn.Parent = TopBar
-
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 8)
-MinCorner.Parent = MinimizeBtn
-
-local MinStroke = Instance.new("UIStroke")
-MinStroke.Color = Theme.Stroke
-MinStroke.Thickness = 1
-MinStroke.Parent = MinimizeBtn
-
--- // --- SIDEBAR NAVIGATION ---
-local Sidebar = Instance.new("Frame")
-Sidebar.Name = "Sidebar"
-Sidebar.Size = UDim2.new(0, 160, 1, -50)
-Sidebar.Position = UDim2.new(0, 0, 0, 50)
-Sidebar.BackgroundColor3 = Theme.Secondary
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
-
-local SideStroke = Instance.new("UIStroke")
-SideStroke.Color = Theme.Stroke
-SideStroke.Thickness = 1
-SideStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-SideStroke.Parent = Sidebar
-
-local NavList = Instance.new("UIListLayout")
-NavList.Padding = UDim.new(0, 5)
-NavList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-NavList.Parent = Sidebar
-
-local Padding = Instance.new("UIPadding")
-Padding.PaddingTop = UDim.new(0, 10)
-Padding.Parent = Sidebar
-
--- // --- CONTENT AREA ---
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Name = "Content"
-ContentFrame.Size = UDim2.new(1, -160, 1, -50)
-ContentFrame.Position = UDim2.new(0, 160, 0, 50)
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
-
-local Sections = {}
-local CurrentSection = nil
-
-local function createSection(name)
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Name = name
-    scroll.Size = UDim2.new(1, -20, 1, -20)
-    scroll.Position = UDim2.new(0, 10, 0, 10)
-    scroll.BackgroundTransparency = 1
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroll.ScrollBarThickness = 2
-    scroll.ScrollBarImageColor3 = Theme.Accent
-    scroll.Visible = false
-    scroll.Parent = ContentFrame
-
-    local list = Instance.new("UIListLayout")
-    list.Padding = UDim.new(0, 8)
-    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    list.Parent = scroll
-
-    list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scroll.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 20)
-    end)
-
-    Sections[name] = scroll
-    return scroll
+if not ADMINS[LP.UserId] then
+    warn("[AdminPanel] Not an admin. Exiting.")
+    return
 end
 
-local function switchSection(name)
-    if CurrentSection then Sections[CurrentSection].Visible = false end
-    Sections[name].Visible = true
-    CurrentSection = name
+-- ── CLEANUP ─────────────────────────────────────────────────
+if PGui:FindFirstChild("_AdminPanel") then
+    PGui._AdminPanel:Destroy()
 end
 
-local function createNavBtn(name)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 35)
-    btn.BackgroundColor3 = Theme.Background
-    btn.Text = name:upper()
-    btn.TextColor3 = Theme.SubText
-    btn.Font = Theme.SecondaryFont
-    btn.TextSize = 11
-    btn.BorderSizePixel = 0
-    btn.Parent = Sidebar
-
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = btn
-
-    local btnStroke = Instance.new("UIStroke")
-    btnStroke.Color = Theme.Stroke
-    btnStroke.Thickness = 1
-    btnStroke.Parent = btn
-
-    btn.MouseButton1Click:Connect(function()
-        for _, otherBtn in ipairs(Sidebar:GetChildren()) do
-            if otherBtn:IsA("TextButton") then
-                otherBtn.TextColor3 = Theme.SubText
-                otherBtn.BackgroundColor3 = Theme.Background
-            end
-        end
-        btn.TextColor3 = Theme.Text
-        btn.BackgroundColor3 = Theme.Accent
-        switchSection(name)
-    end)
-
-    return btn
-end
-
--- // --- UI COMPONENTS ---
-local function createToggle(parent, text, callback)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 40)
-    frame.BackgroundColor3 = Theme.Secondary
-    frame.BorderSizePixel = 0
-    frame.Parent = parent
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = frame
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -60, 1, 0)
-    label.Position = UDim2.new(0, 15, 0, 0)
-    label.Text = text
-    label.TextColor3 = Theme.Text
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Font = Theme.SecondaryFont
-    label.TextSize = 13
-    label.BackgroundTransparency = 1
-    label.Parent = frame
-
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0, 40, 0, 20)
-    toggleBtn.Position = UDim2.new(1, -50, 0.5, -10)
-    toggleBtn.BackgroundColor3 = Theme.Background
-    toggleBtn.Text = ""
-    toggleBtn.Parent = frame
-
-    local tCorner = Instance.new("UICorner")
-    tCorner.CornerRadius = UDim.new(1, 0)
-    tCorner.Parent = toggleBtn
-
-    local indicator = Instance.new("Frame")
-    indicator.Size = UDim2.new(0, 16, 0, 16)
-    indicator.Position = UDim2.new(0, 2, 0.5, -8)
-    indicator.BackgroundColor3 = Theme.Danger
-    indicator.Parent = toggleBtn
-
-    local iCorner = Instance.new("UICorner")
-    iCorner.CornerRadius = UDim.new(1, 0)
-    iCorner.Parent = indicator
-
-    local active = false
-    toggleBtn.MouseButton1Click:Connect(function()
-        active = not active
-        TweenService:Create(indicator, TweenInfo.new(0.2), {
-            Position = active and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8),
-            BackgroundColor3 = active and Theme.Success or Theme.Danger
-        }):Play()
-        callback(active)
-    end)
-end
-
-local function createButton(parent, text, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 40)
-    btn.BackgroundColor3 = Theme.Secondary
-    btn.Text = text
-    btn.TextColor3 = Theme.Text
-    btn.Font = Theme.SecondaryFont
-    btn.TextSize = 13
-    btn.BorderSizePixel = 0
-    btn.Parent = parent
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
-
-    btn.MouseButton1Click:Connect(callback)
-end
-
-local function createInput(parent, placeholder, callback)
-    local input = Instance.new("TextBox")
-    input.Size = UDim2.new(1, 0, 0, 40)
-    input.BackgroundColor3 = Theme.Secondary
-    input.PlaceholderText = placeholder
-    input.Text = ""
-    input.TextColor3 = Theme.Text
-    input.Font = Theme.SecondaryFont
-    input.TextSize = 13
-    input.BorderSizePixel = 0
-    input.Parent = parent
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = input
-
-    input.FocusLost:Connect(function(enter)
-        if enter then callback(input.Text) end
-    end)
-end
-
--- // --- SECTIONS INITIALIZATION ---
-local AbuseSec = createSection("Admin Abuse")
-local ServerSec = createSection("Server Control")
-local PlayerSec = createSection("Player Hacks")
-local WorldSec = createSection("World Control")
-local VisualSec = createSection("Visual Chaos")
-local AntiSec = createSection("Anti-Cheat")
-
-createNavBtn("Admin Abuse")
-createNavBtn("Server Control")
-createNavBtn("Player Hacks")
-createNavBtn("World Control")
-createNavBtn("Visual Chaos")
-createNavBtn("Anti-Cheat")
-
-switchSection("Admin Abuse")
-
--- // --- WORLD MESSAGE SYSTEM ---
-local function createWorldMessage(text, isServer)
-    if isServer then
-        local remote = ReplicatedStorage:FindFirstChild("Message") or ReplicatedStorage:FindFirstChild("ServerMessage")
-        if remote then remote:FireServer(text) end
+-- ── WAIT FOR SERVER REMOTE ──────────────────────────────────
+-- The companion ServerScript creates "AdminRemote" in RS.
+-- We wait up to 10 seconds; if not found, server actions
+-- (kick, teleport others, etc.) will be disabled.
+local adminRemote = nil
+task.spawn(function()
+    local found = RS:WaitForChild("AdminRemote", 10)
+    if found then
+        adminRemote = found
     else
-        local billboard = Instance.new("BillboardGui")
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.Adornee = LocalPlayer.Character:FindFirstChild("Head")
-        billboard.StudsOffset = Vector3.new(0, 3, 0)
-        billboard.AlwaysOnTop = true
-        billboard.Parent = LocalPlayer.Character:FindFirstChild("Head")
+        warn("[AdminPanel] AdminRemote not found. Server actions disabled.")
+        warn("[AdminPanel] Add the companion ServerScript to ServerScriptService.")
+    end
+end)
 
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = text
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.Font = Theme.Font
-        label.TextSize = 20
-        label.Parent = billboard
-
-        local stroke = Instance.new("UIStroke")
-        stroke.Thickness = 2
-        stroke.Color = Color3.new(0, 0, 0)
-        stroke.Parent = label
-
-        task.delay(5, function() billboard:Destroy() end)
+local function fireServer(...)
+    if adminRemote then
+        adminRemote:FireServer(...)
+    else
+        warn("[AdminPanel] No server remote — server action skipped.")
     end
 end
 
--- // --- 1. ADMIN ABUSE (10 Features) ---
-createButton(AbuseSec, "FORCE REBIRTH x100", function()
-    local remote = Remotes:FindFirstChild("rev_RebirthUpdate")
-    for i = 1, 100 do remote:FireServer() end
+-- ═══════════════════════════════════════════════════════════
+-- ── COLORS ─────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+local C = {
+    BG     = Color3.fromRGB(15,  15,  20),
+    PANEL  = Color3.fromRGB(22,  22,  30),
+    HDR    = Color3.fromRGB(28,  28,  38),
+    LINE   = Color3.fromRGB(44,  44,  58),
+    TEXT   = Color3.fromRGB(215, 215, 225),
+    DIM    = Color3.fromRGB(105, 105, 128),
+    WHITE  = Color3.fromRGB(255, 255, 255),
+    BTN    = Color3.fromRGB(38,  38,  52),
+    RED    = Color3.fromRGB(180, 50,  50),
+    GREEN  = Color3.fromRGB(40,  140, 80),
+    BLUE   = Color3.fromRGB(40,  80,  160),
+    ORANGE = Color3.fromRGB(180, 110, 30),
+    PURPLE = Color3.fromRGB(100, 50,  160),
+    TEAL   = Color3.fromRGB(30,  130, 140),
+}
+
+-- ═══════════════════════════════════════════════════════════
+-- ── ROOT GUI ────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+local W, H = 320, 490
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name              = "_AdminPanel"
+Gui.ResetOnSpawn      = false
+Gui.ZIndexBehavior    = Enum.ZIndexBehavior.Sibling
+Gui.IgnoreGuiInset    = true
+Gui.DisplayOrder      = 999
+Gui.Parent            = PGui
+
+local Main = Instance.new("Frame", Gui)
+Main.Size                = UDim2.fromOffset(W, H)
+Main.Position            = UDim2.new(0.5,-W/2, 0.5,-H/2)
+Main.BackgroundColor3    = C.BG
+Main.ClipsDescendants    = true
+Main.BorderSizePixel     = 0
+Instance.new("UICorner",  Main).CornerRadius = UDim.new(0,10)
+local mStroke            = Instance.new("UIStroke", Main)
+mStroke.Color            = C.LINE; mStroke.Thickness = 1
+
+-- ── HEADER ──────────────────────────────────────────────────
+local Hdr = Instance.new("Frame", Main)
+Hdr.Size             = UDim2.new(1,0,0,36)
+Hdr.BackgroundColor3 = C.HDR
+Hdr.BorderSizePixel  = 0; Hdr.ZIndex = 2
+Instance.new("UICorner", Hdr).CornerRadius = UDim.new(0,10)
+-- bottom-half cover so corners only show top
+local hfix = Instance.new("Frame", Hdr)
+hfix.Size = UDim2.new(1,0,0.5,0); hfix.Position = UDim2.new(0,0,0.5,0)
+hfix.BackgroundColor3 = C.HDR; hfix.BorderSizePixel = 0
+
+local Title = Instance.new("TextLabel", Hdr)
+Title.Text              = "🔥  Admin Panel"
+Title.Font              = Enum.Font.GothamBold; Title.TextSize = 13
+Title.TextColor3        = C.TEXT; Title.BackgroundTransparency = 1
+Title.Size              = UDim2.new(1,-58,1,0)
+Title.Position          = UDim2.new(0,10,0,0)
+Title.TextXAlignment    = Enum.TextXAlignment.Left; Title.ZIndex = 3
+
+local function makeHdrBtn(text, color, offsetX)
+    local b = Instance.new("TextButton", Hdr)
+    b.Size             = UDim2.fromOffset(22,22)
+    b.Position         = UDim2.new(1, offsetX, 0.5, -11)
+    b.BackgroundColor3 = color; b.BorderSizePixel = 0
+    b.Text             = text; b.Font = Enum.Font.GothamBold; b.TextSize = 11
+    b.TextColor3       = C.WHITE; b.AutoButtonColor = false; b.ZIndex = 4
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,5)
+    return b
+end
+
+local MinB = makeHdrBtn("—", C.BTN,  -52)
+MinB.TextColor3 = C.DIM
+local XBtn = makeHdrBtn("✕", C.RED,  -26)
+
+XBtn.MouseButton1Click:Connect(function() Gui:Destroy() end)
+
+local mini = false
+MinB.MouseButton1Click:Connect(function()
+    mini = not mini
+    TweenService:Create(Main, TweenInfo.new(0.18,Enum.EasingStyle.Quint), {
+        Size = mini and UDim2.fromOffset(W,36) or UDim2.fromOffset(W,H)
+    }):Play()
+    MinB.Text = mini and "▲" or "—"
 end)
 
-createButton(AbuseSec, "ADD 999T COINS", function()
-    local remote = Remotes:FindFirstChild("rev_CoinsChanged")
-    remote:FireServer(999000000000000)
-end)
-
-createButton(AbuseSec, "GIVE ALL BRAINROTS", function()
-    local remote = ReplicatedStorage:FindFirstChild("GiveBrainrot")
-    remote:FireServer("All")
-end)
-
-createToggle(AbuseSec, "GOD LUCK (INF)", function(state)
-    local remote = ReplicatedStorage:FindFirstChild("GlobalLuck")
-    remote:FireServer(state and 1e18 or 1)
-end)
-
-createToggle(AbuseSec, "GOD MULTIPLIER (INF)", function(state)
-    local remote = ReplicatedStorage:FindFirstChild("GlobalMultiplier")
-    remote:FireServer(state and 1e18 or 1)
-end)
-
-createButton(AbuseSec, "UNLOCK ALL KICK STYLES", function()
-    local remote = ReplicatedStorage:FindFirstChild("rev_UpdateSpins")
-    remote:FireServer("UnlockAll")
-end)
-
-createButton(AbuseSec, "MAX ALL WEIGHTS", function()
-    local remote = ReplicatedStorage:FindFirstChild("WeightServiceClient")
-    remote:FireServer("MaxAll")
-end)
-
-createButton(AbuseSec, "INSTANT MAX MASTERY", function()
-    local remote = ReplicatedStorage:FindFirstChild("KickMastery")
-    remote:FireServer("Max")
-end)
-
-createButton(AbuseSec, "GIVE SACRIFICE REWARDS", function()
-    local remote = ReplicatedStorage:FindFirstChild("SacrificeMachineUI")
-    remote:FireServer("ClaimAll")
-end)
-
-createButton(AbuseSec, "FORCE VOLCANO UPGRADE", function()
-    local remote = ReplicatedStorage:FindFirstChild("VolcanoUpgradesData")
-    remote:FireServer("UpgradeAll")
-end)
-
--- // --- 2. SERVER CONTROL (8 Features) ---
-createInput(ServerSec, "SERVER BROADCAST MESSAGE", function(val)
-    createWorldMessage(val, true)
-end)
-
-createInput(ServerSec, "POPUP MESSAGE OVER HEAD", function(val)
-    createWorldMessage(val, false)
-end)
-
-createButton(ServerSec, "TRIGGER GLOBAL POLL", function()
-    local remote = ReplicatedStorage:FindFirstChild("GlobalPoll")
-    remote:FireServer("Insanity Poll", {"Yes", "No"})
-end)
-
-createButton(ServerSec, "START SERVER BATTLE", function()
-    local remote = ReplicatedStorage:FindFirstChild("StartBattle")
-    remote:FireServer("Global")
-end)
-
-createToggle(ServerSec, "FREEZE ALL PLAYERS", function(state)
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            p.Character.HumanoidRootPart.Anchored = state
-        end
-    end
-end)
-
-createButton(ServerSec, "KILL ALL (CLIENT SIDE)", function()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then p.Character:BreakJoints() end
-    end
-end)
-
-createButton(ServerSec, "CRASH SERVER (LAG)", function()
-    while true do task.wait() for i=1, 10000 do local a = Instance.new("Part") end end
-end)
-
-createButton(ServerSec, "SHUTDOWN SIMULATOR", function()
-    local remote = ReplicatedStorage:FindFirstChild("InitRestart")
-    remote:FireServer()
-end)
-
--- // --- 3. PLAYER HACKS (8 Features) ---
-createToggle(PlayerSec, "ULTRA SPEED (2000)", function(state)
-    LocalPlayer.Character.Humanoid.WalkSpeed = state and 2000 or 16
-end)
-
-createToggle(PlayerSec, "INFINITE JUMP", function(state) _G.InfJump = state end)
-
-createToggle(PlayerSec, "NOCLIP", function(state) _G.Noclip = state end)
-
-createToggle(PlayerSec, "FLY (Q/E)", function(state)
-    local remote = ReplicatedStorage:FindFirstChild("Fly")
-    remote:FireServer(state)
-end)
-
-createToggle(PlayerSec, "GOD MODE", function(state)
-    if state then
-        LocalPlayer.Character.Humanoid.MaxHealth = 1e18
-        LocalPlayer.Character.Humanoid.Health = 1e18
-    else
-        LocalPlayer.Character.Humanoid.MaxHealth = 100
-        LocalPlayer.Character.Humanoid.Health = 100
-    end
-end)
-
-createButton(PlayerSec, "TELEPORT TO SELL", function()
-    LocalPlayer.Character:MoveTo(workspace.Sell.WorldPivot.Position)
-end)
-
-createButton(PlayerSec, "TELEPORT TO PLOT", function()
-    local plot = workspace.Plots:FindFirstChild("Plot" .. LocalPlayer.Name) or workspace.Plots:FindFirstChildWhichIsA("Model")
-    LocalPlayer.Character:MoveTo(plot.WorldPivot.Position)
-end)
-
-createToggle(PlayerSec, "INVISIBILITY", function(state)
-    for _, v in ipairs(LocalPlayer.Character:GetDescendants()) do
-        if v:IsA("BasePart") or v:IsA("Decal") then v.Transparency = state and 1 or 0 end
-    end
-end)
-
--- // --- 4. WORLD CONTROL (8 Features) ---
-createToggle(WorldSec, "AUTO FARM LUCKY BLOCKS", function(state)
-    _G.AutoFarm = state
-    task.spawn(function()
-        while _G.AutoFarm do
-            local remote = ReplicatedStorage:FindFirstChild("rev_Kick_Update")
-            remote:FireServer()
-            task.wait(0.05)
+-- Drag
+do
+    local drag, ds, sp
+    Hdr.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then
+            drag=true; ds=i.Position; sp=Main.Position
         end
     end)
+    UserInputService.InputChanged:Connect(function(i)
+        if drag and (i.UserInputType == Enum.UserInputType.MouseMovement
+        or  i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - ds
+            Main.Position = UDim2.new(sp.X.Scale, sp.X.Offset+d.X,
+                                      sp.Y.Scale, sp.Y.Offset+d.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+        or i.UserInputType == Enum.UserInputType.Touch then drag=false end
+    end)
+end
+
+-- Status bar (shows "Server: connected / disconnected")
+local StatusBar = Instance.new("Frame", Main)
+StatusBar.Size             = UDim2.new(1,0,0,18)
+StatusBar.Position         = UDim2.new(0,0,0,36)
+StatusBar.BackgroundColor3 = Color3.fromRGB(10,10,16)
+StatusBar.BorderSizePixel  = 0
+
+local StatusLbl = Instance.new("TextLabel", StatusBar)
+StatusLbl.Size             = UDim2.new(1,-8,1,0)
+StatusLbl.Position         = UDim2.new(0,8,0,0)
+StatusLbl.BackgroundTransparency = 1
+StatusLbl.Font             = Enum.Font.Code; StatusLbl.TextSize = 9
+StatusLbl.TextColor3       = C.DIM
+StatusLbl.TextXAlignment   = Enum.TextXAlignment.Left
+StatusLbl.Text             = "⬤  Connecting to server remote..."
+
+task.spawn(function()
+    task.wait(0.5)
+    while true do
+        if adminRemote then
+            StatusLbl.TextColor3 = C.GREEN
+            StatusLbl.Text       = "⬤  Server remote connected  |  Logged in as: " .. LP.Name
+            break
+        end
+        task.wait(1)
+        if not Gui.Parent then break end
+    end
+    if not adminRemote then
+        StatusLbl.TextColor3 = C.RED
+        StatusLbl.Text       = "⬤  No server remote — add companion Script to ServerScriptService"
+    end
 end)
 
-createToggle(WorldSec, "AUTO COLLECT DROPS", function(state)
-    _G.AutoCollect = state
-    task.spawn(function()
-        while _G.AutoCollect do
-            for _, v in ipairs(workspace:GetChildren()) do
-                if v:IsA("Model") and v:FindFirstChild("TouchInterest") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = v.WorldPivot
+-- ── TAB BAR ─────────────────────────────────────────────────
+local TABS = {"Players","Self","World","Tools","Chat"}
+
+local TabBar = Instance.new("Frame", Main)
+TabBar.Size             = UDim2.new(1,0,0,28)
+TabBar.Position         = UDim2.new(0,0,0,54)
+TabBar.BackgroundColor3 = C.PANEL; TabBar.BorderSizePixel = 0
+local TabLayout = Instance.new("UIListLayout", TabBar)
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.SortOrder     = Enum.SortOrder.LayoutOrder
+
+local Content = Instance.new("Frame", Main)
+Content.Size                = UDim2.new(1,0,1,-82)
+Content.Position            = UDim2.new(0,0,0,82)
+Content.BackgroundTransparency = 1
+Content.ClipsDescendants    = true
+
+-- ═══════════════════════════════════════════════════════════
+-- ── UI HELPERS ──────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+local function makeScroll(parent)
+    local sf = Instance.new("ScrollingFrame", parent)
+    sf.Size                    = UDim2.new(1,0,1,0)
+    sf.BackgroundTransparency  = 1; sf.BorderSizePixel = 0
+    sf.ScrollBarThickness      = 3
+    sf.ScrollBarImageColor3    = C.LINE
+    sf.CanvasSize              = UDim2.new(0,0,0,0)
+    local lay = Instance.new("UIListLayout", sf)
+    lay.SortOrder              = Enum.SortOrder.LayoutOrder
+    lay.Padding                = UDim.new(0,4)
+    local pad = Instance.new("UIPadding", sf)
+    pad.PaddingLeft   = UDim.new(0,8); pad.PaddingRight  = UDim.new(0,8)
+    pad.PaddingTop    = UDim.new(0,8); pad.PaddingBottom = UDim.new(0,8)
+    lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        sf.CanvasSize = UDim2.new(0,0,0, lay.AbsoluteContentSize.Y+16)
+    end)
+    return sf
+end
+
+local function hover(btn, base)
+    local function lighten(c, a)
+        return Color3.new(math.min(c.R+a,1), math.min(c.G+a,1), math.min(c.B+a,1))
+    end
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3=lighten(base,0.08)}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3=base}):Play()
+    end)
+end
+
+local function makeBtn(parent, text, color, order)
+    local b = Instance.new("TextButton", parent)
+    b.Size             = UDim2.new(1,0,0,30)
+    b.BackgroundColor3 = color or C.BTN
+    b.BorderSizePixel  = 0
+    b.Text             = text
+    b.Font             = Enum.Font.Gotham; b.TextSize = 11
+    b.TextColor3       = C.WHITE
+    b.AutoButtonColor  = false
+    b.LayoutOrder      = order or 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+    hover(b, color or C.BTN)
+    return b
+end
+
+local function makeLabel(parent, text, order)
+    local l = Instance.new("TextLabel", parent)
+    l.Size                  = UDim2.new(1,0,0,16)
+    l.BackgroundTransparency= 1; l.BorderSizePixel = 0
+    l.Text                  = text
+    l.Font                  = Enum.Font.GothamBold; l.TextSize = 9
+    l.TextColor3            = C.DIM
+    l.TextXAlignment        = Enum.TextXAlignment.Left
+    l.LayoutOrder           = order or 0
+    return l
+end
+
+local function makeSep(parent, order)
+    local s = Instance.new("Frame", parent)
+    s.Size             = UDim2.new(1,0,0,1)
+    s.BackgroundColor3 = C.LINE; s.BorderSizePixel = 0
+    s.LayoutOrder      = order or 0
+    return s
+end
+
+local function makeToggle(parent, labelOn, labelOff, colorOn, order, callback)
+    local on = false
+    local b  = makeBtn(parent, labelOff, C.BTN, order)
+    b.MouseButton1Click:Connect(function()
+        on = not on
+        b.BackgroundColor3 = on and colorOn or C.BTN
+        b.Text             = on and labelOn  or labelOff
+        hover(b, on and colorOn or C.BTN)
+        if callback then callback(on) end
+    end)
+    return b
+end
+
+local function makeSlider(parent, label, min, max, default, order, cb)
+    local row = Instance.new("Frame", parent)
+    row.Size             = UDim2.new(1,0,0,44)
+    row.BackgroundColor3 = C.PANEL; row.BorderSizePixel = 0
+    row.LayoutOrder      = order or 0
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0,6)
+
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size              = UDim2.new(0.65,0,0,18)
+    lbl.Position          = UDim2.new(0,8,0,4)
+    lbl.BackgroundTransparency = 1
+    lbl.Font              = Enum.Font.Gotham; lbl.TextSize = 11
+    lbl.TextColor3        = C.TEXT; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Text              = label
+
+    local valLbl = Instance.new("TextLabel", row)
+    valLbl.Size           = UDim2.new(0.3,-8,0,18)
+    valLbl.Position       = UDim2.new(0.7,0,0,4)
+    valLbl.BackgroundTransparency = 1
+    valLbl.Font           = Enum.Font.GothamBold; valLbl.TextSize = 11
+    valLbl.TextColor3     = C.GREEN; valLbl.TextXAlignment = Enum.TextXAlignment.Right
+    valLbl.Text           = tostring(default)
+
+    local track = Instance.new("Frame", row)
+    track.Size             = UDim2.new(1,-16,0,5)
+    track.Position         = UDim2.new(0,8,0,30)
+    track.BackgroundColor3 = C.BTN; track.BorderSizePixel = 0
+    Instance.new("UICorner", track).CornerRadius = UDim.new(0,3)
+
+    local fill = Instance.new("Frame", track)
+    fill.Size             = UDim2.new((default-min)/(max-min),0,1,0)
+    fill.BackgroundColor3 = C.BLUE; fill.BorderSizePixel = 0
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(0,3)
+
+    local dragging = false
+    local function update(x)
+        local rel = math.clamp((x - track.AbsolutePosition.X)/track.AbsoluteSize.X, 0, 1)
+        local val = math.floor(min + rel*(max-min))
+        fill.Size    = UDim2.new(rel,0,1,0)
+        valLbl.Text  = tostring(val)
+        if cb then cb(val) end
+    end
+    track.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 then
+            dragging=true; update(i.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then
+            update(i.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
+    end)
+    return row
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- ── TABS SETUP ──────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+local pages   = {}
+local tabBtns = {}
+
+local function switchTab(name)
+    for n,p  in pairs(pages)   do p.Visible = (n==name) end
+    for n,tb in pairs(tabBtns) do
+        tb.BackgroundColor3 = (n==name) and C.BLUE or C.PANEL
+        tb.TextColor3       = (n==name) and C.WHITE or C.DIM
+    end
+end
+
+local tabW = W/#TABS
+for i, name in ipairs(TABS) do
+    local tb = Instance.new("TextButton", TabBar)
+    tb.Size             = UDim2.fromOffset(tabW, 28)
+    tb.BackgroundColor3 = C.PANEL; tb.BorderSizePixel = 0
+    tb.Text             = name
+    tb.Font             = Enum.Font.GothamBold; tb.TextSize = 10
+    tb.TextColor3       = C.DIM; tb.AutoButtonColor = false
+    tb.LayoutOrder      = i
+    tb.MouseButton1Click:Connect(function() switchTab(name) end)
+    tabBtns[name] = tb
+
+    local page = Instance.new("Frame", Content)
+    page.Size               = UDim2.new(1,0,1,0)
+    page.BackgroundTransparency = 1; page.Visible = false
+    pages[name] = page
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- ── TAB: PLAYERS ────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+do
+    local scroll = makeScroll(pages["Players"])
+    local selectedPlayer = nil
+
+    local selBanner = Instance.new("TextLabel", scroll)
+    selBanner.Size             = UDim2.new(1,0,0,24)
+    selBanner.BackgroundColor3 = C.PANEL; selBanner.BorderSizePixel = 0
+    selBanner.Font             = Enum.Font.GothamBold; selBanner.TextSize = 11
+    selBanner.TextColor3       = C.TEXT; selBanner.LayoutOrder = 0
+    selBanner.Text             = "  Selected: none"
+    selBanner.TextXAlignment   = Enum.TextXAlignment.Left
+    Instance.new("UICorner", selBanner).CornerRadius = UDim.new(0,6)
+
+    makeLabel(scroll, "PLAYER LIST", 1)
+
+    local plHolder = Instance.new("Frame", scroll)
+    plHolder.Size               = UDim2.new(1,0,0,0)
+    plHolder.BackgroundTransparency = 1; plHolder.BorderSizePixel = 0
+    plHolder.LayoutOrder        = 2
+    local plLay = Instance.new("UIListLayout", plHolder)
+    plLay.SortOrder = Enum.SortOrder.LayoutOrder; plLay.Padding = UDim.new(0,3)
+    plLay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        plHolder.Size = UDim2.new(1,0,0,plLay.AbsoluteContentSize.Y)
+    end)
+
+    local plBtns = {}
+
+    local function refreshPlayers()
+        for _,b in pairs(plBtns) do b:Destroy() end
+        table.clear(plBtns)
+        for i, plr in ipairs(Players:GetPlayers()) do
+            local isMe = (plr == LP)
+            local b = Instance.new("TextButton", plHolder)
+            b.Size             = UDim2.new(1,0,0,26)
+            b.BackgroundColor3 = isMe and Color3.fromRGB(25,45,25) or C.BTN
+            b.BorderSizePixel  = 0; b.LayoutOrder = i
+            b.Font             = Enum.Font.Gotham; b.TextSize = 11
+            b.TextColor3       = isMe and C.GREEN or C.TEXT
+            b.Text             = (isMe and "★  " or "   ") .. plr.Name
+            b.TextXAlignment   = Enum.TextXAlignment.Left
+            b.AutoButtonColor  = false
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0,5)
+            b.MouseButton1Click:Connect(function()
+                selectedPlayer = plr
+                selBanner.Text = "  Selected: " .. plr.Name
+                for _, btn in pairs(plBtns) do
+                    btn.BackgroundColor3 = (btn==b) and C.BLUE
+                        or (Players:FindFirstChild(btn.Text:gsub("★  ",""):gsub("   ",""))==LP
+                            and Color3.fromRGB(25,45,25) or C.BTN)
+                    btn.TextColor3 = (btn==b) and C.WHITE or C.TEXT
                 end
-            end
-            task.wait(0.1)
+            end)
+            table.insert(plBtns, b)
         end
-    end)
-end)
-
-createButton(WorldSec, "REMOVE ALL TSUNAMIS", function()
-    for _, v in ipairs(workspace:GetChildren()) do
-        if v.Name:find("Tsunami") or v.Name:find("Water") then v:Destroy() end
     end
-end)
 
-createToggle(WorldSec, "FREEZE TIME", function(state)
-    Lighting.ClockTime = state and 0 or 12
-end)
+    refreshPlayers()
+    Players.PlayerAdded:Connect(refreshPlayers)
+    Players.PlayerRemoving:Connect(refreshPlayers)
 
-createButton(WorldSec, "SPAWN 100 LUCKY BLOCKS", function()
-    local remote = ReplicatedStorage:FindFirstChild("LuckyBlockMeteor")
-    for i = 1, 100 do remote:FireServer() end
-end)
+    -- ── ACTIONS ─────────────────────────────────────────────
+    makeSep(scroll, 3)
+    makeLabel(scroll, "ACTIONS  (click a player first)", 4)
 
-createButton(WorldSec, "DELETE ALL WALLS", function()
-    if workspace:FindFirstChild("Walls") then workspace.Walls:Destroy() end
-end)
+    local function act(text, color, order, actionFn)
+        local b = makeBtn(scroll, text, color, order)
+        b.MouseButton1Click:Connect(function()
+            if not selectedPlayer then
+                selBanner.Text = "  ⚠  Select a player first!"
+                return
+            end
+            actionFn(selectedPlayer)
+        end)
+        return b
+    end
 
-createButton(WorldSec, "UPGRADE ALL PLOTS", function()
-    local remote = ReplicatedStorage:FindFirstChild("ClientPlotService")
-    remote:FireServer("UpgradeAll")
-end)
-
-createButton(WorldSec, "OPEN ALL CHESTS", function()
-    local remote = ReplicatedStorage:FindFirstChild("FreeItem")
-    remote:FireServer("ClaimAll")
-end)
-
--- // --- 5. VISUAL CHAOS (6 Features) ---
-createToggle(VisualSec, "RAINBOW WORLD", function(state)
-    _G.RainbowWorld = state
-    task.spawn(function()
-        while _G.RainbowWorld do
-            Lighting.Ambient = Color3.fromHSV(tick() % 5 / 5, 1, 1)
-            task.wait()
+    act("⛔  Kick Player",            C.RED,    5,  function(p)
+        fireServer("Kick", p.Name, "Kicked by admin.")
+    end)
+    act("📌  Teleport to Me",         C.BLUE,   6,  function(p)
+        local myChar = LP.Character
+        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+            fireServer("TeleportTo", p.Name, myChar.HumanoidRootPart.Position)
         end
     end)
-end)
+    act("🧲  Bring to Me",            C.PURPLE, 7,  function(p)
+        local myChar = LP.Character
+        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+            fireServer("TeleportTo", p.Name, myChar.HumanoidRootPart.Position)
+        end
+    end)
+    act("🔄  Respawn Player",         C.GREEN,  8,  function(p)
+        fireServer("Respawn", p.Name)
+    end)
+    act("🧊  Freeze / Unfreeze",      C.TEAL,   9,  function(p)
+        fireServer("Freeze", p.Name)
+    end)
+    act("⚡  Speed Boost (80)",       C.ORANGE, 10, function(p)
+        fireServer("SetSpeed", p.Name, 80)
+    end)
+    act("🚶  Reset Speed (16)",       C.BTN,    11, function(p)
+        fireServer("SetSpeed", p.Name, 16)
+    end)
+    act("🎁  Give Tool",              C.ORANGE, 12, function(p)
+        fireServer("GiveTool", p.Name)
+    end)
 
-createButton(VisualSec, "SPAM CONFETTI", function()
-    local remote = ReplicatedStorage:FindFirstChild("PlayConfetti")
-    for i = 1, 50 do remote:FireServer() end
-end)
-
-createButton(VisualSec, "SHAKE EVERYONE'S CAMERA", function()
-    local remote = ReplicatedStorage:FindFirstChild("CameraShakeController")
-    remote:FireServer("Extreme")
-end)
-
-createButton(VisualSec, "NIGHT MODE", function()
-    Lighting.ClockTime = 0
-end)
-
-createButton(VisualSec, "DAY MODE", function()
-    Lighting.ClockTime = 14
-end)
-
-createButton(VisualSec, "FLASHBANG SERVER", function()
-    local remote = ReplicatedStorage:FindFirstChild("Whitescreen")
-    remote:FireServer(true)
-end)
-
--- // --- 6. ANTI-CHEAT (The Bypass) ---
-createToggle(AntiSec, "BYPASS ALL SECURITY", function(state)
-    if state then
-        local targets = {"AntiKick", "Admins", "Security", "CheatDetection", "Watcher", "LocalScript", "CameraFix"}
-        for _, name in ipairs(targets) do
-            for _, s in ipairs(game:GetDescendants()) do
-                if s:IsA("BaseScript") and (s.Name:find(name)) then
-                    s.Disabled = true
+    -- Spectate (local, no server needed)
+    local specBtn  = makeBtn(scroll, "👁  Spectate Player", C.BTN, 13)
+    local specConn = nil
+    local specOn   = false
+    specBtn.MouseButton1Click:Connect(function()
+        if not selectedPlayer then
+            selBanner.Text = "  ⚠  Select a player first!"; return
+        end
+        specOn = not specOn
+        specBtn.Text             = specOn and "👁  Stop Spectating" or "👁  Spectate Player"
+        specBtn.BackgroundColor3 = specOn and C.BLUE or C.BTN
+        hover(specBtn, specOn and C.BLUE or C.BTN)
+        if specOn then
+            workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+            specConn = RunService.RenderStepped:Connect(function()
+                if not selectedPlayer or not selectedPlayer.Character then
+                    specOn=false; specBtn.Text="👁  Spectate Player"
+                    specBtn.BackgroundColor3=C.BTN
+                    workspace.CurrentCamera.CameraType=Enum.CameraType.Custom
+                    specConn:Disconnect(); return
                 end
+                local head = selectedPlayer.Character:FindFirstChild("Head")
+                if head then
+                    workspace.CurrentCamera.CFrame = CFrame.new(
+                        head.Position + Vector3.new(0,3,7), head.Position)
+                end
+            end)
+        else
+            if specConn then specConn:Disconnect() end
+            workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+        end
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- ── TAB: SELF ───────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+do
+    local scroll = makeScroll(pages["Self"])
+
+    makeLabel(scroll, "MOVEMENT", 1)
+    makeSlider(scroll, "Walk Speed", 8, 250, 16, 2, function(v)
+        local c = LP.Character
+        if c then
+            local h = c:FindFirstChildOfClass("Humanoid")
+            if h then h.WalkSpeed = v end
+        end
+    end)
+    makeSlider(scroll, "Jump Power", 10, 300, 50, 3, function(v)
+        local c = LP.Character
+        if c then
+            local h = c:FindFirstChildOfClass("Humanoid")
+            if h then h.JumpPower = v end
+        end
+    end)
+
+    makeSep(scroll, 4)
+    makeLabel(scroll, "SURVIVAL", 5)
+
+    local godConn
+    makeToggle(scroll, "🛡  God Mode: ON", "🛡  God Mode: OFF", C.GREEN, 6, function(on)
+        if on then
+            godConn = Players.LocalPlayer.CharacterAdded:Connect(function(char)
+                local hum = char:WaitForChild("Humanoid")
+                hum.HealthChanged:Connect(function() if godConn then hum.Health = hum.MaxHealth end end)
+            end)
+            local char = LP.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.HealthChanged:Connect(function() if godConn then hum.Health=hum.MaxHealth end end) end
+            end
+        else
+            if godConn then godConn:Disconnect(); godConn=nil end
+        end
+    end)
+
+    makeSep(scroll, 7)
+    makeLabel(scroll, "VISIBILITY", 8)
+
+    makeToggle(scroll, "🫥  Invisible: ON", "🫥  Invisible: OFF", C.BLUE, 9, function(on)
+        local char = LP.Character
+        if not char then return end
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name~="HumanoidRootPart" then
+                part.LocalTransparencyModifier = on and 1 or 0
             end
         end
-        print("[BYPASS] Security Systems Nullified.")
+    end)
+
+    makeSep(scroll, 10)
+    makeLabel(scroll, "ANTI-AFK", 11)
+
+    local afkLoop
+    makeToggle(scroll, "✅  Anti-AFK: ON", "✅  Anti-AFK: OFF", C.GREEN, 12, function(on)
+        if on then
+            afkLoop = task.spawn(function()
+                while on do
+                    task.wait(55)
+                    pcall(function()
+                        local viu = game:GetService("VirtualInputManager")
+                        viu:SendMouseButtonEvent(0,0,0,true,  game,0)
+                        viu:SendMouseButtonEvent(0,0,0,false, game,0)
+                    end)
+                end
+            end)
+        else
+            if afkLoop then task.cancel(afkLoop); afkLoop=nil end
+        end
+    end)
+
+    makeSep(scroll, 13)
+    makeLabel(scroll, "MISC", 14)
+
+    local respSelf = makeBtn(scroll, "🔄  Respawn Myself", C.ORANGE, 15)
+    respSelf.MouseButton1Click:Connect(function()
+        local char = LP.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+        end
+    end)
+
+    local fovSlider = makeSlider(scroll, "Field of View", 30, 120, 70, 16, function(v)
+        workspace.CurrentCamera.FieldOfView = v
+    end)
+
+    local noclipConn
+    makeToggle(scroll, "👻  Noclip: ON", "👻  Noclip: OFF", C.PURPLE, 17, function(on)
+        if on then
+            noclipConn = RunService.Stepped:Connect(function()
+                local char = LP.Character
+                if not char then return end
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end)
+        else
+            if noclipConn then noclipConn:Disconnect(); noclipConn=nil end
+            local char = LP.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.PlatformStand = false end
+            end
+        end
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- ── TAB: WORLD ──────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+do
+    local scroll = makeScroll(pages["World"])
+
+    makeLabel(scroll, "TIME OF DAY", 1)
+    makeSlider(scroll, "Hour (0 – 24)", 0, 24, 14, 2, function(v)
+        Lighting.TimeOfDay = string.format("%02d:00:00", v)
+    end)
+
+    local timePresets = {
+        {"☀️  Noon",     "12:00:00", C.ORANGE},
+        {"🌅  Dawn",     "06:00:00", Color3.fromRGB(160,90,40)},
+        {"🌆  Dusk",     "18:30:00", Color3.fromRGB(140,70,50)},
+        {"🌙  Night",    "21:00:00", C.PURPLE},
+        {"🌑  Midnight", "00:00:00", Color3.fromRGB(20,20,50)},
+    }
+    for i, tp in ipairs(timePresets) do
+        local b = makeBtn(scroll, tp[1], tp[3], 2+i)
+        b.MouseButton1Click:Connect(function() Lighting.TimeOfDay = tp[2] end)
+    end
+
+    makeSep(scroll, 8)
+    makeLabel(scroll, "ATMOSPHERE", 9)
+
+    makeToggle(scroll, "🌫  Fog: ON", "🌫  Fog: OFF", C.TEAL, 10, function(on)
+        Lighting.FogEnd   = on and 80  or 100000
+        Lighting.FogStart = on and 0   or 0
+        Lighting.FogColor = Color3.fromRGB(180,190,200)
+    end)
+
+    makeToggle(scroll, "🌧  Rain Atmosphere: ON", "🌧  Rain Atmosphere: OFF", C.BLUE, 11, function(on)
+        local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
+                     or Instance.new("Atmosphere", Lighting)
+        if on then
+            atmo.Density=0.65; atmo.Offset=0.15
+            atmo.Color=Color3.fromRGB(130,150,180)
+        else
+            atmo.Density=0.3; atmo.Offset=0
+            atmo.Color=Color3.fromRGB(199,199,199)
+        end
+    end)
+
+    makeSep(scroll, 12)
+    makeLabel(scroll, "LIGHTING", 13)
+
+    makeSlider(scroll, "Brightness", 0, 10, 1, 14, function(v)
+        Lighting.Brightness = v
+    end)
+
+    local ambPresets = {
+        {"⚪  Normal",    Color3.fromRGB(100,100,100)},
+        {"🔵  Blue",      Color3.fromRGB(70,80,140)},
+        {"🔴  Red",       Color3.fromRGB(140,70,70)},
+        {"🟢  Green",     Color3.fromRGB(70,130,70)},
+        {"🟣  Purple",    Color3.fromRGB(110,70,140)},
+        {"🟡  Golden",    Color3.fromRGB(160,130,50)},
+    }
+    for i, ap in ipairs(ambPresets) do
+        local b = makeBtn(scroll, ap[1], C.BTN, 14+i)
+        b.MouseButton1Click:Connect(function() Lighting.Ambient = ap[2] end)
+    end
+
+    makeSep(scroll, 21)
+    local resetLighting = makeBtn(scroll, "↺  Reset All Lighting", C.RED, 22)
+    resetLighting.MouseButton1Click:Connect(function()
+        Lighting.Brightness  = 1
+        Lighting.TimeOfDay   = "14:00:00"
+        Lighting.Ambient     = Color3.fromRGB(100,100,100)
+        Lighting.FogEnd      = 100000; Lighting.FogStart = 0
+        local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
+        if atmo then atmo:Destroy() end
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- ── TAB: TOOLS ──────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+do
+    local scroll = makeScroll(pages["Tools"])
+
+    makeLabel(scroll, "TOOLS IN REPLICATEDSTORAGE", 1)
+
+    local count = 0
+    for _, obj in ipairs(RS:GetChildren()) do
+        if obj:IsA("Tool") or obj:IsA("HopperBin") then
+            count += 1
+            local b = makeBtn(scroll, "🎒  Give: " .. obj.Name, C.ORANGE, count)
+            b.MouseButton1Click:Connect(function()
+                obj:Clone().Parent = LP.Backpack
+            end)
+        end
+    end
+
+    if count == 0 then
+        local info = Instance.new("TextLabel", scroll)
+        info.Size                  = UDim2.new(1,0,0,56)
+        info.BackgroundColor3      = C.PANEL; info.BorderSizePixel = 0
+        info.Font                  = Enum.Font.Gotham; info.TextSize = 10
+        info.TextColor3            = C.DIM; info.TextWrapped = true
+        info.LayoutOrder           = 2
+        info.Text = "No Tools found in ReplicatedStorage.\nPlace Tool instances there and they'll appear here automatically."
+        Instance.new("UICorner", info).CornerRadius = UDim.new(0,6)
+    end
+
+    makeSep(scroll, 100)
+    makeLabel(scroll, "BACKPACK", 101)
+
+    local clearBp = makeBtn(scroll, "🗑  Clear My Backpack", C.RED, 102)
+    clearBp.MouseButton1Click:Connect(function()
+        LP.Backpack:ClearAllChildren()
+    end)
+
+    local dropAll = makeBtn(scroll, "📦  Drop All Tools", C.ORANGE, 103)
+    dropAll.MouseButton1Click:Connect(function()
+        for _, t in ipairs(LP.Backpack:GetChildren()) do
+            t.Parent = workspace
+        end
+        local char = LP.Character
+        if char then
+            local t = char:FindFirstChildOfClass("Tool")
+            if t then t.Parent = workspace end
+        end
+    end)
+end
+
+-- ═══════════════════════════════════════════════════════════
+-- ── TAB: CHAT ───────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════
+do
+    local scroll = makeScroll(pages["Chat"])
+
+    makeLabel(scroll, "SERVER ANNOUNCEMENT", 1)
+
+    local msgBox = Instance.new("TextBox", scroll)
+    msgBox.Size                = UDim2.new(1,0,0,52)
+    msgBox.BackgroundColor3    = C.PANEL; msgBox.BorderSizePixel = 0
+    msgBox.Font                = Enum.Font.Gotham; msgBox.TextSize = 11
+    msgBox.TextColor3          = C.TEXT
+    msgBox.PlaceholderText     = "Type announcement message..."
+    msgBox.PlaceholderColor3   = C.DIM
+    msgBox.Text                = ""; msgBox.MultiLine = true
+    msgBox.TextWrapped         = true; msgBox.LayoutOrder = 2
+    msgBox.ClearTextOnFocus    = false
+    msgBox.TextXAlignment      = Enum.TextXAlignment.Left
+    msgBox.TextYAlignment      = Enum.TextYAlignment.Top
+    local mpad = Instance.new("UIPadding", msgBox)
+    mpad.PaddingLeft = UDim.new(0,6); mpad.PaddingTop = UDim.new(0,6)
+    Instance.new("UICorner", msgBox).CornerRadius = UDim.new(0,6)
+
+    local sendBtn = makeBtn(scroll, "📢  Send Announcement", C.BLUE, 3)
+    sendBtn.MouseButton1Click:Connect(function()
+        local msg = msgBox.Text
+        if msg == "" then return end
+        fireServer("Announce", msg)
+        msgBox.Text = ""
+    end)
+
+    makeSep(scroll, 4)
+    makeLabel(scroll, "QUICK MESSAGES", 5)
+
+    local quickMsgs = {
+        {"👋  Welcome to the server!", "Welcome to Be A Firework! Have fun!"},
+        {"⚠️  Rules reminder",         "Please follow the rules or you will be kicked."},
+        {"⏱  Shutdown warning",        "Server will restart in 5 minutes. Thank you!"},
+        {"🎉  Event starting!",         "An event is starting now — head to spawn!"},
+        {"🙏  Thanks for playing!",     "Thanks for playing Be A Firework! See you next time!"},
+    }
+    for i, qm in ipairs(quickMsgs) do
+        local b = makeBtn(scroll, qm[1], C.BTN, 5+i)
+        b.MouseButton1Click:Connect(function()
+            fireServer("Announce", qm[2])
+        end)
+    end
+
+    makeSep(scroll, 11)
+    makeLabel(scroll, "LIVE CHAT LOG (this session)", 12)
+
+    local logFrame = Instance.new("TextLabel", scroll)
+    logFrame.Size                  = UDim2.new(1,0,0,130)
+    logFrame.BackgroundColor3      = Color3.fromRGB(10,10,16)
+    logFrame.BorderSizePixel       = 0
+    logFrame.Font                  = Enum.Font.Code; logFrame.TextSize = 9
+    logFrame.TextColor3            = C.DIM
+    logFrame.TextXAlignment        = Enum.TextXAlignment.Left
+    logFrame.TextYAlignment        = Enum.TextYAlignment.Top
+    logFrame.TextWrapped           = true
+    logFrame.LayoutOrder           = 13
+    logFrame.Text                  = "(chat messages will appear here)"
+    Instance.new("UICorner", logFrame).CornerRadius = UDim.new(0,6)
+    local lpad = Instance.new("UIPadding", logFrame)
+    lpad.PaddingLeft = UDim.new(0,6); lpad.PaddingTop = UDim.new(0,4)
+
+    local chatLog = {}
+    local function logMsg(plr, msg)
+        table.insert(chatLog, 1, string.format("[%s]: %s", plr.Name, msg))
+        if #chatLog > 25 then table.remove(chatLog) end
+        logFrame.Text = table.concat(chatLog, "\n")
+    end
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        plr.Chatted:Connect(function(m) logMsg(plr, m) end)
+    end
+    Players.PlayerAdded:Connect(function(plr)
+        plr.Chatted:Connect(function(m) logMsg(plr, m) end)
+    end)
+end
+
+-- ── INIT ────────────────────────────────────────────────────
+switchTab("Players")
+
+print("[AdminPanel] Loaded for " .. LP.Name)
+
+--[[
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  COMPANION SERVER SCRIPT
+  Place this in a NEW Script inside ServerScriptService.
+  This only needs to be done ONCE in Studio.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+local Players = game:GetService("Players")
+local RS      = game:GetService("ReplicatedStorage")
+local Chat    = game:GetService("Chat")
+
+-- Same admin list — keep in sync with the LocalScript
+local ADMINS = {
+    [1] = true,   -- ← your UserId
+}
+
+-- Create the remote only once
+local re = Instance.new("RemoteEvent", RS)
+re.Name  = "AdminRemote"
+
+re.OnServerEvent:Connect(function(sender, action, target, extra)
+    -- Security: verify the sender is actually an admin
+    if not ADMINS[sender.UserId] then return end
+
+    local targetPlr = Players:FindFirstChild(tostring(target))
+
+    if action == "Kick" then
+        if targetPlr and targetPlr ~= sender then
+            targetPlr:Kick(tostring(extra) or "Kicked by admin.")
+        end
+
+    elseif action == "TeleportTo" then
+        if targetPlr and targetPlr.Character and extra then
+            local hrp = targetPlr.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then hrp.CFrame = CFrame.new(extra + Vector3.new(0,3,0)) end
+        end
+
+    elseif action == "Respawn" then
+        if targetPlr then targetPlr:LoadCharacter() end
+
+    elseif action == "Freeze" then
+        if targetPlr and targetPlr.Character then
+            local hum = targetPlr.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = hum.WalkSpeed > 0 and 0 or 16 end
+        end
+
+    elseif action == "SetSpeed" then
+        if targetPlr and targetPlr.Character then
+            local hum = targetPlr.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = tonumber(extra) or 16 end
+        end
+
+    elseif action == "Announce" then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            local head = plr.Character and plr.Character:FindFirstChild("Head")
+            Chat:Chat(head or workspace.Terrain, "[ADMIN] " .. tostring(extra))
+        end
+
+    elseif action == "GiveTool" then
+        if targetPlr then
+            local tool = RS:FindFirstChildOfClass("Tool")
+            if tool then tool:Clone().Parent = targetPlr.Backpack end
+        end
     end
 end)
 
--- // --- MINIMIZE LOGIC ---
-local isMinimized = false
-MinimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        MainFrame:TweenSize(UDim2.new(0, 650, 0, 50), "Out", "Quad", 0.3, true)
-        Sidebar.Visible = false
-        ContentFrame.Visible = false
-        MinimizeBtn.Text = "+"
-    else
-        MainFrame:TweenSize(UDim2.new(0, 650, 0, 450), "Out", "Quad", 0.3, true)
-        task.wait(0.3)
-        Sidebar.Visible = true
-        ContentFrame.Visible = true
-        MinimizeBtn.Text = "-"
-    end
-end)
-
-print("[ULTRA INSANITY] Panel Online. 40+ Features Loaded.")
+print("[AdminPanel] Server remote ready.")
+]]
