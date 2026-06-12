@@ -1,4 +1,4 @@
--- Exploit Menu v9  |  Structure · Items · Scripts · Fruits · Research · Extraction · Anti-Suite
+-- Exploit Menu v9  |  Structure · Items · Scripts · Fruits
 
 local Players          = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -7,7 +7,6 @@ local LP               = Players.LocalPlayer
 local PGui             = LP:WaitForChild("PlayerGui")
 
 if PGui:FindFirstChild("_EM9") then PGui._EM9:Destroy() end
-if PGui:FindFirstChild("_EM9Toggle") then PGui._EM9Toggle:Destroy() end
 
 -- ── COLORS ──────────────────────────────────────────────────
 local BG    = Color3.fromRGB(18,18,24)
@@ -30,12 +29,6 @@ local CAC1  = Color3.fromRGB(50,130,70)
 local CFR1  = Color3.fromRGB(48,105,60)    -- common fruit
 local CFR2  = Color3.fromRGB(130,90,20)    -- rare fruit
 local CFR3  = Color3.fromRGB(90,30,110)    -- exotic fruit
--- ── NEW SECTION COLORS ──────────────────────────────────────
-local CRES  = Color3.fromRGB(55,80,148)    -- Research / Remote Spy
-local CEXT  = Color3.fromRGB(88,55,115)    -- Extraction / Source Dump
-local CANT  = Color3.fromRGB(132,48,52)    -- Anti-Suite
-local CVULN = Color3.fromRGB(175,75,30)    -- Vuln highlight
-local CSPY  = Color3.fromRGB(40,110,118)   -- Remote Spy active
 
 -- ── FRUIT LIST (extracted from game scan) ───────────────────
 -- Each entry: { display name, internal name in ReplicatedStorage, tier }
@@ -157,24 +150,6 @@ local STRUCT_SVCS = {"Workspace","ReplicatedStorage","ReplicatedFirst","StarterG
 local ITEM_SRCS   = {"Workspace","ReplicatedStorage","StarterPack","ReplicatedFirst"}
 local SCR_SVCS    = {"Workspace","ReplicatedStorage","ReplicatedFirst","StarterGui",
     "StarterPack","StarterPlayer","Lighting","SoundService","Chat","Teams"}
--- ── NEW DATA ────────────────────────────────────────────────
-local VULN_KW  = {"admin","ban","kick","give","god","fly","noclip","speed","teleport",
-    "btools","delete","op","promote","demote","bring","crash","shutdown","backdoor"}
-local LOG_KW   = {"log","analytic","track","metric","report","telemetry","stat",
-    "event","record","audit","monitor","heartbeat","ping","beacon"}
-local STAFF_KW = {"admin","mod","moderator","owner","staff","dev","developer","manager",
-    "operator","helper","support","lead","head","super","root"}
-local KICK_KW  = {"kick","ban","remove","disconnect","teleport"}
-local CLUE_PAT = {
-    {p="kick",        lbl="kick logic"},
-    {p=":fireserver", lbl="RemoteEvent FireServer"},
-    {p=":invokeserver",lbl="RemoteFunction InvokeServer"},
-    {p="anticheat",   lbl="anti-cheat reference"},
-    {p="exploit",     lbl="exploit detection"},
-    {p="datastore",   lbl="DataStore access"},
-    {p="httpservice", lbl="HTTP requests"},
-    {p="setcore",     lbl="CoreGui manipulation"},
-}
 
 -- ── UTIL ────────────────────────────────────────────────────
 local function safeGet(n)
@@ -194,7 +169,7 @@ local function doclip(txt)
 end
 
 -- ── ROOT GUI ─────────────────────────────────────────────────
-local W,H = 310,440
+local W,H = 298,410
 
 local Gui=Instance.new("ScreenGui")
 Gui.Name="_EM9"; Gui.ResetOnSpawn=false
@@ -213,15 +188,6 @@ local Hdr=Instance.new("Frame",Main)
 Hdr.Size=UDim2.new(1,0,0,34); Hdr.BackgroundColor3=HDR
 Hdr.BorderSizePixel=0; Hdr.ZIndex=2
 Instance.new("UICorner",Hdr).CornerRadius=UDim.new(0,10)
-
--- Gradient on header (subtle obsidian shimmer)
-local hgrad=Instance.new("UIGradient",Hdr)
-hgrad.Color=ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(38,38,52)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(24,24,32)),
-}
-hgrad.Rotation=90
-
 local hfix=Instance.new("Frame",Hdr)
 hfix.Size=UDim2.new(1,0,0.5,0); hfix.Position=UDim2.new(0,0,0.5,0)
 hfix.BackgroundColor3=HDR; hfix.BorderSizePixel=0
@@ -246,7 +212,7 @@ XBtn.Size=UDim2.fromOffset(22,22); XBtn.Position=UDim2.new(1,-25,0.5,-11)
 XBtn.ZIndex=4; XBtn.AutoButtonColor=false
 Instance.new("UICorner",XBtn).CornerRadius=UDim.new(0,5)
 
-XBtn.MouseButton1Click:Connect(function() Main.Visible=false end)
+XBtn.MouseButton1Click:Connect(function() Gui:Destroy() end)
 local mini=false
 MinB.MouseButton1Click:Connect(function()
     mini=not mini
@@ -272,59 +238,15 @@ do local drag,ds,sp
     end)
 end
 
--- ── FLOATING MOBILE TOGGLE ───────────────────────────────────
--- Persistent bottom-right button to show/hide menu on mobile
-local TogGui=Instance.new("ScreenGui")
-TogGui.Name="_EM9Toggle"; TogGui.ResetOnSpawn=false
-TogGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-TogGui.IgnoreGuiInset=true; TogGui.Parent=PGui
-
-local TogBtn=Instance.new("TextButton",TogGui)
-TogBtn.Text="EM"; TogBtn.Font=Enum.Font.GothamBold; TogBtn.TextSize=13
-TogBtn.TextColor3=WHITE; TogBtn.BackgroundColor3=Color3.fromRGB(35,35,50)
-TogBtn.BorderSizePixel=0; TogBtn.AutoButtonColor=false
-TogBtn.Size=UDim2.fromOffset(44,44)
-TogBtn.Position=UDim2.new(1,-52,1,-60)
-TogBtn.ZIndex=10
-Instance.new("UICorner",TogBtn).CornerRadius=UDim.new(0,10)
-local tgs=Instance.new("UIStroke",TogBtn); tgs.Color=CCLIP; tgs.Thickness=1.5
--- Gradient on toggle button
-local tgg=Instance.new("UIGradient",TogBtn)
-tgg.Color=ColorSequence.new{
-    ColorSequenceKeypoint.new(0,Color3.fromRGB(52,52,75)),
-    ColorSequenceKeypoint.new(1,Color3.fromRGB(28,28,42)),
-}
-tgg.Rotation=135
-
-TogBtn.MouseButton1Click:Connect(function()
-    Main.Visible=not Main.Visible
-    if Main.Visible and mini then
-        mini=false
-        Main.Size=UDim2.fromOffset(W,H)
-        MinB.Text="—"
-    end
-    TweenService:Create(TogBtn,TweenInfo.new(0.1),{
-        BackgroundColor3=Main.Visible
-            and Color3.fromRGB(45,45,65)
-            or  Color3.fromRGB(35,35,50)
-    }):Play()
-end)
-TogBtn.MouseEnter:Connect(function()
-    TweenService:Create(TogBtn,TweenInfo.new(0.1),{BackgroundColor3=Color3.fromRGB(50,50,70)}):Play()
-end)
-TogBtn.MouseLeave:Connect(function()
-    TweenService:Create(TogBtn,TweenInfo.new(0.1),{BackgroundColor3=Color3.fromRGB(35,35,50)}):Play()
-end)
-
--- ── TAB BAR ROW 1  (original 4 tabs) ────────────────────────
+-- ── TAB BAR  (4 tabs, manually positioned — NO UIListLayout on bar) ──
 local TBar=Instance.new("Frame",Main)
 TBar.Size=UDim2.new(1,0,0,26); TBar.Position=UDim2.new(0,0,0,34)
 TBar.BackgroundColor3=PANEL; TBar.BorderSizePixel=0
 
-local TW = 0.25
+local TW = 0.25   -- each tab = 25% width
 
-local function makeTab(label, xi, bar)
-    local t=Instance.new("TextButton",bar)
+local function makeTab(label, xi)
+    local t=Instance.new("TextButton",TBar)
     t.Text=label; t.Font=Enum.Font.GothamSemibold; t.TextSize=10
     t.TextColor3=DIM; t.BackgroundColor3=PANEL; t.BorderSizePixel=0
     t.AutoButtonColor=false
@@ -332,51 +254,25 @@ local function makeTab(label, xi, bar)
     return t
 end
 
-local Tab1=makeTab("Structure",0,TBar)
-local Tab2=makeTab("Items",    1,TBar)
-local Tab3=makeTab("Scripts",  2,TBar)
-local Tab4=makeTab("Fruits",   3,TBar)
+local Tab1=makeTab("Structure",0)
+local Tab2=makeTab("Items",    1)
+local Tab3=makeTab("Scripts",  2)
+local Tab4=makeTab("Fruits",   3)
 
--- Indicator row 1
+-- indicator (absolute position, outside any layout)
 local Ind=Instance.new("Frame",TBar)
 Ind.Size=UDim2.new(TW,0,0,2); Ind.Position=UDim2.new(0,0,1,-2)
 Ind.BackgroundColor3=CCLIP; Ind.BorderSizePixel=0; Ind.ZIndex=5
 
--- ── TAB BAR ROW 2  (3 new tabs) ─────────────────────────────
-local TBar2=Instance.new("Frame",Main)
-TBar2.Size=UDim2.new(1,0,0,26); TBar2.Position=UDim2.new(0,0,0,60)
-TBar2.BackgroundColor3=Color3.fromRGB(22,22,30); TBar2.BorderSizePixel=0
-
-local TW2 = 1/3
-
-local function makeTab2(label, xi)
-    local t=Instance.new("TextButton",TBar2)
-    t.Text=label; t.Font=Enum.Font.GothamSemibold; t.TextSize=10
-    t.TextColor3=DIM; t.BackgroundColor3=Color3.fromRGB(22,22,30); t.BorderSizePixel=0
-    t.AutoButtonColor=false
-    t.Size=UDim2.new(TW2,0,1,0); t.Position=UDim2.new(TW2*xi,0,0,0)
-    return t
-end
-
-local Tab5=makeTab2("Research",  0)
-local Tab6=makeTab2("Extraction",1)
-local Tab7=makeTab2("Anti-Suite",2)
-
--- Indicator row 2
-local Ind2=Instance.new("Frame",TBar2)
-Ind2.Size=UDim2.new(TW2,0,0,2); Ind2.Position=UDim2.new(0,0,1,-2)
-Ind2.BackgroundColor3=CRES; Ind2.BorderSizePixel=0; Ind2.ZIndex=5
-Ind2.Visible=false
-
--- Divider line (below both tab rows)
+-- divider line
 local div=Instance.new("Frame",Main)
-div.Size=UDim2.new(1,0,0,1); div.Position=UDim2.new(0,0,0,86)
+div.Size=UDim2.new(1,0,0,1); div.Position=UDim2.new(0,0,0,60)
 div.BackgroundColor3=LINE; div.BorderSizePixel=0
 
 -- ── CONTENT AREA ─────────────────────────────────────────────
 local Con=Instance.new("Frame",Main)
-Con.Size=UDim2.new(1,0,1,-(34+26+26+1))
-Con.Position=UDim2.new(0,0,0,87)
+Con.Size=UDim2.new(1,0,1,-(34+26+1))
+Con.Position=UDim2.new(0,0,0,61)
 Con.BackgroundTransparency=1; Con.ClipsDescendants=true
 
 -- ── SHARED BUILDERS ──────────────────────────────────────────
@@ -393,26 +289,6 @@ local function makePanel()
     return p
 end
 
--- Scrollable panel for content-heavy tabs
-local function makeScrollPanel()
-    local outer=Instance.new("Frame",Con)
-    outer.Size=UDim2.new(1,0,1,0); outer.BackgroundTransparency=1; outer.Visible=false
-    local sc=Instance.new("ScrollingFrame",outer)
-    sc.Size=UDim2.new(1,0,1,0); sc.BackgroundTransparency=1; sc.BorderSizePixel=0
-    sc.ScrollBarThickness=3; sc.ScrollBarImageColor3=LINE
-    sc.CanvasSize=UDim2.new(0,0,0,0)
-    sc.AutomaticCanvasSize=Enum.AutomaticSize.Y
-    sc.ScrollingDirection=Enum.ScrollingDirection.Y
-    local pad=Instance.new("UIPadding",sc)
-    pad.PaddingLeft=UDim.new(0,7); pad.PaddingRight=UDim.new(0,7)
-    pad.PaddingTop=UDim.new(0,7);  pad.PaddingBottom=UDim.new(0,7)
-    local ll=Instance.new("UIListLayout",sc)
-    ll.FillDirection=Enum.FillDirection.Vertical
-    ll.SortOrder=Enum.SortOrder.LayoutOrder
-    ll.Padding=UDim.new(0,5)
-    return outer,sc
-end
-
 local function makeLbl(txt,par,ord)
     local l=Instance.new("TextLabel",par)
     l.Text=txt; l.Font=Enum.Font.GothamSemibold; l.TextSize=10
@@ -420,27 +296,6 @@ local function makeLbl(txt,par,ord)
     l.Size=UDim2.new(1,0,0,13); l.LayoutOrder=ord
     l.TextXAlignment=Enum.TextXAlignment.Left
     return l
-end
-
--- Section header with colored border (for sub-sections in scroll panels)
-local function makeSectionHdr(txt,par,ord,col)
-    col=col or CCLIP
-    local f=Instance.new("Frame",par)
-    f.Size=UDim2.new(1,0,0,20); f.BackgroundColor3=Color3.fromRGB(24,24,34)
-    f.BorderSizePixel=0; f.LayoutOrder=ord
-    Instance.new("UICorner",f).CornerRadius=UDim.new(0,5)
-    local st=Instance.new("UIStroke",f); st.Color=col; st.Thickness=1
-    -- Left accent bar
-    local bar=Instance.new("Frame",f)
-    bar.Size=UDim2.new(0,3,1,-4); bar.Position=UDim2.new(0,3,0,2)
-    bar.BackgroundColor3=col; bar.BorderSizePixel=0
-    Instance.new("UICorner",bar).CornerRadius=UDim.new(0,2)
-    local t=Instance.new("TextLabel",f)
-    t.Text=txt; t.Font=Enum.Font.GothamBold; t.TextSize=10
-    t.TextColor3=col; t.BackgroundTransparency=1
-    t.Size=UDim2.new(1,-12,1,0); t.Position=UDim2.new(0,10,0,0)
-    t.TextXAlignment=Enum.TextXAlignment.Left
-    return f
 end
 
 local function makeOut(par,h,ord)
@@ -487,26 +342,6 @@ local function makeBtn(txt,col,par,sz,ord)
     b.MouseLeave:Connect(function()
         TweenService:Create(b,TweenInfo.new(0.1),{BackgroundColor3=col}):Play() end)
     return b
-end
-
--- Full-width toggle button that shows ON/OFF state
-local function makeToggleBtn(txtOff,txtOn,col0,col1,par,ord)
-    local b=Instance.new("TextButton",par)
-    b.Text="  "..txtOff; b.Font=Enum.Font.GothamBold; b.TextSize=11
-    b.TextColor3=WHITE; b.BackgroundColor3=col0; b.BorderSizePixel=0
-    b.Size=UDim2.new(1,0,0,28); b.LayoutOrder=ord; b.AutoButtonColor=false
-    Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
-    local st=Instance.new("UIStroke",b); st.Color=LINE; st.Thickness=1
-    local state=false
-    local function refresh()
-        b.Text=state and ("  "..txtOn) or ("  "..txtOff)
-        TweenService:Create(b,TweenInfo.new(0.15),{BackgroundColor3=state and col1 or col0}):Play()
-        TweenService:Create(st,TweenInfo.new(0.15),{Color=state and col1 or LINE}):Play()
-    end
-    b.MouseButton1Click:Connect(function()
-        state=not state; refresh()
-    end)
-    return b,function() return state end, function(v) state=v; refresh() end
 end
 
 local function makeBadgeRow(par,ord)
@@ -587,6 +422,7 @@ local SLbl=makeInfo(P3,6)
 -- ════════════════════════════════════════════════════════════
 local P4=makePanel()
 
+-- Status bar at top
 local FruitStatus=Instance.new("TextLabel",P4)
 FruitStatus.Text="Tap a fruit to give it to yourself."
 FruitStatus.Font=Enum.Font.GothamSemibold; FruitStatus.TextSize=10
@@ -594,6 +430,7 @@ FruitStatus.TextColor3=DIM; FruitStatus.BackgroundTransparency=1
 FruitStatus.Size=UDim2.new(1,0,0,13); FruitStatus.LayoutOrder=1
 FruitStatus.TextXAlignment=Enum.TextXAlignment.Left
 
+-- Legend row
 local LegRow=makeBtnRow(P4,16,2)
 for ti,lbl in ipairs({"● Common","● Rare","● Exotic"}) do
     local l=Instance.new("TextLabel",LegRow)
@@ -603,8 +440,9 @@ for ti,lbl in ipairs({"● Common","● Rare","● Exotic"}) do
     l.TextXAlignment=Enum.TextXAlignment.Center
 end
 
+-- Scrollable fruit button list
 local FruitScroll=Instance.new("ScrollingFrame",P4)
-FruitScroll.Size=UDim2.new(1,0,1,-40)
+FruitScroll.Size=UDim2.new(1,0,1,-40)   -- fill remaining space
 FruitScroll.BackgroundColor3=OUTBG; FruitScroll.BorderSizePixel=0
 FruitScroll.ScrollBarThickness=3; FruitScroll.ScrollBarImageColor3=LINE
 FruitScroll.CanvasSize=UDim2.new(0,0,0,0)
@@ -626,9 +464,11 @@ fll.FillDirection=Enum.FillDirection.Vertical
 fll.SortOrder=Enum.SortOrder.LayoutOrder
 fll.Padding=UDim.new(0,4)
 
+-- ── FRUIT GIVE LOGIC ────────────────────────────────────────
 local function giveFruit(name)
     local RS = safeGet("ReplicatedStorage")
     if not RS then return false,"No ReplicatedStorage" end
+
     local locs = {
         RS:FindFirstChild("Crops"),
         RS:FindFirstChild("SpecialFruits"),
@@ -636,6 +476,7 @@ local function giveFruit(name)
         RS:FindFirstChild("Plants"),
         RS,
     }
+
     for _,loc in ipairs(locs) do
         if loc then
             local item = loc:FindFirstChild(name)
@@ -666,18 +507,23 @@ local function giveFruit(name)
                         end
                     end
                 end)
-                if ok then return true,"Gave: "..name.." ✓"
-                else return false,tostring(err) end
+                if ok then
+                    return true, "Gave: "..name.." ✓"
+                else
+                    return false, tostring(err)
+                end
             end
         end
     end
     return false, name.." not found in game"
 end
 
+-- ── BUILD FRUIT BUTTONS ──────────────────────────────────────
 local lastTier = 0
 for idx,info in ipairs(FRUITS) do
     local dname, iname, tier = info[1], info[2], info[3]
     local col = TIER_COLORS[tier]
+
     if tier ~= lastTier then
         lastTier = tier
         local div2=Instance.new("TextLabel",FruitInner)
@@ -687,6 +533,7 @@ for idx,info in ipairs(FRUITS) do
         div2.Size=UDim2.new(1,0,0,12); div2.LayoutOrder=idx*10-1
         div2.TextXAlignment=Enum.TextXAlignment.Left
     end
+
     local fb=Instance.new("TextButton",FruitInner)
     fb.Text=dname; fb.Font=Enum.Font.GothamBold; fb.TextSize=11
     fb.TextColor3=WHITE; fb.BackgroundColor3=col; fb.BorderSizePixel=0
@@ -696,13 +543,15 @@ for idx,info in ipairs(FRUITS) do
         TweenService:Create(fb,TweenInfo.new(0.1),{BackgroundColor3=col:lerp(Color3.new(1,1,1),0.15)}):Play() end)
     fb.MouseLeave:Connect(function()
         TweenService:Create(fb,TweenInfo.new(0.1),{BackgroundColor3=col}):Play() end)
-    local capturedName=iname; local capturedBtn=fb
+
+    local capturedName = iname
+    local capturedBtn  = fb
     fb.MouseButton1Click:Connect(function()
-        capturedBtn.Text="Giving…"
-        local ok,msg=giveFruit(capturedName)
-        FruitStatus.Text=msg
-        FruitStatus.TextColor3=ok and Color3.fromRGB(100,220,100) or Color3.fromRGB(220,80,80)
-        capturedBtn.Text=dname
+        capturedBtn.Text = "Giving…"
+        local ok,msg = giveFruit(capturedName)
+        FruitStatus.Text = msg
+        FruitStatus.TextColor3 = ok and Color3.fromRGB(100,220,100) or Color3.fromRGB(220,80,80)
+        capturedBtn.Text = dname
         if ok then
             TweenService:Create(capturedBtn,TweenInfo.new(0.1),{BackgroundColor3=Color3.fromRGB(50,180,80)}):Play()
             task.delay(0.8,function()
@@ -713,616 +562,24 @@ for idx,info in ipairs(FRUITS) do
 end
 
 -- ════════════════════════════════════════════════════════════
---  PANEL 5 — RESEARCH  (Remote Spy · GUI Inspector · Vuln Scanner)
+--  TAB SWITCHING
 -- ════════════════════════════════════════════════════════════
-local P5,SP5=makeScrollPanel()
-
--- ── Remote Spy ──────────────────────────────────────────────
-makeSectionHdr("1. Remote Spy  (Live)",SP5,10,CSPY)
-local _,_,OuRSpy=makeOut(SP5,90,11)
-OuRSpy.Text="Press Start to begin capturing remote calls."
-local spyConns,spyLogLines={},{}
-local spyOn=false
-local spyBtnRow=makeBtnRow(SP5,28,12)
-local SpyStart=makeBtn("Start Spy",CSPY,spyBtnRow,UDim2.new(0.48,0,1,0),1)
-local SpyStop =makeBtn("Stop",CRST,spyBtnRow,UDim2.new(0.24,-5,1,0),2)
-local SpyClear=makeBtn("Clear",CAC0,spyBtnRow,UDim2.new(0.24,-5,1,0),3)
-local SpyInfo=makeInfo(SP5,13)
-
-local function spyLog(msg)
-    table.insert(spyLogLines,msg)
-    if #spyLogLines>120 then table.remove(spyLogLines,1) end
-    OuRSpy.Text=table.concat(spyLogLines,"\n")
-end
-
-local function hookRemote(r)
-    local ok1,cn=pcall(function() return r.ClassName end)
-    local ok2,nm=pcall(function() return r.Name end)
-    if not ok1 or not ok2 then return end
-    if cn=="RemoteEvent" then
-        local ok3,conn=pcall(function()
-            return r.OnClientEvent:Connect(function(...)
-                local args={}
-                for _,a in ipairs({...}) do
-                    table.insert(args,tostring(a))
-                end
-                spyLog(os.date("%H:%M:%S").." RE↓ "..nm.."("..table.concat(args,",")..")")
-            end)
-        end)
-        if ok3 and conn then table.insert(spyConns,conn) end
-    elseif cn=="RemoteFunction" then
-        spyLog(os.date("%H:%M:%S").." RF  "..nm.." [found]")
-    end
-end
-
-local function startSpy()
-    if spyOn then return end; spyOn=true
-    SpyStart.BackgroundColor3=CSPY:lerp(Color3.new(0,0,0),0.3)
-    SpyInfo.Text="Scanning & hooking remotes…"
-    local function scanRemotes(inst,d)
-        if d>8 then return end
-        local ok,kids=pcall(function() return inst:GetChildren() end)
-        if not ok then return end
-        for _,c in ipairs(kids) do
-            local ok1,cn=pcall(function() return c.ClassName end)
-            if ok1 and (cn=="RemoteEvent" or cn=="RemoteFunction") then
-                hookRemote(c)
-            end
-            if ok1 then scanRemotes(c,d+1) end
-        end
-    end
-    for _,svc in ipairs({"ReplicatedStorage","Workspace","ReplicatedFirst"}) do
-        local s=safeGet(svc); if s then scanRemotes(s,0) end
-    end
-    -- Watch for new remotes
-    local ok,dc=pcall(function()
-        return game.DescendantAdded:Connect(function(d)
-            if not spyOn then return end
-            local ok1,cn=pcall(function() return d.ClassName end)
-            if ok1 and (cn=="RemoteEvent" or cn=="RemoteFunction") then
-                task.wait(0.1); hookRemote(d)
-            end
-        end)
-    end)
-    if ok and dc then table.insert(spyConns,dc) end
-    SpyInfo.Text="Hooked "..#spyConns.." connections"
-end
-
-local function stopSpy()
-    spyOn=false
-    for _,c in ipairs(spyConns) do pcall(function() c:Disconnect() end) end
-    spyConns={}
-    SpyStart.BackgroundColor3=CSPY
-    SpyInfo.Text="Stopped. "..#spyLogLines.." events captured."
-end
-
-SpyStart.MouseButton1Click:Connect(startSpy)
-SpyStop.MouseButton1Click:Connect(stopSpy)
-SpyClear.MouseButton1Click:Connect(function()
-    spyLogLines={}; OuRSpy.Text="Cleared."; SpyInfo.Text=""
-end)
-
--- ── GUI Introspection ────────────────────────────────────────
-makeSectionHdr("2. GUI Introspection",SP5,20,CCLIP)
-local _,_,OuGUI=makeOut(SP5,80,21)
-OuGUI.Text="Press Scan to list all ScreenGuis, Frames and Buttons."
-local guiRow=makeBtnRow(SP5,28,22)
-local GUIScan=makeBtn("Scan GUI",CCLIP,guiRow,UDim2.new(0.48,0,1,0),1)
-local GUICopy=makeBtn("Copy",CCOPY,guiRow,UDim2.new(0.24,-5,1,0),2)
-local GUIRst =makeBtn("Reset",CRST,guiRow,UDim2.new(0.24,-5,1,0),3)
-local GUIInfo=makeInfo(SP5,23)
-local lastGUIOut=""
-
-GUIScan.MouseButton1Click:Connect(function()
-    OuGUI.Text="Scanning…"; GUIInfo.Text=""; task.wait(0.05)
-    local L={}; local counts={ScreenGui=0,Frame=0,TextButton=0,ImageButton=0}
-    local target={ScreenGui=true,Frame=true,TextButton=true,ImageButton=true,ScrollingFrame=true}
-    local function scan(inst,d)
-        if d>7 then return end
-        local ok,kids=pcall(function() return inst:GetChildren() end)
-        if not ok then return end
-        for _,c in ipairs(kids) do
-            local ok1,cn=pcall(function() return c.ClassName end)
-            local ok2,nm=pcall(function() return c.Name end)
-            if ok1 and ok2 and target[cn] then
-                table.insert(L,string.rep("  ",d).."["..cn.."] "..nm)
-                if counts[cn] then counts[cn]=counts[cn]+1 end
-            end
-            if ok1 then scan(c,d+1) end
-        end
-    end
-    table.insert(L,">> PlayerGui")
-    scan(PGui,1)
-    local sg=safeGet("StarterGui"); if sg then table.insert(L,">> StarterGui"); scan(sg,1) end
-    if #L<=2 then table.insert(L,"No GUI objects found.") end
-    lastGUIOut=table.concat(L,"\n"); OuGUI.Text=lastGUIOut
-    GUIInfo.Text=string.format("SG:%d Fr:%d Btn:%d+%d",
-        counts.ScreenGui,counts.Frame,counts.TextButton,counts.ImageButton)
-end)
-GUICopy.MouseButton1Click:Connect(function()
-    if lastGUIOut=="" then OuGUI.Text="Run Scan first."; return end
-    local ok=doclip(lastGUIOut)
-    OuGUI.Text=ok and "Copied!" or "setclipboard unavailable."
-    task.delay(2,function() if OuGUI and OuGUI.Parent then OuGUI.Text=lastGUIOut end end)
-end)
-GUIRst.MouseButton1Click:Connect(function()
-    lastGUIOut=""; OuGUI.Text="Press Scan to list all ScreenGuis, Frames and Buttons."; GUIInfo.Text=""
-end)
-
--- ── Vulnerability Scanner ────────────────────────────────────
-makeSectionHdr("3. Vulnerability Scanner",SP5,30,CVULN)
-local _,_,OuVuln=makeOut(SP5,80,31)
-OuVuln.Text="Press Scan to flag high-risk remotes."
-local vulnRow=makeBtnRow(SP5,28,32)
-local VulnScan=makeBtn("Scan Vulns",CVULN,vulnRow,UDim2.new(0.48,0,1,0),1)
-local VulnCopy=makeBtn("Copy",CCOPY,vulnRow,UDim2.new(0.24,-5,1,0),2)
-local VulnRst =makeBtn("Reset",CRST,vulnRow,UDim2.new(0.24,-5,1,0),3)
-local VulnInfo=makeInfo(SP5,33)
-local lastVulnOut=""
-
-VulnScan.MouseButton1Click:Connect(function()
-    OuVuln.Text="Scanning…"; VulnInfo.Text=""; task.wait(0.05)
-    local L={}; local found=0
-    local function scan(inst,d)
-        if d>8 then return end
-        local ok,kids=pcall(function() return inst:GetChildren() end)
-        if not ok then return end
-        for _,c in ipairs(kids) do
-            local ok1,cn=pcall(function() return c.ClassName end)
-            local ok2,nm=pcall(function() return c.Name end)
-            if ok1 and ok2 and (cn=="RemoteEvent" or cn=="RemoteFunction") then
-                local lo=nm:lower()
-                for _,kw in ipairs(VULN_KW) do
-                    if lo:find(kw,1,true) then
-                        table.insert(L,"⚠ ["..cn.."] "..nm.."  →  kw:"..kw)
-                        found=found+1; break
-                    end
-                end
-            end
-            if ok1 then scan(c,d+1) end
-        end
-    end
-    for _,svc in ipairs({"ReplicatedStorage","Workspace","ReplicatedFirst"}) do
-        local s=safeGet(svc); if s then table.insert(L,">> "..svc); scan(s,0) end
-    end
-    if found==0 then table.insert(L,"No high-risk remotes detected.") end
-    lastVulnOut=table.concat(L,"\n"); OuVuln.Text=lastVulnOut
-    VulnInfo.Text=found.." high-risk remote(s) flagged"
-    if found>0 then VulnInfo.TextColor3=CVULN else VulnInfo.TextColor3=DIM end
-end)
-VulnCopy.MouseButton1Click:Connect(function()
-    if lastVulnOut=="" then OuVuln.Text="Run Scan first."; return end
-    local ok=doclip(lastVulnOut)
-    OuVuln.Text=ok and "Copied!" or "setclipboard unavailable."
-    task.delay(2,function() if OuVuln and OuVuln.Parent then OuVuln.Text=lastVulnOut end end)
-end)
-VulnRst.MouseButton1Click:Connect(function()
-    lastVulnOut=""; OuVuln.Text="Press Scan to flag high-risk remotes."; VulnInfo.Text=""
-end)
-
--- ════════════════════════════════════════════════════════════
---  PANEL 6 — EXTRACTION  (Mass Source Dump · Code Clues)
--- ════════════════════════════════════════════════════════════
-local P6,SP6=makeScrollPanel()
-
--- ── Mass Source Dumper ───────────────────────────────────────
-makeSectionHdr("1. Mass Source Dumper",SP6,10,CEXT)
-local _,_,OuSrc=makeOut(SP6,95,11)
-OuSrc.Text="Press Dump to crawl all accessible script sources."
-local srcRow=makeBtnRow(SP6,28,12)
-local SrcDump=makeBtn("Dump",CEXT,srcRow,UDim2.new(0.34,0,1,0),1)
-local SrcCopy=makeBtn("Copy All",CCOPY,srcRow,UDim2.new(0.33,-5,1,0),2)
-local SrcRst =makeBtn("Reset",CRST,srcRow,UDim2.new(0.33,-5,1,0),3)
-local SrcBR=makeBadgeRow(SP6,13)
-local BgSrcS=makeBadge("Script:0",SrcBR); local BgSrcL=makeBadge("Local:0",SrcBR)
-local SrcInfo=makeInfo(SP6,14)
-local lastSrcOut=""
-
--- ── Code Clues ───────────────────────────────────────────────
-makeSectionHdr("2. Code Clues",SP6,20,Color3.fromRGB(140,115,40))
-local _,_,OuClue=makeOut(SP6,80,21)
-OuClue.Text="Run Dump first, then press Analyze."
-local clueRow=makeBtnRow(SP6,28,22)
-local ClueAnalyze=makeBtn("Analyze",Color3.fromRGB(140,115,40),clueRow,UDim2.new(0.48,0,1,0),1)
-local ClueCopy   =makeBtn("Copy",CCOPY,clueRow,UDim2.new(0.24,-5,1,0),2)
-local ClueRst    =makeBtn("Reset",CRST,clueRow,UDim2.new(0.24,-5,1,0),3)
-local ClueInfo=makeInfo(SP6,23)
-local lastClueOut=""
-local cachedSources={}
-
-SrcDump.MouseButton1Click:Connect(function()
-    OuSrc.Text="Crawling scripts…"; SrcInfo.Text=""; task.wait(0.05)
-    local L={}; local seen={}; local scC,lsC,msC=0,0,0
-    cachedSources={}
-    table.insert(L,string.format("[ %s | PlaceId:%d ]\n",os.date("%H:%M:%S"),game.PlaceId))
-    local function scan(inst,d)
-        if d>12 then return end
-        local ok,kids=pcall(function() return inst:GetChildren() end)
-        if not ok then return end
-        for _,c in ipairs(kids) do
-            local ok1,cn=pcall(function() return c.ClassName end)
-            local ok2,nm=pcall(function() return c.Name end)
-            if ok1 and ok2 and SCR_CLS[cn] then
-                local ptr=tostring(c)
-                if not seen[ptr] then
-                    seen[ptr]=true
-                    local hasSrc,src=pcall(function() return c.Source end)
-                    if hasSrc and src and #src>0 then
-                        table.insert(L,"-- ["..cn.."] "..nm.." ("..#src.." chars)")
-                        local preview=src:sub(1,400)
-                        table.insert(L,preview)
-                        if #src>400 then table.insert(L,"... [truncated]") end
-                        table.insert(L,"")
-                        table.insert(cachedSources,{cn=cn,nm=nm,src=src})
-                        if cn=="Script" then scC=scC+1
-                        elseif cn=="LocalScript" then lsC=lsC+1
-                        else msC=msC+1 end
-                    else
-                        table.insert(L,"-- ["..cn.."] "..nm.." [No Source Access]")
-                    end
-                end
-            end
-            scan(c,d+1)
-        end
-    end
-    for _,svc in ipairs(SCR_SVCS) do
-        local s=safeGet(svc)
-        if s then table.insert(L,">> "..svc); scan(s,0); table.insert(L,"") end
-    end
-    local ch=LP.Character; if ch then scan(ch,0) end
-    local ps=LP:FindFirstChild("PlayerScripts"); if ps then scan(ps,0) end
-    local tot=scC+lsC+msC
-    if tot==0 then table.insert(L,"No accessible script sources found.") end
-    lastSrcOut=table.concat(L,"\n"); OuSrc.Text=lastSrcOut
-    BgSrcS.Text="Script:"..scC; BgSrcL.Text="Local:"..lsC
-    SrcInfo.Text=tot.." scripts with source | Module:"..msC
-    OuClue.Text="Run Analyze to extract logic clues."
-end)
-SrcCopy.MouseButton1Click:Connect(function()
-    if lastSrcOut=="" then OuSrc.Text="Run Dump first."; return end
-    local ok=doclip(lastSrcOut)
-    OuSrc.Text=ok and ("Copied "..#lastSrcOut.." chars!") or "setclipboard unavailable."
-    task.delay(2.5,function() if OuSrc and OuSrc.Parent then OuSrc.Text=lastSrcOut end end)
-end)
-SrcRst.MouseButton1Click:Connect(function()
-    lastSrcOut=""; cachedSources={}
-    OuSrc.Text="Press Dump to crawl all accessible script sources."
-    BgSrcS.Text="Script:0"; BgSrcL.Text="Local:0"; SrcInfo.Text=""
-end)
-
-ClueAnalyze.MouseButton1Click:Connect(function()
-    if #cachedSources==0 then OuClue.Text="Run Dump first."; return end
-    local L={}; local hits=0
-    table.insert(L,"Code Clues  ("..#cachedSources.." scripts analyzed)\n")
-    for _,entry in ipairs(cachedSources) do
-        local lo=entry.src:lower()
-        local found={}
-        for _,pat in ipairs(CLUE_PAT) do
-            if lo:find(pat.p,1,true) then table.insert(found,pat.lbl) end
-        end
-        if #found>0 then
-            table.insert(L,"["..entry.cn.."] "..entry.nm)
-            for _,clue in ipairs(found) do
-                table.insert(L,"  → "..clue)
-                hits=hits+1
-            end
-        end
-    end
-    if hits==0 then table.insert(L,"No notable patterns detected.") end
-    lastClueOut=table.concat(L,"\n"); OuClue.Text=lastClueOut
-    ClueInfo.Text=hits.." clue(s) found across "..#cachedSources.." scripts"
-end)
-ClueCopy.MouseButton1Click:Connect(function()
-    if lastClueOut=="" then OuClue.Text="Run Analyze first."; return end
-    local ok=doclip(lastClueOut)
-    OuClue.Text=ok and "Copied!" or "setclipboard unavailable."
-    task.delay(2,function() if OuClue and OuClue.Parent then OuClue.Text=lastClueOut end end)
-end)
-ClueRst.MouseButton1Click:Connect(function()
-    lastClueOut=""; OuClue.Text="Run Dump first, then press Analyze."; ClueInfo.Text=""
-end)
-
--- ════════════════════════════════════════════════════════════
---  PANEL 7 — ANTI-SUITE  (Anti-Log · Anti-AFK · Staff Detector · Kick Protection)
--- ════════════════════════════════════════════════════════════
-local P7,SP7=makeScrollPanel()
-
--- ── Anti-Log ─────────────────────────────────────────────────
-makeSectionHdr("1. Anti-Log",SP7,10,CANT)
-local antiLogLbl=makeInfo(SP7,11)
-antiLogLbl.Text="Removes analytics/telemetry remotes from the game."
-local antiLogBtn,getAntiLogState,setAntiLogState=makeToggleBtn(
-    "Anti-Log: OFF","Anti-Log: ON",CAC0,CAC1,SP7,12)
-local antiLogInfo=makeInfo(SP7,13)
-
-local function runAntiLog()
-    local removed=0
-    local function scan(inst,d)
-        if d>8 then return end
-        local ok,kids=pcall(function() return inst:GetChildren() end)
-        if not ok then return end
-        for _,c in ipairs(kids) do
-            local ok1,cn=pcall(function() return c.ClassName end)
-            local ok2,nm=pcall(function() return c.Name end)
-            if ok1 and ok2 and (cn=="RemoteEvent" or cn=="RemoteFunction") then
-                local lo=nm:lower()
-                for _,kw in ipairs(LOG_KW) do
-                    if lo:find(kw,1,true) then
-                        local ok3=pcall(function() c:Destroy() end)
-                        if ok3 then removed=removed+1 end
-                        break
-                    end
-                end
-            end
-            if ok1 then scan(c,d+1) end
-        end
-    end
-    for _,svc in ipairs({"ReplicatedStorage","Workspace","ReplicatedFirst"}) do
-        local s=safeGet(svc); if s then scan(s,0) end
-    end
-    return removed
-end
-
-local antiLogConn
-antiLogBtn.MouseButton1Click:Connect(function()
-    local on=getAntiLogState()
-    if on then
-        local n=runAntiLog()
-        antiLogInfo.Text=string.format("Removed %d analytics remote(s)",n)
-        antiLogInfo.TextColor3=n>0 and CAC1 or DIM
-        if antiLogConn then antiLogConn:Disconnect(); antiLogConn=nil end
-        local ok; ok,antiLogConn=pcall(function()
-            return game.DescendantAdded:Connect(function(d)
-                if not getAntiLogState() then return end
-                local ok1,cn=pcall(function() return d.ClassName end)
-                local ok2,nm=pcall(function() return d.Name end)
-                if ok1 and ok2 and (cn=="RemoteEvent" or cn=="RemoteFunction") then
-                    local lo=nm:lower()
-                    for _,kw in ipairs(LOG_KW) do
-                        if lo:find(kw,1,true) then
-                            pcall(function() d:Destroy() end); break
-                        end
-                    end
-                end
-            end)
-        end)
-    else
-        if antiLogConn then antiLogConn:Disconnect(); antiLogConn=nil end
-        antiLogInfo.Text="Anti-Log stopped."
-        antiLogInfo.TextColor3=DIM
-    end
-end)
-
--- ── Anti-AFK ──────────────────────────────────────────────────
-makeSectionHdr("2. Anti-AFK",SP7,20,Color3.fromRGB(60,100,140))
-local afkLbl=makeInfo(SP7,21)
-afkLbl.Text="Simulates input every 25s to prevent idle kick."
-local afkBtn,getAFKState,setAFKState=makeToggleBtn(
-    "Anti-AFK: OFF","Anti-AFK: ON",CAC0,Color3.fromRGB(50,110,155),SP7,22)
-local afkInfo=makeInfo(SP7,23)
-local afkConn,afkTimer
-
-afkBtn.MouseButton1Click:Connect(function()
-    local on=getAFKState()
-    if on then
-        afkTimer=0
-        afkConn=game:GetService("RunService").Heartbeat:Connect(function(dt)
-            if not getAFKState() then return end
-            afkTimer=afkTimer+dt
-            if afkTimer>=25 then
-                afkTimer=0
-                local VU=pcall(game.GetService,game,"VirtualUser") and game:GetService("VirtualUser") or nil
-                if VU then
-                    pcall(function() VU:Button1Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame) end)
-                    task.wait(0.05)
-                    pcall(function() VU:Button1Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame) end)
-                    afkInfo.Text=os.date("%H:%M:%S").." — input simulated"
-                else
-                    afkInfo.Text="VirtualUser not available"
-                end
-            end
-        end)
-        afkInfo.Text="Running — fires every 25s"
-        afkInfo.TextColor3=Color3.fromRGB(60,180,220)
-    else
-        if afkConn then afkConn:Disconnect(); afkConn=nil end
-        afkInfo.Text="Anti-AFK stopped."; afkInfo.TextColor3=DIM
-    end
-end)
-
--- ── Staff Detector ───────────────────────────────────────────
-makeSectionHdr("3. Staff Detector  (Live)",SP7,30,Color3.fromRGB(180,140,20))
-local staffLbl=makeInfo(SP7,31)
-staffLbl.Text="Alerts when a staff/admin player joins the server."
-local staffBtn,getStaffState,setStaffState=makeToggleBtn(
-    "Staff Monitor: OFF","Staff Monitor: ON",CAC0,Color3.fromRGB(160,120,10),SP7,32)
-local staffStatus=Instance.new("TextLabel",SP7)
-staffStatus.Text="No alerts yet."; staffStatus.Font=Enum.Font.Gotham; staffStatus.TextSize=10
-staffStatus.TextColor3=DIM; staffStatus.BackgroundColor3=OUTBG
-staffStatus.Size=UDim2.new(1,0,0,28); staffStatus.LayoutOrder=33; staffStatus.BorderSizePixel=0
-staffStatus.TextXAlignment=Enum.TextXAlignment.Left
-staffStatus.TextWrapped=true
-Instance.new("UICorner",staffStatus).CornerRadius=UDim.new(0,5)
-local ssp=Instance.new("UIPadding",staffStatus)
-ssp.PaddingLeft=UDim.new(0,6); ssp.PaddingRight=UDim.new(0,6)
-
-local staffAlertCount=0
-local staffConn
-
-local function checkStaffPlayer(p)
-    local nm=(p.Name or ""):lower()
-    local dn=(p.DisplayName or ""):lower()
-    for _,kw in ipairs(STAFF_KW) do
-        if nm:find(kw,1,true) or dn:find(kw,1,true) then
-            return true, kw
-        end
-    end
-    -- Try group rank check
-    local ok,rank=pcall(function()
-        for _,g in ipairs(p:GetGroupsAsync()) do
-            if g.Rank>=200 then return g.Rank,g.Name end
-        end
-        return nil
-    end)
-    if ok and rank then return true,"rank "..tostring(rank) end
-    return false,nil
-end
-
-staffBtn.MouseButton1Click:Connect(function()
-    local on=getStaffState()
-    if on then
-        staffStatus.Text="Monitoring — watching for staff joins…"
-        staffStatus.TextColor3=Color3.fromRGB(200,180,40)
-        -- Check existing players
-        for _,p in ipairs(Players:GetPlayers()) do
-            if p~=LP then
-                local isStaff,reason=checkStaffPlayer(p)
-                if isStaff then
-                    staffAlertCount=staffAlertCount+1
-                    staffStatus.Text="⚠ STAFF: "..p.Name.." ("..tostring(reason)..") already in server"
-                    staffStatus.TextColor3=CVULN
-                end
-            end
-        end
-        staffConn=Players.PlayerAdded:Connect(function(p)
-            if not getStaffState() then return end
-            task.wait(1)
-            local isStaff,reason=checkStaffPlayer(p)
-            if isStaff then
-                staffAlertCount=staffAlertCount+1
-                staffStatus.Text="⚠ STAFF JOINED: "..p.Name.." ("..tostring(reason)..")"
-                staffStatus.TextColor3=CVULN
-                TweenService:Create(staffStatus,TweenInfo.new(0.2),{BackgroundColor3=Color3.fromRGB(80,30,10)}):Play()
-                task.delay(3,function()
-                    TweenService:Create(staffStatus,TweenInfo.new(0.5),{BackgroundColor3=OUTBG}):Play()
-                end)
-            end
-        end)
-    else
-        if staffConn then staffConn:Disconnect(); staffConn=nil end
-        staffStatus.Text="Monitor stopped. Alerts: "..staffAlertCount
-        staffStatus.TextColor3=DIM
-    end
-end)
-
--- ── Kick Protection ───────────────────────────────────────────
-makeSectionHdr("4. Kick Protection",SP7,40,CRST)
-local kickLbl=makeInfo(SP7,41)
-kickLbl.Text="Alerts on client-side kick attempts (heads-up only)."
-local kickBtn,getKickState,setKickState=makeToggleBtn(
-    "Kick Guard: OFF","Kick Guard: ON",CAC0,Color3.fromRGB(140,50,55),SP7,42)
-local kickStatus=Instance.new("TextLabel",SP7)
-kickStatus.Text="No kick attempts detected."; kickStatus.Font=Enum.Font.Gotham; kickStatus.TextSize=10
-kickStatus.TextColor3=DIM; kickStatus.BackgroundColor3=OUTBG
-kickStatus.Size=UDim2.new(1,0,0,28); kickStatus.LayoutOrder=43; kickStatus.BorderSizePixel=0
-kickStatus.TextXAlignment=Enum.TextXAlignment.Left; kickStatus.TextWrapped=true
-Instance.new("UICorner",kickStatus).CornerRadius=UDim.new(0,5)
-local ksp=Instance.new("UIPadding",kickStatus)
-ksp.PaddingLeft=UDim.new(0,6); ksp.PaddingRight=UDim.new(0,6)
-
-local kickConns={}
-local function startKickGuard()
-    -- Hook kick-named remotes (OnClientEvent)
-    local function hookKickRemote(r)
-        local ok1,cn=pcall(function() return r.ClassName end)
-        local ok2,nm=pcall(function() return r.Name end)
-        if not ok1 or not ok2 then return end
-        local lo=nm:lower()
-        local isKick=false
-        for _,kw in ipairs(KICK_KW) do if lo:find(kw,1,true) then isKick=true; break end end
-        if not isKick then return end
-        if cn=="RemoteEvent" then
-            local ok3,conn=pcall(function()
-                return r.OnClientEvent:Connect(function(...)
-                    if not getKickState() then return end
-                    kickStatus.Text="⚠ KICK REMOTE FIRED: "..nm.." at "..os.date("%H:%M:%S")
-                    kickStatus.TextColor3=CRST
-                    TweenService:Create(kickStatus,TweenInfo.new(0.15),{BackgroundColor3=Color3.fromRGB(80,20,20)}):Play()
-                    task.delay(4,function()
-                        TweenService:Create(kickStatus,TweenInfo.new(0.5),{BackgroundColor3=OUTBG}):Play()
-                    end)
-                end)
-            end)
-            if ok3 and conn then table.insert(kickConns,conn) end
-        end
-    end
-    local function scan(inst,d)
-        if d>8 then return end
-        local ok,kids=pcall(function() return inst:GetChildren() end)
-        if not ok then return end
-        for _,c in ipairs(kids) do
-            local ok1=pcall(function() return c.ClassName end)
-            if ok1 then hookKickRemote(c); scan(c,d+1) end
-        end
-    end
-    for _,svc in ipairs({"ReplicatedStorage","Workspace","ReplicatedFirst"}) do
-        local s=safeGet(svc); if s then scan(s,0) end
-    end
-    -- Watch for character removal (force disconnect indicator)
-    local ok2,conn2=pcall(function()
-        return LP.AncestryChanged:Connect(function()
-            if not LP.Parent and getKickState() then
-                kickStatus.Text="⚠ LocalPlayer ancestry changed — possible kick/removal"
-                kickStatus.TextColor3=CRST
-            end
-        end)
-    end)
-    if ok2 and conn2 then table.insert(kickConns,conn2) end
-    kickStatus.Text="Watching "..#kickConns.." kick vector(s)…"
-    kickStatus.TextColor3=Color3.fromRGB(150,200,150)
-end
-
-kickBtn.MouseButton1Click:Connect(function()
-    local on=getKickState()
-    if on then
-        startKickGuard()
-    else
-        for _,c in ipairs(kickConns) do pcall(function() c:Disconnect() end) end
-        kickConns={}
-        kickStatus.Text="Kick Guard stopped."; kickStatus.TextColor3=DIM
-    end
-end)
-
--- ════════════════════════════════════════════════════════════
---  TAB SWITCHING  (7 tabs, 2 rows)
--- ════════════════════════════════════════════════════════════
-local ALL_TABS   = {Tab1,Tab2,Tab3,Tab4,Tab5,Tab6,Tab7}
-local ALL_PANELS = {P1,P2,P3,P4,P5,P6,P7}
-local ALL_COLS   = {CCLIP,CITM,CSCR,CFR1,CRES,CEXT,CANT}
-local ALL_ROW    = {1,1,1,1,2,2,2}   -- which tab bar row each tab belongs to
+local ALL_TABS   = {Tab1,Tab2,Tab3,Tab4}
+local ALL_PANELS = {P1,P2,P3,P4}
+local ALL_COLS   = {CCLIP,CITM,CSCR,CFR1}
 local curTab     = 0
 
 local function switchTab(idx)
     if curTab==idx then return end; curTab=idx
-    -- Show / hide panels
-    for i=1,7 do
-        ALL_PANELS[i].Visible=(i==idx)
-        local isRow1=(ALL_ROW[i]==1)
-        local barCol=isRow1 and PANEL or Color3.fromRGB(22,22,30)
-        ALL_TABS[i].TextColor3      = (i==idx) and TEXT  or DIM
-        ALL_TABS[i].BackgroundColor3= (i==idx) and BTN   or barCol
+    for i=1,4 do
+        ALL_PANELS[i].Visible       = (i==idx)
+        ALL_TABS[i].TextColor3      = (i==idx) and TEXT or DIM
+        ALL_TABS[i].BackgroundColor3= (i==idx) and BTN  or PANEL
         ALL_TABS[i].Font            = (i==idx) and Enum.Font.GothamBold or Enum.Font.GothamSemibold
     end
-    -- Animate indicator in the correct row; hide the other
-    local row=ALL_ROW[idx]
-    if row==1 then
-        Ind.Visible=true; Ind2.Visible=false
-        TweenService:Create(Ind,TweenInfo.new(0.15),{
-            Position=UDim2.new(TW*(idx-1),0,1,-2),
-            BackgroundColor3=ALL_COLS[idx],
-        }):Play()
-    else
-        Ind.Visible=false; Ind2.Visible=true
-        local xi=idx-5   -- 0,1,2 for tabs 5,6,7
-        TweenService:Create(Ind2,TweenInfo.new(0.15),{
-            Position=UDim2.new(TW2*xi,0,1,-2),
-            BackgroundColor3=ALL_COLS[idx],
-        }):Play()
-    end
-    -- Slide-in animation on content area
-    Con.Position=UDim2.new(0,8,0,87)
-    TweenService:Create(Con,TweenInfo.new(0.14,Enum.EasingStyle.Quint),{
-        Position=UDim2.new(0,0,0,87)
+    TweenService:Create(Ind,TweenInfo.new(0.15),{
+        Position=UDim2.new(TW*(idx-1),0,1,-2),
+        BackgroundColor3=ALL_COLS[idx],
     }):Play()
 end
 
@@ -1330,9 +587,6 @@ Tab1.MouseButton1Click:Connect(function() switchTab(1) end)
 Tab2.MouseButton1Click:Connect(function() switchTab(2) end)
 Tab3.MouseButton1Click:Connect(function() switchTab(3) end)
 Tab4.MouseButton1Click:Connect(function() switchTab(4) end)
-Tab5.MouseButton1Click:Connect(function() switchTab(5) end)
-Tab6.MouseButton1Click:Connect(function() switchTab(6) end)
-Tab7.MouseButton1Click:Connect(function() switchTab(7) end)
 switchTab(1)
 
 -- ════════════════════════════════════════════════════════════
@@ -1581,10 +835,12 @@ BCSRs.MouseButton1Click:Connect(function()
     SLbl.Text=""; ScP.CanvasPosition=Vector2.zero
 end)
 
--- ── OPEN ANIMATION  (Back easing for a satisfying spring-in) ─
+-- ── OPEN ANIMATION ───────────────────────────────────────────
 Main.BackgroundTransparency=1
-Main.Position=UDim2.new(0.5,-W/2,0.5,-H/2+18)
-TweenService:Create(Main,TweenInfo.new(0.28,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{
+Main.Position=UDim2.new(0.5,-W/2,0.5,-H/2+12)
+TweenService:Create(Main,TweenInfo.new(0.2,Enum.EasingStyle.Quint),{
     BackgroundTransparency=0,
     Position=UDim2.new(0.5,-W/2,0.5,-H/2),
 }):Play()
+
+print("[ExploitMenu v9]  Structure | Items | Scripts | Fruits — all panels ready")
